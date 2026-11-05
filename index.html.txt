@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Smoke Shop</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*{font-family:'Cairo',sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:#0b0f19;color:#f8fafc;padding-bottom:70px}
+.neon{box-shadow:0 0 10px rgba(0,210,255,0.2)}
+.hide-sb::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- شريط المالك -->
+<div id="ownerBar" class="hidden bg-amber-600 text-white px-3 py-1.5 text-xs font-bold flex justify-between items-center sticky top-0 z-50">
+  <span>🛡️ وضع المالك نشط (اضغط على السعر للتعديل)</span>
+  <div class="flex gap-2">
+    <button onclick="openSetModal()" class="bg-black/30 px-2 py-0.5 rounded">⚙️ إعدادات</button>
+    <button onclick="exitOwner()" class="bg-red-800 px-2 py-0.5 rounded">خروج</button>
+  </div>
+</div>
+
+<!-- الهيدر -->
+<header class="bg-slate-900/90 backdrop-blur sticky top-0 z-40 border-b border-slate-800 px-3 py-2 flex items-center justify-between">
+  <div class="flex items-center gap-2">
+    <img id="hLogo" class="w-10 h-10 rounded-full border border-amber-500/50 object-cover" alt="Smoke Shop Logo">
+    <div>
+      <h1 class="text-base font-black text-amber-400">SMOKE SHOP</h1>
+      <p class="text-[10px] text-slate-400">قائمة الأسعار والطلبات الفورية</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <button onclick="promptOwner()" class="w-8 h-8 rounded-full bg-slate-800 text-xs flex items-center justify-center border border-slate-700">🛡️</button>
+    <button onclick="tab('cart')" class="relative w-9 h-9 rounded-full bg-amber-500 text-slate-950 font-black flex items-center justify-center">
+      🛒<span id="badge" class="hidden absolute -top-1 -right-1 bg-cyan-400 text-slate-950 text-[10px] w-4 h-4 rounded-full flex items-center justify-center">0</span>
+    </button>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto w-full px-3 pt-3 flex-1">
+  <!-- الكتالوج -->
+  <section id="tab-cat" class="space-y-3">
+    <div class="flex items-center gap-3 bg-slate-900 p-3 rounded-xl border border-slate-800">
+      <img id="bLogo" class="w-14 h-14 rounded-xl border border-cyan-500/40 object-cover" alt="Smoke Shop">
+      <div>
+        <span class="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded font-bold" id="updDate">مباشر ومُحدث</span>
+        <h2 class="text-sm font-bold text-white mt-1">أهلاً بكم في متجر Smoke Shop</h2>
+      </div>
+    </div>
+
+    <input type="text" id="srch" oninput="renderP()" placeholder="🔍 ابحث عن صنف..." class="w-full bg-slate-900 border border-slate-700 text-white rounded-xl py-2 px-3 text-xs focus:outline-none">
+
+    <div class="flex gap-1.5 overflow-x-auto pb-1 hide-sb" id="cats"></div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5" id="grid"></div>
+  </section>
+
+  <!-- السلة -->
+  <section id="tab-cart" class="hidden space-y-3">
+    <div class="bg-slate-900 rounded-xl p-3 border border-slate-800">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h2 class="font-bold text-amber-400 text-sm">🧾 تفاصيل الفاتورة</h2>
+        <button onclick="clrCart()" class="text-[11px] text-red-400 font-bold">تفريغ</button>
+      </div>
+      <div id="cItems" class="divide-y divide-slate-800/80 my-2"></div>
+
+      <div class="bg-slate-950 p-2.5 rounded-lg space-y-2 text-xs border border-slate-800">
+        <div class="flex justify-between text-slate-300">
+          <span>إجمالي الأصناف:</span><span id="subTot" class="font-bold text-white">0 ج.م</span>
+        </div>
+        <div class="pt-2 border-t border-slate-800">
+          <label class="block text-[11px] font-bold text-amber-400 mb-1">طريقة الاستلام:</label>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <label class="flex items-center gap-1.5 p-1.5 bg-slate-900 rounded border border-slate-700">
+              <input type="radio" name="delType" value="pickup" checked onchange="tgDel()"> <span>استلام من المحل</span>
+            </label>
+            <label class="flex items-center gap-1.5 p-1.5 bg-slate-900 rounded border border-slate-700">
+              <input type="radio" name="delType" value="del" onchange="tgDel()"> <span>توصيل دليفري 🛵</span>
+            </label>
+          </div>
+        </div>
+        <div id="delBox" class="hidden pt-2 space-y-1.5">
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] text-slate-400">سعر التوصيل (يدوي):</span>
+            <input type="number" id="delFee" oninput="updTot()" value="20" class="w-16 bg-slate-900 border border-slate-700 text-amber-400 font-bold rounded py-0.5 px-1 text-center text-xs">
+            <span class="text-xs">ج.م</span>
+          </div>
+          <input type="text" id="custAddr" placeholder="العنوان بالتفصيل..." class="w-full bg-slate-900 border border-slate-700 text-white rounded p-1.5 text-xs">
+        </div>
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+          <input type="text" id="cName" placeholder="اسم العميل" class="bg-slate-900 border border-slate-700 text-white rounded p-1.5 text-xs">
+          <input type="tel" id="cPhone" placeholder="رقم الهاتف" class="bg-slate-900 border border-slate-700 text-white rounded p-1.5 text-xs">
+        </div>
+        <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-800 font-black">
+          <span>المطلوب دفعه:</span><span id="grndTot" class="text-amber-400 text-base">0 ج.م</span>
+        </div>
+      </div>
+      <button onclick="sendOrder()" class="w-full mt-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-1">
+        📲 تأكيد الطلب وإرسال عبر واتساب المحل
+      </button>
+    </div>
+  </section>
+
+  <!-- تحديث الأسعار من الواتس -->
+  <section id="tab-upd" class="hidden space-y-3">
+    <div class="bg-slate-900 rounded-xl p-3 border border-slate-800">
+      <h2 class="font-bold text-white text-sm">📋 تحديث الأسعار من منشور الواتس</h2>
+      <p class="text-[11px] text-slate-400 mb-2">الصق نص المنشور اليومي:</p>
+      <textarea id="wpText" rows="6" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم نص كيلو ١٢٠٠" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-amber-300 font-mono"></textarea>
+      <button onclick="parseWp()" class="w-full mt-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2 rounded-lg text-xs">⚡ تحديث الأسعار الآن</button>
+    </div>
+  </section>
+
+  <!-- لوحة التجهيز -->
+  <section id="tab-ord" class="hidden space-y-3">
+    <div class="bg-slate-900 rounded-xl p-3 border border-slate-800">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h2 class="font-bold text-white text-sm">📋 شاشة مسؤول التجهيز</h2>
+        <button onclick="clrOrd()" class="text-[11px] text-red-400 font-bold">مسح الكل</button>
+      </div>
+      <div id="ordList" class="space-y-2 mt-2"></div>
+    </div>
+  </section>
+</main>
+
+<!-- الشريط السفلي -->
+<nav class="fixed bottom-0 left-0 right-0 bg-slate-950/95 border-t border-slate-800 z-40 px-3 py-1.5">
+  <div class="max-w-md mx-auto grid grid-cols-4 gap-1 text-center">
+    <button onclick="tab('cat')" id="nb-cat" class="text-amber-400 text-[10px] font-bold">🛍️<br>المنتجات</button>
+    <button onclick="tab('cart')" id="nb-cart" class="text-slate-400 text-[10px] font-bold">🛒<br>الفاتورة</button>
+    <button onclick="tab('upd')" id="nb-upd" class="text-slate-400 text-[10px] font-bold">⚡<br>تحديث</button>
+    <button onclick="tab('ord')" id="nb-ord" class="text-slate-400 text-[10px] font-bold">📋<br>التجهيز</button>
+  </div>
+</nav>
+
+<!-- نوافذ منبثقة -->
+<div id="pModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-3">
+  <div class="bg-slate-900 border border-slate-700 w-full max-w-xs rounded-xl p-4 space-y-3 text-xs">
+    <h3 class="font-black text-amber-400" id="pmTitle">تعديل الصنف</h3>
+    <input type="text" id="pmName" class="w-full bg-slate-800 border border-slate-700 text-white p-1.5 rounded">
+    <input type="number" id="pmPrice" class="w-full bg-slate-800 border border-slate-700 text-amber-400 p-1.5 rounded font-bold text-sm">
+    <div class="flex gap-2">
+      <button onclick="savePChange()" class="flex-1 bg-amber-500 text-slate-950 font-bold py-1.5 rounded">حفظ</button>
+      <button onclick="document.getElementById('pModal').classList.add('hidden')" class="px-3 bg-slate-800 rounded">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div id="setModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-3">
+  <div class="bg-slate-900 border border-slate-700 w-full max-w-xs rounded-xl p-4 space-y-3 text-xs">
+    <h3 class="font-black text-amber-400">إعدادات المالك</h3>
+    <div><label class="text-slate-400">هاتف الواتساب:</label><input type="text" id="stPhone" class="w-full bg-slate-800 border border-slate-700 text-white p-1.5 rounded mt-1"></div>
+    <div><label class="text-slate-400">رمز PIN:</label><input type="password" id="stPin" class="w-full bg-slate-800 border border-slate-700 text-white p-1.5 rounded mt-1"></div>
+    <div class="flex gap-2">
+      <button onclick="saveSet()" class="flex-1 bg-amber-500 text-slate-950 font-bold py-1.5 rounded">حفظ</button>
+      <button onclick="document.getElementById('setModal').classList.add('hidden')" class="px-3 bg-slate-800 rounded">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div id="camModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-3">
+  <div class="bg-slate-900 border border-slate-700 w-full max-w-xs rounded-xl p-4 space-y-3 text-center text-xs">
+    <h3 class="font-bold text-cyan-400">تغيير صورة المنتج</h3>
+    <label class="block w-full py-2 bg-cyan-600 text-white font-bold rounded cursor-pointer">
+      📷 التقاط بالكاميرا
+      <input type="file" accept="image/*" capture="environment" onchange="uploadImg(event)" class="hidden">
+    </label>
+    <label class="block w-full py-2 bg-slate-800 text-slate-200 rounded cursor-pointer border border-slate-700">
+      🖼️ اختيار من المعرض
+      <input type="file" accept="image/*" onchange="uploadImg(event)" class="hidden">
+    </label>
+    <button onclick="document.getElementById('camModal').classList.add('hidden')" class="text-slate-400 pt-1">إغلاق</button>
+  </div>
+</div>
+
+<script>
+const LOGO = "https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png";
+
+const INIT_P = [
+{id:1,name:"كيلوباترا",c:"local",p:485,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M2_009_1.JPG"},
+{id:2,name:"بوكس",c:"local",p:485,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M2_009_1.JPG"},
+{id:3,name:"سوبر",c:"local",p:495,u:"خرطوشة"},
+{id:4,name:"ال ام احمر",c:"for",p:825,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M1_015_4.JPG"},
+{id:5,name:"ال ام ازرق",c:"for",p:825,u:"خرطوشة",i:"https://img.hitcigars.com/LM-BL-IDF/lm-blue-label-idf-1.jpg"},
+{id:6,name:"ال ام ابيض",c:"for",p:810,u:"خرطوشة"},
+{id:7,name:"مارلبورو",c:"for",p:1020,u:"خرطوشة",i:"https://smokingshops.com/cdn/shop/files/marlboro_1.webp"},
+{id:8,name:"ميريت",c:"for",p:1115,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M1_010_2.JPG"},
+{id:9,name:"مارلبورو كرافتد",c:"for",p:785,u:"خرطوشة"},
+{id:10,name:"ونستون",c:"for",p:705,u:"خرطوشة",i:"https://smokdubai.com/wp-content/uploads/2025/11/Winston-Red-Classic-cigarettes.jpg"},
+{id:11,name:"تارجت شركه",c:"oth",p:485,u:"خرطوشة"},
+{id:12,name:"تايم شركه",c:"oth",p:570,u:"خرطوشة"},
+{id:13,name:"دوف ايفولف",c:"for",p:610,u:"خرطوشة"},
+{id:14,name:"جولد كوست",c:"oth",p:480,u:"خرطوشة"},
+{id:15,name:"دوف",c:"for",p:1020,u:"خرطوشة"},
+{id:16,name:"كنتاكى",c:"oth",p:220,u:"خرطوشة"},
+{id:17,name:"ال ان",c:"oth",p:220,u:"خرطوشة"},
+{id:18,name:"ريد قديم",c:"oth",p:375,u:"خرطوشة"},
+{id:19,name:"ريد جديد",c:"oth",p:315,u:"خرطوشة"},
+{id:20,name:"كاريلا احمر",c:"oth",p:370,u:"خرطوشة"},
+{id:21,name:"كاريلا ازرق",c:"oth",p:370,u:"خرطوشة"},
+{id:22,name:"كابتن سكاى",c:"oth",p:250,u:"خرطوشة"},
+{id:23,name:"بن ازرق",c:"oth",p:250,u:"خرطوشة"},
+{id:24,name:"تايم بحرى",c:"oth",p:305,u:"خرطوشة"},
+{id:25,name:"تايم جديد",c:"oth",p:235,u:"خرطوشة"},
+{id:26,name:"تارجت بحر",c:"oth",p:255,u:"خرطوشة"},
+{id:27,name:"كابتن زيرو فايف",c:"oth",p:285,u:"خرطوشة"},
+{id:28,name:"كابتن جولد سليم",c:"oth",p:290,u:"خرطوشة"},
+{id:29,name:"كابتن كومباكت جولد",c:"oth",p:330,u:"خرطوشة"},
+{id:30,name:"اتش بى",c:"oth",p:255,u:"خرطوشة"},
+{id:31,name:"ولاعه عاده",c:"acc",p:200,u:"علبة",i:"https://i.ebayimg.com/images/g/7NoAAOSwawBkZwum/s-l1200.jpg"},
+{id:32,name:"ولاعه سخان",c:"acc",p:250,u:"علبة",i:"https://i5.walmartimages.com/seo/Loyerfyivos-Torch-Lighter-Electric-Lighter-Plasma-Arc-Flameless-USB-Rechargeable-Refillable-Butane-Jet-Flame-Windproof-Cool-Lighter-BBQ-Grill-Camping_5b034a15-ee78-47fe-b2c3-c73926196dce.29b8df9fd2e51c66b1de4af18e71cc13.jpeg"},
+{id:33,name:"بفره جاهزه",c:"acc",p:235,u:"علبة",i:"https://delfortgroup.com/wp-content/uploads/2022/01/R4Y_Libella-delicate-booklet-rolling-paper_R4Y.png"},
+{id:34,name:"سلوووم نص كيلو",c:"mol",p:1200,u:"علبة",i:"https://www.texashookah.com/media/catalog/product/cache/dc5d735b92823fd29d2b1fcfb426afe5/s/a/saloum.jpg"},
+{id:35,name:"دفراوى ١٠",c:"mol",p:1400,u:"علبة"},
+{id:36,name:"دفراوى ٢٠",c:"mol",p:2200,u:"علبة"},
+{id:37,name:"برج ٣٠",c:"mol",p:700,u:"علبة"},
+{id:38,name:"برج ٤٠",c:"mol",p:750,u:"علبة"},
+{id:39,name:"برج ٥٠",c:"mol",p:950,u:"علبة"}
+];
+
+const CATS = [{id:'all',n:'الكل'},{id:'local',n:'محلي'},{id:'for',n:'أجنبي'},{id:'oth',n:'متنوع'},{id:'mol',n:'معسل'},{id:'acc',n:'إكسسوار'}];
+
+let rawP = localStorage.getItem('sp_p');
+let prods = (rawP && rawP !== '[]') ? JSON.parse(rawP) : INIT_P;
+if (!rawP || rawP === '[]') localStorage.setItem('sp_p', JSON.stringify(INIT_P));
+
+let cart = JSON.parse(localStorage.getItem('sp_c')) || {};
+let ords = JSON.parse(localStorage.getItem('sp_o')) || [];
+let phone = localStorage.getItem('sp_ph') || '01221143854';
+let pin = localStorage.getItem('sp_pin') || '1234';
+let curCat = 'all', isOwn = false, editId = null, camId = null;
+
+document.addEventListener("DOMContentLoaded", function() {
+  document.getElementById('hLogo').src = LOGO;
+  document.getElementById('bLogo').src = LOGO;
+  renderCats();
+  renderP();
+  updCart();
+  renderO();
+});
+
+function beep() {
+  try {
+    const c = new (window.AudioContext || window.webkitAudioContext)();
+    const o = c.createOscillator();
+    o.connect(c.destination);
+    o.frequency.setValueAtTime(800, c.currentTime);
+    o.start();
+    o.stop(c.currentTime + 0.25);
+  } catch(e){}
+}
+
+function tab(t) {
+  ['cat','cart','upd','ord'].forEach(x => {
+    document.getElementById('tab-' + x).classList.add('hidden');
+    document.getElementById('nb-' + x).classList.replace('text-amber-400','text-slate-400');
+  });
+  document.getElementById('tab-' + t).classList.remove('hidden');
+  document.getElementById('nb-' + t).classList.replace('text-slate-400','text-amber-400');
+}
+
+function renderCats() {
+  document.getElementById('cats').innerHTML = CATS.map(c => `
+    <button onclick="curCat='${c.id}';renderCats();renderP();" class="px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap ${curCat===c.id?'bg-amber-500 text-slate-950':'bg-slate-800 text-slate-300'}">${c.n}</button>
+  `).join('');
+}
+
+function renderP() {
+  const q = document.getElementById('srch') ? document.getElementById('srch').value.trim().toLowerCase() : '';
+  const list = prods.filter(p => (curCat==='all' || p.c===curCat) && p.name.toLowerCase().includes(q));
+  document.getElementById('grid').innerHTML = list.map(p => {
+    const qty = cart[p.id] ? cart[p.id].q : 0;
+    return `
+      <div class="bg-slate-900 border ${isOwn?'border-amber-500/50':'border-slate-800'} rounded-xl overflow-hidden flex flex-col justify-between p-2 relative">
+        <button onclick="camId=${p.id};document.getElementById('camModal').classList.remove('hidden')" class="absolute top-2 left-2 z-10 w-6 h-6 rounded-full bg-black/60 text-[10px] text-white">📷</button>
+        <div class="h-20 bg-slate-950 rounded flex items-center justify-center overflow-hidden">
+          ${p.i ? `<img src="${p.i}" class="w-full h-full object-cover">` : `<span class="text-2xl">${p.c==='mol'?'🏺':p.c==='acc'?'🔥':'🚬'}</span>`}
+        </div>
+        <div class="mt-2 space-y-1">
+          <p class="font-bold text-xs truncate">${p.name}</p>
+          <div class="flex justify-between items-center text-xs">
+            ${isOwn ? `<button onclick="openEdit(${p.id})" class="text-amber-400 font-bold bg-amber-500/10 px-1 rounded">${p.p} ج.م ✏️</button>` : `<span class="text-amber-400 font-bold">${p.p} ج.م</span>`}
+            <span class="text-[10px] text-slate-500">${p.u||''}</span>
+          </div>
+          ${qty===0 ? `<button onclick="addC(${p.id})" class="w-full py-1 bg-slate-800 hover:bg-amber-500 hover:text-slate-950 rounded text-xs font-bold transition">+ أضف</button>` : `
+            <div class="flex justify-between items-center bg-slate-800 rounded p-1">
+              <button onclick="modC(${p.id},-1)" class="w-5 h-5 bg-slate-700 rounded font-bold">-</button>
+              <span class="text-xs font-bold text-amber-400">${qty}</span>
+              <button onclick="modC(${p.id},1)" class="w-5 h-5 bg-amber-500 text-slate-950 rounded font-bold">+</button>
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function addC(id) {
+  const p = prods.find(x => x.id === id);
+  cart[id] = { id: p.id, name: p.name, p: p.p, q: 1 };
+  svCart();
+}
+
+function modC(id, d) {
+  if (!cart[id]) return;
+  cart[id].q += d;
+  if (cart[id].q <= 0) delete cart[id];
+  svCart();
+}
+
+function clrCart() { cart = {}; svCart(); }
+function svCart() {
+  localStorage.setItem('sp_c', JSON.stringify(cart));
+  updCart();
+  renderP();
+}
+
+function updCart() {
+  const keys = Object.keys(cart);
+  const count = keys.reduce((s,k) => s + cart[k].q, 0);
+  const bdg = document.getElementById('badge');
+  if (count > 0) { bdg.innerText = count; bdg.classList.remove('hidden'); }
+  else { bdg.classList.add('hidden'); }
+
+  document.getElementById('cItems').innerHTML = keys.length ? keys.map(k => `
+    <div class="py-1.5 flex justify-between items-center text-xs">
+      <div><p class="font-bold">${cart[k].name}</p><span class="text-slate-400">${cart[k].p} × ${cart[k].q} = ${cart[k].p * cart[k].q} ج.م</span></div>
+      <div class="flex gap-1.5 items-center">
+        <button onclick="modC(${cart[k].id},-1)" class="w-5 h-5 bg-slate-800 rounded">-</button>
+        <span class="font-bold">${cart[k].q}</span>
+        <button onclick="modC(${cart[k].id},1)" class="w-5 h-5 bg-amber-500 text-slate-950 rounded font-bold">+</button>
+      </div>
+    </div>
+  `).join('') : '<p class="text-center text-slate-500 py-4 text-xs">الفاتورة فارغة</p>';
+  updTot();
+}
+
+function tgDel() {
+  const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
+  document.getElementById('delBox').classList.toggle('hidden', !isD);
+  updTot();
+}
+
+function updTot() {
+  const sub = Object.keys(cart).reduce((s,k) => s + cart[k].p * cart[k].q, 0);
+  document.getElementById('subTot').innerText = sub + ' ج.م';
+  const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
+  const fee = isD ? (parseFloat(document.getElementById('delFee').value) || 0) : 0;
+  document.getElementById('grndTot').innerText = (sub + fee) + ' ج.م';
+}
+
+function sendOrder() {
+  const keys = Object.keys(cart);
+  if (!keys.length) return alert('أضف أصنافاً أولاً!');
+  const name = document.getElementById('cName').value.trim() || 'عميل المحل';
+  const ph = document.getElementById('cPhone').value.trim() || '-';
+  const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
+  const fee = isD ? (parseFloat(document.getElementById('delFee').value) || 0) : 0;
+  const addr = isD ? (document.getElementById('custAddr').value.trim() || 'عنوان غير مدون') : 'استلام من المحل';
+  const sub = keys.reduce((s,k) => s + cart[k].p * cart[k].q, 0);
+
+  const ord = {
+    id: Math.floor(1000 + Math.random() * 9000),
+    time: new Date().toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'}),
+    name, ph, type: isD ? 'دليفري' : 'استلام', addr, fee, tot: sub + fee,
+    items: keys.map(k => cart[k])
+  };
+
+  ords.unshift(ord);
+  localStorage.setItem('sp_o', JSON.stringify(ords));
+  beep();
+  renderO();
+
+  let msg = `🧾 *طلب جديد - Smoke Shop*\n👤 العميل: ${name} (${ph})\n📍 الاستلام: ${ord.type}\n`;
+  if (isD) msg += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
+  msg += `-------------------\n📦 الأصناف:\n`;
+  ord.items.forEach(i => { msg += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
+  msg += `-------------------\n💵 الإجمالي: ${ord.tot} ج.م`;
+
+  let dst = phone.trim();
+  if (dst.startsWith('01')) dst = '2' + dst;
+  window.open(`https://wa.me/${dst}?text=${encodeURIComponent(msg)}`, '_blank');
+  clrCart();
+  tab('ord');
+}
+
+function renderO() {
+  document.getElementById('ordList').innerHTML = ords.length ? ords.map(o => `
+    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs space-y-1">
+      <div class="flex justify-between font-bold text-amber-400">
+        <span>#${o.id} - ${o.name}</span><span>${o.tot} ج.م</span>
+      </div>
+      <p class="text-[11px] text-slate-400">${o.type} | ${o.addr} (${o.time})</p>
+      <div class="text-[10px] text-slate-300">${o.items.map(i=>`${i.q}×${i.name}`).join(' ، ')}</div>
+    </div>
+  `).join('') : '<p class="text-center text-slate-500 py-4 text-xs">لا توجد طلبات واردة</p>';
+}
+
+function clrOrd() {
+  if (confirm('مسح سجل الطلبات؟')) { ords = []; localStorage.setItem('sp_o', '[]'); renderO(); }
+}
+
+function parseWp() {
+  let t = document.getElementById('wpText').value;
+  if (!t.trim()) return alert('الصق المنشور أولاً!');
+  
+  // تحويل الأرقام العربية المشرقية (٠١٢٣٤٥٦٧٨٩) إلى أرقام إنجليزية لضمان قراءتها برمجياً
+  const arabicNumbers = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+  arabicNumbers.forEach((n, idx) => {
+    t = t.replaceAll(n, idx);
+  });
+
+  let count = 0;
+  t.split('\n').forEach(line => {
+    let cleanLine = line.trim();
+    if (!cleanLine) return;
+
+    // استخراج أول رقم موجود في السطر (يعبر عن السعر)
+    const numMatch = cleanLine.match(/\d+/);
+    if (numMatch) {
+      const priceVal = parseFloat(numMatch[0]);
+      
+      // استخراج اسم الصنف عبر حذف الرقم والرموز والكلمات الشائعة مثل (ج، جنيه)
+      const lineName = cleanLine
+        .replace(numMatch[0], '')
+        .replace(/(ج\.م|جنيه|ج|خرطوشة|علبة|[•\-*#_])/g, '')
+        .trim()
+        .toLowerCase();
+
+      if (lineName.length > 0) {
+        // البحث عن المنتج المطابق في القائمة
+        const p = prods.find(x => 
+          lineName.includes(x.name.toLowerCase()) || 
+          x.name.toLowerCase().includes(lineName)
+        );
+        
+        if (p && !isNaN(priceVal)) {
+          p.p = priceVal;
+          count++;
+        }
+      }
+    }
+  });
+
+  if (count > 0) {
+    localStorage.setItem('sp_p', JSON.stringify(prods));
+    renderP();
+    alert(`تم تحديث ${count} صنفاً بنجاح!`);
+    tab('cat');
+  } else {
+    alert('لم يتم التعرف على أية أسعار. تأكد من إدراج اسم الصنف والسعر في السطر.');
+  }
+}
+
+function promptOwner() {
+  if (isOwn) { openSetModal(); return; }
+  if (prompt('رمز PIN للمالك:') === pin) {
+    isOwn = true;
+    document.getElementById('ownerBar').classList.remove('hidden');
+    renderP();
+  } else { alert('PIN غير صحيح!'); }
+}
+
+function exitOwner() {
+  isOwn = false;
+  document.getElementById('ownerBar').classList.add('hidden');
+  renderP();
+}
+
+function openEdit(id) {
+  editId = id;
+  const p = prods.find(x => x.id === id);
+  document.getElementById('pmTitle').innerText = 'تعديل: ' + p.name;
+  document.getElementById('pmName').value = p.name;
+  document.getElementById('pmPrice').value = p.p;
+  document.getElementById('pModal').classList.remove('hidden');
+}
+
+function savePChange() {
+  const p = prods.find(x => x.id === editId);
+  if (p) {
+    p.name = document.getElementById('pmName').value.trim() || p.name;
+    p.p = parseFloat(document.getElementById('pmPrice').value) || p.p;
+    localStorage.setItem('sp_p', JSON.stringify(prods));
+    renderP();
+  }
+  document.getElementById('pModal').classList.add('hidden');
+}
+
+function openSetModal() {
+  document.getElementById('stPhone').value = phone;
+  document.getElementById('stPin').value = pin;
+  document.getElementById('setModal').classList.remove('hidden');
+}
+
+function saveSet() {
+  phone = document.getElementById('stPhone').value.trim() || phone;
+  pin = document.getElementById('stPin').value.trim() || pin;
+  localStorage.setItem('sp_ph', phone);
+  localStorage.setItem('sp_pin', pin);
+  document.getElementById('setModal').classList.add('hidden');
+  alert('تم الحفظ!');
+}
+
+function uploadImg(e) {
+  const file = e.target.files[0];
+  if (!file || !camId) return;
+  const r = new FileReader();
+  r.onload = function(evt) {
+    const im = new Image();
+    im.onload = function() {
+      const cvs = document.createElement('canvas');
+      const max = 400;
+      let w = im.width, h = im.height;
+      if (w > h && w > max) { h = (h * max) / w; w = max; }
+      else if (h > max) { w = (w * max) / h; h = max; }
+      cvs.width = w; cvs.height = h;
+      cvs.getContext('2d').drawImage(im, 0, 0, w, h);
+      const p = prods.find(x => x.id === camId);
+      if (p) {
+        p.i = cvs.toDataURL('image/jpeg', 0.7);
+        localStorage.setItem('sp_p', JSON.stringify(prods));
+        renderP();
+      }
+      document.getElementById('camModal').classList.add('hidden');
+    };
+    im.src = evt.target.result;
+  };
+  r.readAsDataURL(file);
+}
+</script>
+</body>
+</html>
