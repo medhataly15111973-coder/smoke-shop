@@ -1,620 +1,873 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Smoke Shop</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smoke Shop - متجر الطلبات اللحظية</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    * { font-family: 'Cairo', sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: #0b0f19; color: #f8fafc; padding-bottom: 80px; }
+    .neon { box-shadow: 0 0 10px rgba(0, 210, 255, 0.2); }
+    .hide-sb::-webkit-scrollbar { display: none; }
+  </style>
 
-<style>
-*{font-family:'Cairo',sans-serif;-webkit-tap-highlight-color:transparent}
-body{background:#0b0f19;color:#f8fafc;padding-bottom:70px}
-.neon{box-shadow:0 0 10px rgba(0,210,255,0.2)}
-.hide-sb::-webkit-scrollbar{display:none}
-</style>
+  <!-- Firebase Integration -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { 
+      getAuth, 
+      signInAnonymously, 
+      signInWithCustomToken, 
+      onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+      getFirestore, 
+      collection, 
+      doc, 
+      setDoc, 
+      updateDoc, 
+      deleteDoc, 
+      onSnapshot, 
+      serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Global App Configuration setup
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'smoke-shop-app';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' 
+      ? JSON.parse(__firebase_config) 
+      : {
+          // Demo fallback config for standard web clients
+          apiKey: "AIzaSyDemoConfigKeyForSmokeShop123",
+          authDomain: "smokeshop-demo.firebaseapp.com",
+          projectId: "smokeshop-demo",
+          storageBucket: "smokeshop-demo.appspot.com",
+          messagingSenderId: "123456789",
+          appId: "1:123456789:web:abcdef123456"
+        };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Make references available to window script context safely
+    window.db = db;
+    window.appId = appId;
+
+    // Authentication Setup
+    async function initAuth() {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.warn("Auth initialization note:", err);
+      }
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        window.currentUser = user;
+        // Start listening to orders in real-time right after auth
+        if (window.initRealtimeOrders) {
+          window.initRealtimeOrders();
+        }
+      } else {
+        initAuth();
+      }
+    });
+
+    initAuth();
+  </script>
 </head>
-<body>
+<body class="min-h-screen">
 
-  <!-- شريط المالك -->
-  <div id="ownerBar" class="hidden bg-amber-500/20 text-amber-300 text-[11px] px-3 py-1 text-center font-bold border-b border-amber-500/30 flex justify-between items-center">
-    <span>🛡️ وضع المالك نشط (اضغط على السعر للتعديل)</span>
+  <!-- Owner Status Bar -->
+  <div id="ownerBar" class="hidden bg-amber-500 text-slate-950 font-bold px-4 py-2 flex justify-between items-center text-xs sticky top-0 z-50 shadow-md">
+    <span>🛡️ وضع المالك نشط (اضغط على أي سعر لتعديله)</span>
     <div class="flex gap-2">
-      <button onclick="openSetModal()" class="bg-amber-600 text-white px-2 py-0.5 rounded text-[10px]">⚙️ إعدادات</button>
-      <button onclick="exitOwner()" class="bg-red-600 text-white px-2 py-0.5 rounded text-[10px]">خروج</button>
+      <button onclick="openSetModal()" class="bg-slate-900 text-white px-2 py-1 rounded text-[11px]">⚙️ إعدادات</button>
+      <button onclick="exitOwner()" class="bg-red-700 text-white px-2 py-1 rounded text-[11px]">خروج</button>
     </div>
   </div>
 
-  <!-- الهيدر الرئيسي -->
-  <header class="p-3 bg-slate-900 border-b border-slate-800 flex justify-between items-center sticky top-0 z-40">
-    <div class="flex items-center gap-2">
-      <img id="hLogo" class="w-8 h-8 rounded-full bg-slate-800 object-cover" alt="Logo">
-      <div>
-        <h1 class="font-black text-sm text-amber-400">SMOKE SHOP</h1>
-        <p class="text-[10px] text-slate-400">قائمة الأسعار والطلبات الفورية</p>
+  <!-- Header -->
+  <header class="bg-slate-950/90 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-4 py-3">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img id="hLogo" class="h-9 w-9 rounded-full border border-amber-500/50 object-cover" alt="Logo" />
+        <div>
+          <h1 class="font-extrabold text-base tracking-wide text-amber-400">SMOKE SHOP</h1>
+          <p class="text-[10px] text-slate-400">قائمة الأسعار والطلبات الفورية المباشرة</p>
+        </div>
       </div>
-    </div>
-    <div class="flex items-center gap-2">
-      <button onclick="promptOwner()" class="text-slate-400 hover:text-white p-1">🛡️</button>
-      <button onclick="tab('cart')" class="relative p-1">
-        🛒<span id="badge" class="hidden absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center">0</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <button onclick="promptOwner()" class="bg-slate-900 border border-slate-700 p-2 rounded-xl text-xs hover:border-amber-400 transition" title="لوحة المالك">
+          🛡️
+        </button>
+        <button onclick="tab('cart')" class="relative bg-amber-500 text-slate-950 font-black p-2 rounded-xl text-xs flex items-center justify-center">
+          🛒
+          <span id="badge" class="hidden absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-950">0</span>
+        </button>
+      </div>
     </div>
   </header>
 
-  <!-- التبويبات -->
-  <main class="p-3 max-w-lg mx-auto">
-    <!-- المنتجات -->
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-xl text-xs font-bold transition-all duration-300 opacity-0 pointer-events-none flex items-center gap-2">
+    <span>🔔</span>
+    <span id="toastMsg">تمت العملية بنجاح</span>
+  </div>
+
+  <!-- Container -->
+  <main class="max-w-md mx-auto p-3 space-y-4">
+
+    <!-- Tab 1: Products List -->
     <div id="tab-cat" class="space-y-3">
-      <div class="bg-gradient-to-r from-slate-900 to-slate-950 p-3 rounded-xl border border-slate-800 flex items-center justify-between">
+      <!-- Announcement / Banner -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/30 p-3 rounded-2xl border border-slate-800 text-xs flex items-center justify-between">
         <div>
-          <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">مباشر ومُحدث</span>
-          <h2 class="text-xs font-bold mt-1 text-slate-200">أهلاً بكم في متجر Smoke Shop</h2>
+          <span class="inline-block px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md text-[10px] font-bold mb-1">
+            ⚡ متصل بالشبكة اللحظية
+          </span>
+          <p class="text-slate-300 font-bold">أهلاً بكم في متجر Smoke Shop</p>
         </div>
-        <img id="bLogo" class="w-10 h-10 rounded-full object-cover border border-amber-500/30">
+        <img id="bLogo" class="h-10 w-10 rounded-full opacity-80" alt="Shop" />
       </div>
 
-      <input type="text" id="srch" oninput="renderP()" placeholder="🔍 ابحث عن صنف..." class="w-full bg-slate-900 border border-slate-700 text-white rounded-xl py-2 px-3 text-xs focus:outline-none">
+      <!-- Search Input -->
+      <input type="text" id="srch" oninput="renderP()" placeholder="🔍 ابحث عن صنف بالاسم..." class="w-full bg-slate-900 border border-slate-700 text-white rounded-xl py-2.5 px-3.5 text-xs focus:outline-none focus:border-amber-500 transition">
 
+      <!-- Categories Scroll -->
       <div class="flex gap-1.5 overflow-x-auto pb-1 hide-sb" id="cats"></div>
+
+      <!-- Products Grid -->
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5" id="grid"></div>
     </div>
 
-    <!-- الفاتورة -->
+    <!-- Tab 2: Cart & Checkout -->
     <div id="tab-cart" class="hidden space-y-3">
-      <div class="flex justify-between items-center">
-        <h2 class="font-bold text-sm text-slate-200">🧾 تفاصيل الفاتورة</h2>
-        <button onclick="clrCart()" class="text-[11px] text-red-400 hover:underline">تفريغ</button>
+      <div class="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+        <h2 class="font-bold text-xs text-slate-200 flex items-center gap-1.5">
+          <span>🧾</span> تفاصيل الفاتورة
+        </h2>
+        <button onclick="clrCart()" class="text-[11px] text-red-400 hover:underline">تفريغ السلة</button>
       </div>
+
       <div id="cItems" class="space-y-2"></div>
-      <div class="bg-slate-950 p-2.5 rounded-lg space-y-2 text-xs border border-slate-800">
+
+      <div class="bg-slate-950 p-3 rounded-xl space-y-3 text-xs border border-slate-800">
         <div class="flex justify-between text-slate-300">
-          <span>إجمالي الأصناف:</span><span id="subTot" class="font-bold text-white">0 ج.م</span>
+          <span>إجمالي الأصناف:</span>
+          <span id="subTot" class="font-bold text-white">0 ج.م</span>
         </div>
+
         <div class="pt-2 border-t border-slate-800">
-          <label class="block text-[11px] font-bold text-amber-400 mb-1">طريقة الاستلام:</label>
+          <label class="block text-[11px] font-bold text-amber-400 mb-1.5">طريقة الاستلام:</label>
           <div class="grid grid-cols-2 gap-2 text-xs">
-            <label class="flex items-center gap-1.5 p-1.5 bg-slate-900 rounded border border-slate-700 cursor-pointer">
-              <input type="radio" name="delType" value="pickup" checked onchange="tgDel()"> <span>استلام من المحل</span>
+            <label class="flex items-center gap-1.5 p-2 bg-slate-900 rounded-lg border border-slate-700 cursor-pointer">
+              <input type="radio" name="delType" value="pickup" checked onchange="tgDel()" class="accent-amber-500">
+              <span>استلام من المحل 🏪</span>
             </label>
-            <label class="flex items-center gap-1.5 p-1.5 bg-slate-900 rounded border border-slate-700 cursor-pointer">
-              <input type="radio" name="delType" value="del" onchange="tgDel()"> <span>توصيل دليفري 🛵</span>
+            <label class="flex items-center gap-1.5 p-2 bg-slate-900 rounded-lg border border-slate-700 cursor-pointer">
+              <input type="radio" name="delType" value="del" onchange="tgDel()" class="accent-amber-500">
+              <span>توصيل دليفري 🛵</span>
             </label>
           </div>
         </div>
-        <div id="delBox" class="hidden pt-2 space-y-1.5">
-          <div class="flex items-center gap-2">
-            <span class="text-[11px] text-slate-400">سعر التوصيل (يدوي):</span>
-            <input type="number" id="delFee" oninput="updTot()" value="20" class="w-16 bg-slate-900 border border-slate-700 text-amber-400 font-bold rounded py-0.5 px-1 text-center text-xs">
-            <span class="text-xs">ج.م</span>
+
+        <div id="delBox" class="hidden pt-2 space-y-2 border-t border-slate-800">
+          <div class="flex items-center justify-between bg-slate-900 p-2 rounded-lg border border-slate-800">
+            <span class="text-[11px] text-slate-400">سعر التوصيل:</span>
+            <div class="flex items-center gap-1">
+              <input type="number" id="delFee" oninput="updTot()" value="20" class="w-16 bg-slate-950 border border-slate-700 text-amber-400 font-bold rounded py-1 px-2 text-center text-xs">
+              <span class="text-xs">ج.م</span>
+            </div>
           </div>
-          <input type="text" id="custAddr" placeholder="العنوان بالتفصيل..." class="w-full bg-slate-900 border border-slate-700 text-white rounded p-1.5 text-xs">
+          <input type="text" id="custAddr" placeholder="العنوان بالتفصيل (الشارع / المنطقة / رقم الشقة)..." class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-amber-500">
         </div>
+
         <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
-          <input type="text" id="cName" placeholder="اسم العميل" class="bg-slate-900 border border-slate-700 text-white rounded p-1.5 text-xs">
-          <input type="tel" id="cPhone" placeholder="رقم هاتف العميل (واتساب)" class="bg-slate-900 border border-slate-700 text-white rounded p-1.5 text-xs">
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1">اسم العميل:</label>
+            <input type="text" id="cName" placeholder="اسمك الكريم" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-amber-500">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-400 mb-1">رقم الهاتف (واتساب):</label>
+            <input type="tel" id="cPhone" placeholder="01xxxxxxxxx" class="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-amber-500">
+          </div>
         </div>
-        <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-800 font-black">
-          <span>المطلوب دفعه:</span><span id="grndTot" class="text-amber-400 text-base">0 ج.م</span>
+
+        <div class="flex justify-between items-center text-sm pt-3 border-t border-slate-800 font-black">
+          <span>المطلوب دفعه:</span>
+          <span id="grndTot" class="text-amber-400 text-base">0 ج.م</span>
         </div>
       </div>
-      <button onclick="sendOrder()" class="w-full mt-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-1">
-        📲 تأكيد الطلب وإرسال عبر واتساب المحل
+
+      <button onclick="sendOrder()" class="w-full mt-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-950 transition active:scale-95">
+        📲 إرسال الطلب سحابياً + واتساب المحل
       </button>
     </div>
 
-    <!-- تحديث الأسعار -->
+    <!-- Tab 3: Quick Price Update (Text Parser) -->
     <div id="tab-upd" class="hidden space-y-3">
-      <h2 class="font-bold text-sm text-slate-200">📋 تحديث الأسعار من منشور الواتس</h2>
-      <p class="text-[11px] text-slate-400">الصق نص المنشور اليومي:</p>
-      <textarea id="wpText" rows="6" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم نص كيلو ١٢٠٠" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-amber-300 font-mono"></textarea>
-      <button onclick="parseWp()" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs">⚡ تحديث الأسعار الآن</button>
+      <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1">
+        <h2 class="font-bold text-xs text-slate-200">📋 تحديث الأسعار التلقائي من النص</h2>
+        <p class="text-[11px] text-slate-400">قم بنسخ نص المنشور اليومي ولصقه هنا ليتعرف النظام على الأسعار تلقائياً:</p>
+      </div>
+      <textarea id="wpText" rows="7" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم نص كيلو ١٢٠٠" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-500"></textarea>
+      <button onclick="parseWp()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition">
+        ⚡ تحديث الأسعار الآن
+      </button>
     </div>
 
-    <!-- شاشة التجهيز -->
+    <!-- Tab 4: Preparation / Kitchen Orders Screen -->
     <div id="tab-ord" class="hidden space-y-3">
-      <div class="flex justify-between items-center">
-        <h2 class="font-bold text-sm text-slate-200">📋 شاشة مسؤول التجهيز</h2>
-        <button onclick="clrOrd()" class="text-[11px] text-red-400 hover:underline">مسح الكل</button>
+      <div class="flex justify-between items-center bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+        <div class="flex items-center gap-2">
+          <h2 class="font-bold text-xs text-slate-200">📋 شاشة مسؤول التجهيز</h2>
+          <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            مُباشر Live
+          </span>
+        </div>
+        <button onclick="clrOrd()" class="text-[11px] text-red-400 hover:underline">مسح كل الطلبات</button>
       </div>
+
+      <!-- Real-time Status Banner -->
+      <div id="connectionStatus" class="bg-slate-900/50 p-2 rounded-lg text-center text-[10px] text-slate-400 border border-slate-800">
+        ⏳ جاري الاتصال بخادم الطلبات الفوري...
+      </div>
+
+      <!-- Orders List Container -->
       <div id="ordList" class="space-y-3"></div>
     </div>
+
   </main>
 
-  <!-- شريط التنقل السفلي -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex justify-around p-2 z-40 text-[10px]">
-    <button onclick="tab('cat')" id="nb-cat" class="flex flex-col items-center text-amber-400"><span>🛍️</span>المنتجات</button>
-    <button onclick="tab('cart')" id="nb-cart" class="flex flex-col items-center text-slate-400"><span>🛒</span>الفاتورة</button>
-    <button onclick="tab('upd')" id="nb-upd" class="flex flex-col items-center text-slate-400"><span>⚡</span>تحديث</button>
-    <button onclick="tab('ord')" id="nb-ord" class="flex flex-col items-center text-slate-400"><span>📋</span>التجهيز</button>
+  <!-- Bottom Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-slate-950/95 backdrop-blur border-t border-slate-800 z-40">
+    <div class="max-w-md mx-auto grid grid-cols-4 py-2">
+      <button id="nb-cat" onclick="tab('cat')" class="flex flex-col items-center gap-1 text-amber-400">
+        <span class="text-base">🛍️</span>
+        <span class="text-[10px] font-bold">المنتجات</span>
+      </button>
+      <button id="nb-cart" onclick="tab('cart')" class="flex flex-col items-center gap-1 text-slate-400">
+        <span class="text-base">🛒</span>
+        <span class="text-[10px] font-bold">الفاتورة</span>
+      </button>
+      <button id="nb-upd" onclick="tab('upd')" class="flex flex-col items-center gap-1 text-slate-400">
+        <span class="text-base">⚡</span>
+        <span class="text-[10px] font-bold">تحديث</span>
+      </button>
+      <button id="nb-ord" onclick="tab('ord')" class="flex flex-col items-center gap-1 text-slate-400">
+        <span class="text-base">📋</span>
+        <span class="text-[10px] font-bold">التجهيز</span>
+      </button>
+    </div>
   </nav>
 
-  <!-- المودالات -->
-  <div id="pModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-    <div class="bg-slate-900 p-4 rounded-xl max-w-xs w-full space-y-3 border border-slate-700">
-      <h3 id="pmTitle" class="font-bold text-xs">تعديل الصنف</h3>
-      <input type="text" id="pmName" class="w-full bg-slate-950 border border-slate-700 text-white rounded p-1.5 text-xs">
-      <input type="number" id="pmPrice" class="w-full bg-slate-950 border border-slate-700 text-white rounded p-1.5 text-xs">
-      <div class="flex justify-end gap-2">
-        <button onclick="savePChange()" class="bg-emerald-600 px-3 py-1 rounded text-xs">حفظ</button>
-        <button onclick="document.getElementById('pModal').classList.add('hidden')" class="bg-slate-700 px-3 py-1 rounded text-xs">إلغاء</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="setModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-    <div class="bg-slate-900 p-4 rounded-xl max-w-xs w-full space-y-3 border border-slate-700">
-      <h3 class="font-bold text-xs">إعدادات المالك</h3>
-      <label class="block text-[11px] text-slate-400">هاتف الواتساب للمحل:</label>
-      <input type="text" id="stPhone" class="w-full bg-slate-950 border border-slate-700 text-white rounded p-1.5 text-xs">
-      <label class="block text-[11px] text-slate-400">رمز PIN:</label>
-      <input type="password" id="stPin" class="w-full bg-slate-950 border border-slate-700 text-white rounded p-1.5 text-xs">
-      <div class="flex justify-end gap-2">
-        <button onclick="saveSet()" class="bg-emerald-600 px-3 py-1 rounded text-xs">حفظ</button>
-        <button onclick="document.getElementById('setModal').classList.add('hidden')" class="bg-slate-700 px-3 py-1 rounded text-xs">إلغاء</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="camModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-    <div class="bg-slate-900 p-4 rounded-xl max-w-xs w-full space-y-3 border border-slate-700 text-center">
-      <h3 class="font-bold text-xs">تغيير صورة المنتج</h3>
-      <div class="space-y-2">
-        <label class="block bg-slate-800 hover:bg-slate-700 text-xs py-2 rounded cursor-pointer">
-          📷 التقاط بالكاميرا
-          <input type="file" accept="image/*" capture="environment" onchange="uploadImg(event)" class="hidden">
-        </label>
-        <label class="block bg-slate-800 hover:bg-slate-700 text-xs py-2 rounded cursor-pointer">
-          🖼️ اختيار من المعرض
-          <input type="file" accept="image/*" onchange="uploadImg(event)" class="hidden">
-        </label>
-      </div>
-      <button onclick="document.getElementById('camModal').classList.add('hidden')" class="bg-slate-700 px-3 py-1 rounded text-xs w-full">إلغاء</button>
-    </div>
-  </div>
-
-<script>
-const LOGO = "https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png";
-
-const INIT_P = [
-{id:1,name:"كيلوباترا",c:"local",p:485,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M2_009_1.JPG"},
-{id:2,name:"بوكس",c:"local",p:485,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M2_009_1.JPG"},
-{id:3,name:"سوبر",c:"local",p:495,u:"خرطوشة"},
-{id:4,name:"ال ام احمر",c:"for",p:825,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M1_015_4.JPG"},
-{id:5,name:"ال ام ازرق",c:"for",p:825,u:"خرطوشة",i:"https://img.hitcigars.com/LM-BL-IDF/lm-blue-label-idf-1.jpg"},
-{id:6,name:"ال ام ابيض",c:"for",p:810,u:"خرطوشة"},
-{id:7,name:"مارلبورو",c:"for",p:1020,u:"خرطوشة",i:"https://smokingshops.com/cdn/shop/files/marlboro_1.webp"},
-{id:8,name:"ميريت",c:"for",p:1115,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M1_010_2.JPG"},
-{id:9,name:"مارلبورو كرافتد",c:"for",p:785,u:"خرطوشة"},
-{id:10,name:"ونستون",c:"for",p:705,u:"خرطوشة",i:"https://smokdubai.com/wp-content/uploads/2025/11/Winston-Red-Classic-cigarettes.jpg"},
-{id:11,name:"تارجت شركه",c:"oth",p:485,u:"خرطوشة"},
-{id:12,name:"تايم شركه",c:"oth",p:570,u:"خرطوشة"},
-{id:13,name:"دوف ايفولف",c:"for",p:610,u:"خرطوشة"},
-{id:14,name:"جولد كوست",c:"oth",p:480,u:"خرطوشة"},
-{id:15,name:"دوف",c:"for",p:1020,u:"خرطوشة"},
-{id:16,name:"كنتاكى",c:"oth",p:220,u:"خرطوشة"},
-{id:17,name:"ال ان",c:"oth",p:220,u:"خرطوشة"},
-{id:18,name:"ريد قديم",c:"oth",p:375,u:"خرطوشة"},
-{id:19,name:"ريد جديد",c:"oth",p:315,u:"خرطوشة"},
-{id:20,name:"كاريلا احمر",c:"oth",p:370,u:"خرطوشة"},
-{id:21,name:"كاريلا ازرق",c:"oth",p:370,u:"خرطوشة"},
-{id:22,name:"كابتن سكاى",c:"oth",p:250,u:"خرطوشة"},
-{id:23,name:"بن ازرق",c:"oth",p:250,u:"خرطوشة"},
-{id:24,name:"تايم بحرى",c:"oth",p:305,u:"خرطوشة"},
-{id:25,name:"تايم جديد",c:"oth",p:235,u:"خرطوشة"},
-{id:26,name:"تارجت بحر",c:"oth",p:255,u:"خرطوشة"},
-{id:27,name:"كابتن زيرو فايف",c:"oth",p:285,u:"خرطوشة"},
-{id:28,name:"كابتن جولد سليم",c:"oth",p:290,u:"خرطوشة"},
-{id:29,name:"كابتن كومباكت جولد",c:"oth",p:330,u:"خرطوشة"},
-{id:30,name:"اتش بى",c:"oth",p:255,u:"خرطوشة"},
-{id:31,name:"ولاعه عاده",c:"acc",p:200,u:"علبة",i:"https://i.ebayimg.com/images/g/7NoAAOSwawBkZwum/s-l1200.jpg"},
-{id:32,name:"ولاعه سخان",c:"acc",p:250,u:"علبة",i:"https://i5.walmartimages.com/seo/Loyerfyivos-Torch-Lighter-Electric-Lighter-Plasma-Arc-Flameless-USB-Rechargeable-Refillable-Butane-Jet-Flame-Windproof-Cool-Lighter-BBQ-Grill-Camping_5b034a15-ee78-47fe-b2c3-c73926196dce.29b8df9fd2e51c66b1de4af18e71cc13.jpeg"},
-{id:33,name:"بفره جاهزه",c:"acc",p:235,u:"علبة",i:"https://delfortgroup.com/wp-content/uploads/2022/01/R4Y_Libella-delicate-booklet-rolling-paper_R4Y.png"},
-{id:34,name:"سلوووم نص كيلو",c:"mol",p:1200,u:"علبة",i:"https://www.texashookah.com/media/catalog/product/cache/dc5d735b92823fd29d2b1fcfb426afe5/s/a/saloum.jpg"},
-{id:35,name:"دفراوى ١٠",c:"mol",p:1400,u:"علبة"},
-{id:36,name:"دفراوى ٢٠",c:"mol",p:2200,u:"علبة"},
-{id:37,name:"برج ٣٠",c:"mol",p:700,u:"علبة"},
-{id:38,name:"برج ٤٠",c:"mol",p:750,u:"علبة"},
-{id:39,name:"برج ٥٠",c:"mol",p:950,u:"علبة"}
-];
-
-const CATS = [{id:'all',n:'الكل'},{id:'local',n:'محلي'},{id:'for',n:'أجنبي'},{id:'oth',n:'متنوع'},{id:'mol',n:'معسل'},{id:'acc',n:'إكسسوار'}];
-
-let rawP = localStorage.getItem('sp_p');
-let prods = (rawP && rawP !== '[]') ? JSON.parse(rawP) : INIT_P;
-if (!rawP || rawP === '[]') localStorage.setItem('sp_p', JSON.stringify(INIT_P));
-
-let cart = JSON.parse(localStorage.getItem('sp_c')) || {};
-let ords = JSON.parse(localStorage.getItem('sp_o')) || [];
-let phone = localStorage.getItem('sp_ph') || '01221143854';
-let pin = localStorage.getItem('sp_pin') || '1234';
-let curCat = 'all', isOwn = false, editId = null, camId = null;
-
-document.addEventListener("DOMContentLoaded", function() {
-  document.getElementById('hLogo').src = LOGO;
-  document.getElementById('bLogo').src = LOGO;
-  renderCats();
-  renderP();
-  updCart();
-  renderO();
-  
-  // استرجاع بيانات العميل المحفوظة مسبقاً في المتصفح تلقائياً
-  if(localStorage.getItem('sp_saved_name')) {
-    document.getElementById('cName').value = localStorage.getItem('sp_saved_name');
-  }
-  if(localStorage.getItem('sp_saved_phone')) {
-    document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
-  }
-  if(localStorage.getItem('sp_saved_addr')) {
-    document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
-  }
-});
-
-function beep() {
-  try {
-    const c = new (window.AudioContext || window.webkitAudioContext)();
-    const o = c.createOscillator();
-    o.connect(c.destination);
-    o.frequency.setValueAtTime(800, c.currentTime);
-    o.start();
-    o.stop(c.currentTime + 0.25);
-  } catch(e){}
-}
-
-function tab(t) {
-  ['cat','cart','upd','ord'].forEach(x => {
-    document.getElementById('tab-' + x).classList.add('hidden');
-    document.getElementById('nb-' + x).classList.replace('text-amber-400','text-slate-400');
-  });
-  document.getElementById('tab-' + t).classList.remove('hidden');
-  document.getElementById('nb-' + t).classList.replace('text-slate-400','text-amber-400');
-}
-
-function renderCats() {
-  document.getElementById('cats').innerHTML = CATS.map(c => `
-    <button onclick="curCat='${c.id}';renderP();" class="px-3 py-1 rounded-full text-xs whitespace-nowrap ${curCat===c.id?'bg-amber-500 text-slate-950 font-bold':'bg-slate-900 text-slate-300'}">${c.n}</button>
-  `).join('');
-}
-
-function renderP() {
-  const q = document.getElementById('srch') ? document.getElementById('srch').value.trim().toLowerCase() : '';
-  const list = prods.filter(p => (curCat==='all' || p.c===curCat) && p.name.toLowerCase().includes(q));
-  document.getElementById('grid').innerHTML = list.map(p => {
-    const qty = cart[p.id] ? cart[p.id].q : 0;
-    return `
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-col justify-between neon relative">
-        ${isOwn ? `<button onclick="camId=${p.id};document.getElementById('camModal').classList.remove('hidden')" class="absolute top-2 right-2 bg-slate-950/80 p-1 rounded-full text-xs z-10">📷</button>` : ''}
-        <div class="h-24 rounded-lg bg-slate-950 flex items-center justify-center overflow-hidden mb-2">
-          ${p.i ? `<img src="${p.i}" class="w-full h-full object-cover">` : `<span class="text-3xl">${p.c==='mol'?'🏺':p.c==='acc'?'🔥':'🚬'}</span>`}
-        </div>
-
-        <div>
-          <h3 class="font-bold text-xs line-clamp-1">${p.name}</h3>
-
-          <div class="flex justify-between items-center my-1">
-            <span onclick="${isOwn?`openEdit(${p.id})`:''}" class="text-amber-400 font-bold text-xs ${isOwn?'cursor-pointer hover:underline':''}">${isOwn ? `${p.p} ج.م ✏️` : `${p.p} ج.م`}</span>
-            <span class="text-[10px] text-slate-400">${p.u||''}</span>
-          </div>
-
-          ${qty===0 ? `
-            <button onclick="addC(${p.id})" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-1 rounded text-xs font-bold">+ أضف</button>
-          ` : `
-            <div class="flex justify-between items-center bg-slate-800 rounded py-0.5 px-1 text-xs">
-              <button onclick="modC(${p.id},-1)" class="w-5 h-5 flex items-center justify-center bg-slate-700 rounded font-bold">-</button>
-              <span class="font-bold text-amber-400">${qty}</span>
-              <button onclick="modC(${p.id},1)" class="w-5 h-5 flex items-center justify-center bg-slate-700 rounded font-bold">+</button>
-            </div>
-          `}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function addC(id) {
-  const p = prods.find(x => x.id === id);
-  cart[id] = { id: p.id, name: p.name, p: p.p, q: 1 };
-  svCart();
-}
-
-function modC(id, d) {
-  if (!cart[id]) return;
-  cart[id].q += d;
-  if (cart[id].q <= 0) delete cart[id];
-  svCart();
-}
-
-function clrCart() { cart = {}; svCart(); }
-function svCart() {
-  localStorage.setItem('sp_c', JSON.stringify(cart));
-  updCart();
-  renderP();
-}
-
-function updCart() {
-  const keys = Object.keys(cart);
-  const count = keys.reduce((s,k) => s + cart[k].q, 0);
-  const bdg = document.getElementById('badge');
-  if (count > 0) { bdg.innerText = count; bdg.classList.remove('hidden'); }
-  else { bdg.classList.add('hidden'); }
-
-  document.getElementById('cItems').innerHTML = keys.length ? keys.map(k => `
-    <div class="bg-slate-900 p-2 rounded-lg flex justify-between items-center text-xs border border-slate-800">
+  <!-- Modals -->
+  <!-- Product Edit Modal -->
+  <div id="pModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 w-full max-w-xs space-y-3">
+      <h3 id="pmTitle" class="font-bold text-sm text-amber-400">تعديل الصنف</h3>
       <div>
-        <div class="font-bold">${cart[k].name}</div>
-        <div class="text-[10px] text-slate-400">${cart[k].p} × ${cart[k].q} = ${cart[k].p * cart[k].q} ج.م</div>
+        <label class="block text-[10px] text-slate-400 mb-1">اسم الصنف:</label>
+        <input type="text" id="pmName" class="w-full bg-slate-950 border border-slate-700 text-white rounded-lg p-2 text-xs">
       </div>
-      <div class="flex gap-2 items-center">
-        <button onclick="modC(${k},-1)" class="w-5 h-5 bg-slate-800 rounded flex items-center justify-center">-</button>
-        <span class="font-bold text-amber-400">${cart[k].q}</span>
-        <button onclick="modC(${k},1)" class="w-5 h-5 bg-slate-800 rounded flex items-center justify-center">+</button>
+      <div>
+        <label class="block text-[10px] text-slate-400 mb-1">السعر (ج.م):</label>
+        <input type="number" id="pmPrice" class="w-full bg-slate-950 border border-slate-700 text-white rounded-lg p-2 text-xs">
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="savePChange()" class="flex-1 bg-amber-500 text-slate-950 font-bold py-2 rounded-lg text-xs">حفظ</button>
+        <button onclick="document.getElementById('pModal').classList.add('hidden')" class="flex-1 bg-slate-800 text-slate-300 py-2 rounded-lg text-xs">إلغاء</button>
       </div>
     </div>
-  `).join('') : '<div class="text-center text-slate-500 py-4 text-xs">الفاتورة فارغة</div>';
-  updTot();
-}
+  </div>
 
-function tgDel() {
-  const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
-  document.getElementById('delBox').classList.toggle('hidden', !isD);
-  updTot();
-}
-
-function updTot() {
-  const sub = Object.keys(cart).reduce((s,k) => s + cart[k].p * cart[k].q, 0);
-  document.getElementById('subTot').innerText = sub + ' ج.م';
-  const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
-  const fee = isD ? (parseFloat(document.getElementById('delFee').value) || 0) : 0;
-  document.getElementById('grndTot').innerText = (sub + fee) + ' ج.م';
-}
-
-function sendOrder() {
-  const keys = Object.keys(cart);
-  if (!keys.length) return alert('أضف أصنافاً أولاً!');
-  const name = document.getElementById('cName').value.trim() || 'عميل المحل';
-  const ph = document.getElementById('cPhone').value.trim() || '';
-  const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
-  const fee = isD ? (parseFloat(document.getElementById('delFee').value) || 0) : 0;
-  const addr = isD ? (document.getElementById('custAddr').value.trim() || 'عنوان غير مدون') : 'استلام من المحل';
-  const sub = keys.reduce((s,k) => s + cart[k].p * cart[k].q, 0);
-
-  // حفظ بيانات العميل تلقائياً في متصفحه لعدم كتابتها في الطلبات القادمة
-  localStorage.setItem('sp_saved_name', name);
-  localStorage.setItem('sp_saved_phone', ph);
-  if(isD) localStorage.setItem('sp_saved_addr', addr);
-
-  const ord = {
-    id: Math.floor(1000 + Math.random() * 9000),
-    time: new Date().toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'}),
-    name, ph, type: isD ? 'دليفري' : 'استلام', addr, fee, tot: sub + fee,
-    status: 'pending',
-    items: keys.map(k => cart[k])
-  };
-
-  ords.unshift(ord);
-  localStorage.setItem('sp_o', JSON.stringify(ords));
-  beep();
-  renderO();
-
-  let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ord.id}\n👤 العميل: ${name} (${ph || 'بدون رقم'})\n📍 الاستلام: ${ord.type}\n`;
-  if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
-  msgShop += `-------------------\n📦 الأصناف:\n`;
-  ord.items.forEach(i => { msgShop += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
-  msgShop += `-------------------\n💵 الإجمالي: ${ord.tot} ج.م`;
-
-  let dstShop = phone.trim();
-  if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
-  window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`, '_blank');
-
-  if (ph) {
-    sendCustomerMsg(ord.id, 'pending');
-  }
-
-  clrCart();
-  tab('ord');
-}
-
-function sendCustomerMsg(ordId, statusType) {
-  const o = ords.find(x => x.id === ordId);
-  if (!o || !o.ph) return alert('لم يتم تسجيل رقم هاتف للعميل!');
-
-  let text = '';
-  if (statusType === 'pending') {
-    text = `أهلاً بك أ/${o.name} ✋\nتم استلام طلبك رقم (#${o.id}) في *Smoke Shop* 🏪\nجاري الآن *تجهيز الطلب* وسنخطرك فور الانتهاء ⏳`;
-  } else if (statusType === 'ready') {
-    text = `أهلاً بك أ/${o.name} ✨\nيسعدنا إعلامك بأنه *تم تجهيز طلبك* رقم (#${o.id}) بنجاح 📦\n${o.type === 'دليفري' ? 'الطلب في طريقه إليك مع الدليفري 🛵' : 'يمكنك الحضور للمحل للاستلام الآن 🏪'}`;
-  } else if (statusType === 'completed') {
-    text = `🧾 *فاتورة استلام - Smoke Shop*\nعزيزي أ/${o.name}\nتم تسليم الطلب رقم (#${o.id}) بنجاح وتسديد المبلغ 💵\n-------------------\n📦 *تفاصيل الفاتورة:*\n`;
-    o.items.forEach(i => { text += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
-    if (o.type === 'دليفري') text += `🛵 خدمة التوصيل: ${o.fee} ج.م\n`;
-    text += `-------------------\n💰 *إجمالي المدفوع:* ${o.tot} ج.م\n\nشكراً لتسوقكم معنا ونتمنى لكم يوماً سعيداً! ❤️`;
-  }
-
-  let dst = o.ph.trim();
-  if (dst.startsWith('01')) dst = '2' + dst;
-  window.open(`https://wa.me/${dst}?text=${encodeURIComponent(text)}`, '_blank');
-}
-
-function updateOrderStatus(ordId, newStatus) {
-  const o = ords.find(x => x.id === ordId);
-  if (o) {
-    o.status = newStatus;
-    localStorage.setItem('sp_o', JSON.stringify(ords));
-    renderO();
-    sendCustomerMsg(ordId, newStatus);
-  }
-}
-
-function renderO() {
-  document.getElementById('ordList').innerHTML = ords.length ? ords.map(o => {
-    let stBadge = o.status === 'completed' 
-      ? '<span class="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded font-bold">تم الاستلام 🧾</span>'
-      : o.status === 'ready' 
-      ? '<span class="bg-amber-500/20 text-amber-400 text-[10px] px-2 py-0.5 rounded font-bold">تم التجهيز 📦</span>'
-      : '<span class="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded font-bold">تحت التجهيز ⏳</span>';
-
-    return `
-      <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl space-y-2 text-xs">
-        <div class="flex justify-between items-center font-bold">
-          <span class="text-amber-400">#${o.id} - ${o.name}</span>
-          <span>${o.tot} ج.م</span>
-        </div>
-        
-        <div class="flex justify-between items-center text-[11px] text-slate-400">
-          <span>${o.type} | ${o.addr} (${o.time})</span>
-          <span>${stBadge}</span>
-        </div>
-
-        <div class="text-[11px] text-slate-300 border-t border-b border-slate-800/80 py-1.5 my-1">
-          ${o.items.map(i=>`${i.q}×${i.name}`).join(' ، ')}
-        </div>
-
-        <div class="flex flex-wrap gap-1.5 pt-1">
-          <button onclick="sendCustomerMsg(${o.id}, 'pending')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-blue-300 border border-blue-500/30 py-1 px-2 rounded text-[10px] font-bold">
-            📲 إشعار تحت التجهيز
-          </button>
-          
-          <button onclick="updateOrderStatus(${o.id}, 'ready')" class="flex-1 bg-amber-600 hover:bg-amber-500 text-slate-950 py-1 px-2 rounded text-[10px] font-bold">
-            📦 تأكيد التجهيز وتنبيه
-          </button>
-
-          <button onclick="updateOrderStatus(${o.id}, 'completed')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-1 px-2 rounded text-[10px] font-bold">
-            🧾 تأكيد الاستلام والتسليم
-          </button>
-        </div>
+  <!-- Owner Settings Modal -->
+  <div id="setModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 w-full max-w-xs space-y-3">
+      <h3 class="font-bold text-sm text-amber-400">⚙️ إعدادات المالك</h3>
+      <div>
+        <label class="block text-[10px] text-slate-400 mb-1">هاتف الواتساب للمحل:</label>
+        <input type="tel" id="stPhone" class="w-full bg-slate-950 border border-slate-700 text-white rounded-lg p-2 text-xs">
       </div>
-    `;
-  }).join('') : '<div class="text-center text-slate-500 py-4 text-xs">لا توجد طلبات واردة</div>';
-}
+      <div>
+        <label class="block text-[10px] text-slate-400 mb-1">رمز PIN للدخول:</label>
+        <input type="password" id="stPin" class="w-full bg-slate-950 border border-slate-700 text-white rounded-lg p-2 text-xs">
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="saveSet()" class="flex-1 bg-amber-500 text-slate-950 font-bold py-2 rounded-lg text-xs">حفظ</button>
+        <button onclick="document.getElementById('setModal').classList.add('hidden')" class="flex-1 bg-slate-800 text-slate-300 py-2 rounded-lg text-xs">إلغاء</button>
+      </div>
+    </div>
+  </div>
 
-function clrOrd() {
-  if (confirm('مسح سجل الطلبات؟')) { ords = []; localStorage.setItem('sp_o', '[]'); renderO(); }
-}
+  <script>
+    const LOGO = "https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png";
 
-function parseWp() {
-  let t = document.getElementById('wpText').value;
-  if (!t.trim()) return alert('الصق المنشور أولاً!');
-  
-  const arabicNumbers = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
-  arabicNumbers.forEach((n, idx) => {
-    t = t.replaceAll(n, idx);
-  });
+    const INIT_P = [
+      {id:1,name:"كيلوباترا",c:"local",p:485,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M2_009_1.JPG"},
+      {id:2,name:"بوكس",c:"local",p:485,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M2_009_1.JPG"},
+      {id:3,name:"سوبر",c:"local",p:495,u:"خرطوشة"},
+      {id:4,name:"ال ام احمر",c:"for",p:825,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M1_015_4.JPG"},
+      {id:5,name:"ال ام ازرق",c:"for",p:825,u:"خرطوشة",i:"https://img.hitcigars.com/LM-BL-IDF/lm-blue-label-idf-1.jpg"},
+      {id:6,name:"ال ام ابيض",c:"for",p:810,u:"خرطوشة"},
+      {id:7,name:"مارلبورو",c:"for",p:1020,u:"خرطوشة",i:"https://smokingshops.com/cdn/shop/files/marlboro_1.webp"},
+      {id:8,name:"ميريت",c:"for",p:1115,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M1_010_2.JPG"},
+      {id:9,name:"مارلبورو كرافتد",c:"for",p:785,u:"خرطوشة"},
+      {id:10,name:"ونستون",c:"for",p:705,u:"خرطوشة",i:"https://smokdubai.com/wp-content/uploads/2025/11/Winston-Red-Classic-cigarettes.jpg"},
+      {id:11,name:"تارجت شركه",c:"oth",p:485,u:"خرطوشة"},
+      {id:12,name:"تايم شركه",c:"oth",p:570,u:"خرطوشة"},
+      {id:13,name:"دوف ايفولف",c:"for",p:610,u:"خرطوشة"},
+      {id:14,name:"جولد كوست",c:"oth",p:480,u:"خرطوشة"},
+      {id:15,name:"دوف",c:"for",p:1020,u:"خرطوشة"},
+      {id:16,name:"كنتاكى",c:"oth",p:220,u:"خرطوشة"},
+      {id:17,name:"ال ان",c:"oth",p:220,u:"خرطوشة"},
+      {id:18,name:"ريد قديم",c:"oth",p:375,u:"خرطوشة"},
+      {id:19,name:"ريد جديد",c:"oth",p:315,u:"خرطوشة"},
+      {id:20,name:"كاريلا احمر",c:"oth",p:370,u:"خرطوشة"},
+      {id:21,name:"كاريلا ازرق",c:"oth",p:370,u:"خرطوشة"},
+      {id:22,name:"كابتن سكاى",c:"oth",p:250,u:"خرطوشة"},
+      {id:23,name:"بن ازرق",c:"oth",p:250,u:"خرطوشة"},
+      {id:24,name:"تايم بحرى",c:"oth",p:305,u:"خرطوشة"},
+      {id:25,name:"تايم جديد",c:"oth",p:235,u:"خرطوشة"},
+      {id:26,name:"تارجت بحر",c:"oth",p:255,u:"خرطوشة"},
+      {id:27,name:"كابتن زيرو فايف",c:"oth",p:285,u:"خرطوشة"},
+      {id:28,name:"كابتن جولد سليم",c:"oth",p:290,u:"خرطوشة"},
+      {id:29,name:"كابتن كومباكت جولد",c:"oth",p:330,u:"خرطوشة"},
+      {id:30,name:"اتش بى",c:"oth",p:255,u:"خرطوشة"},
+      {id:31,name:"ولاعه عاده",c:"acc",p:200,u:"علبة",i:"https://i.ebayimg.com/images/g/7NoAAOSwawBkZwum/s-l1200.jpg"},
+      {id:32,name:"ولاعه سخان",c:"acc",p:250,u:"علبة",i:"https://i5.walmartimages.com/seo/Loyerfyivos-Torch-Lighter-Electric-Lighter-Plasma-Arc-Flameless-USB-Rechargeable-Refillable-Butane-Jet-Flame-Windproof-Cool-Lighter-BBQ-Grill-Camping_5b034a15-ee78-47fe-b2c3-c73926196dce.29b8df9fd2e51c66b1de4af18e71cc13.jpeg"},
+      {id:33,name:"بفره جاهزه",c:"acc",p:235,u:"علبة",i:"https://delfortgroup.com/wp-content/uploads/2022/01/R4Y_Libella-delicate-booklet-rolling-paper_R4Y.png"},
+      {id:34,name:"سلوووم نص كيلو",c:"mol",p:1200,u:"علبة",i:"https://www.texashookah.com/media/catalog/product/cache/dc5d735b92823fd29d2b1fcfb426afe5/s/a/saloum.jpg"},
+      {id:35,name:"دفراوى ١٠",c:"mol",p:1400,u:"علبة"},
+      {id:36,name:"دفراوى ٢٠",c:"mol",p:2200,u:"علبة"},
+      {id:37,name:"برج ٣٠",c:"mol",p:700,u:"علبة"},
+      {id:38,name:"برج ٤٠",c:"mol",p:750,u:"علبة"},
+      {id:39,name:"برج ٥٠",c:"mol",p:950,u:"علبة"}
+    ];
 
-  let count = 0;
-  t.split('\n').forEach(line => {
-    let cleanLine = line.trim();
-    if (!cleanLine) return;
+    const CATS = [
+      {id:'all',n:'الكل'},{id:'local',n:'محلي'},{id:'for',n:'أجنبي'},
+      {id:'oth',n:'متنوع'},{id:'mol',n:'معسل'},{id:'acc',n:'إكسسوار'}
+    ];
 
-    const numMatch = cleanLine.match(/\d+/);
-    if (numMatch) {
-      const priceVal = parseFloat(numMatch[0]);
+    let rawP = localStorage.getItem('sp_p');
+    let prods = (rawP && rawP !== '[]') ? JSON.parse(rawP) : INIT_P;
+    if (!rawP || rawP === '[]') localStorage.setItem('sp_p', JSON.stringify(INIT_P));
+
+    let cart = JSON.parse(localStorage.getItem('sp_c')) || {};
+    let ords = []; // Real-time state from cloud database
+    let phone = localStorage.getItem('sp_ph') || '01221143854';
+    let pin = localStorage.getItem('sp_pin') || '1234';
+    let curCat = 'all', isOwn = false, editId = null;
+    let prevOrdersCount = 0;
+
+    document.addEventListener("DOMContentLoaded", function() {
+      document.getElementById('hLogo').src = LOGO;
+      document.getElementById('bLogo').src = LOGO;
+      renderCats();
+      renderP();
+      updCart();
       
-      const lineName = cleanLine
-        .replace(numMatch[0], '')
-        .replace(/(ج\.م|جنيه|ج|خرطوشة|علبة|[•\-*#_])/g, '')
-        .trim()
-        .toLowerCase();
+      // Auto-load saved customer details
+      if(localStorage.getItem('sp_saved_name')) {
+        document.getElementById('cName').value = localStorage.getItem('sp_saved_name');
+      }
+      if(localStorage.getItem('sp_saved_phone')) {
+        document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
+      }
+      if(localStorage.getItem('sp_saved_addr')) {
+        document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
+      }
+    });
 
-      if (lineName.length > 0) {
-        const p = prods.find(x => 
-          lineName.includes(x.name.toLowerCase()) || 
-          x.name.toLowerCase().includes(lineName)
-        );
-        
-        if (p && !isNaN(priceVal)) {
-          p.p = priceVal;
-          count++;
+    // Sound Notification
+    function beep() {
+      try {
+        const c = new (window.AudioContext || window.webkitAudioContext)();
+        const o = c.createOscillator();
+        const g = c.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(880, c.currentTime); // High pitch notification
+        g.gain.setValueAtTime(0.3, c.currentTime);
+        o.connect(g);
+        g.connect(c.destination);
+        o.start();
+        o.stop(c.currentTime + 0.3);
+      } catch(e){}
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      t.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        t.classList.add('opacity-0', 'pointer-events-none');
+      }, 3000);
+    }
+
+    // Real-time Cloud Listeners (Firestore)
+    window.initRealtimeOrders = function() {
+      if (!window.db) return;
+      
+      const { collection, onSnapshot } = window.firebaseModules || {};
+      const appIdStr = window.appId || 'smoke-shop-app';
+      
+      // Firestore Public Path according to mandatory rules
+      // /artifacts/{appId}/public/data/orders
+      const colRef = window.firebaseFirestore.collection(window.db, 'artifacts', appIdStr, 'public', 'data', 'orders');
+      
+      document.getElementById('connectionStatus').innerText = '🟢 متصل لحظياً بمركز طلبات السحابة';
+      document.getElementById('connectionStatus').className = 'bg-emerald-950/30 text-emerald-400 p-2 rounded-lg text-center text-[10px] border border-emerald-800/40';
+
+      // Attach Real-time listener
+      window.firebaseFirestore.onSnapshot(colRef, (snapshot) => {
+        const fetchedOrds = [];
+        snapshot.forEach((doc) => {
+          fetchedOrds.push({ docId: doc.id, ...doc.data() });
+        });
+
+        // Client-side sort by timestamp/id descending
+        fetchedOrds.sort((a, b) => (b.createdAt || b.id) - (a.createdAt || a.id));
+
+        // Detect new order arrival to sound alarm
+        if (prevOrdersCount > 0 && fetchedOrds.length > prevOrdersCount) {
+          beep();
+          showToast('🔔 هناك طلب جديد وصل للتو!');
         }
+        prevOrdersCount = fetchedOrds.length;
+
+        ords = fetchedOrds;
+        renderO();
+      }, (error) => {
+        console.error("Firestore listen error:", error);
+        document.getElementById('connectionStatus').innerText = '⚠️ خطأ في الاتصال بالشبكة السحابية';
+      });
+    };
+
+    // Helper Module accessor for dynamic import scope
+    import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then(mod => {
+      window.firebaseFirestore = mod;
+    });
+
+    function tab(t) {
+      ['cat','cart','upd','ord'].forEach(x => {
+        document.getElementById('tab-' + x).classList.add('hidden');
+        document.getElementById('nb-' + x).classList.replace('text-amber-400','text-slate-400');
+      });
+      document.getElementById('tab-' + t).classList.remove('hidden');
+      document.getElementById('nb-' + t).classList.replace('text-slate-400','text-amber-400');
+    }
+
+    function renderCats() {
+      document.getElementById('cats').innerHTML = CATS.map(c => `
+        <button onclick="setCat('${c.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${curCat===c.id ? 'bg-amber-500 text-slate-950' : 'bg-slate-900 text-slate-300 border border-slate-800'}">
+          ${c.n}
+        </button>
+      `).join('');
+    }
+
+    function setCat(c) { curCat = c; renderCats(); renderP(); }
+
+    function renderP() {
+      const q = document.getElementById('srch') ? document.getElementById('srch').value.trim().toLowerCase() : '';
+      const list = prods.filter(p => (curCat==='all' || p.c===curCat) && p.name.toLowerCase().includes(q));
+      
+      document.getElementById('grid').innerHTML = list.map(p => {
+        const qty = cart[p.id] ? cart[p.id].q : 0;
+        return `
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-col justify-between relative group hover:border-slate-700 transition">
+            ${isOwn ? `<button onclick="openEdit(${p.id})" class="absolute top-1 left-1 bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.5 rounded font-bold z-10">✏️</button>` : ''}
+            <div class="h-20 bg-slate-950 rounded-lg overflow-hidden flex items-center justify-center mb-1.5 relative">
+              ${p.i ? `<img src="${p.i}" class="h-full w-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />` : ''}
+              <span class="text-2xl ${p.i ? 'hidden' : 'flex'}">${p.c==='mol'?'🏺':p.c==='acc'?'🔥':'🚬'}</span>
+            </div>
+
+            <div class="space-y-1">
+              <h3 class="font-bold text-xs text-slate-200 line-clamp-1">${p.name}</h3>
+              <div class="flex justify-between items-center">
+                <span class="text-amber-400 font-extrabold text-xs" ${isOwn ? `onclick="openEdit(${p.id})"` : ''}>
+                  ${p.p} ج.م
+                </span>
+                <span class="text-[9px] text-slate-500">${p.u||''}</span>
+              </div>
+
+              ${qty===0 ? `
+                <button onclick="addC(${p.id})" class="w-full mt-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-1 rounded-lg text-xs transition">
+                  + أضف
+                </button>
+              ` : `
+                <div class="flex items-center justify-between bg-amber-500 text-slate-950 rounded-lg font-black text-xs mt-1 p-0.5">
+                  <button onclick="modC(${p.id}, -1)" class="w-6 h-6 flex items-center justify-center hover:bg-amber-600 rounded">-</button>
+                  <span>${qty}</span>
+                  <button onclick="modC(${p.id}, 1)" class="w-6 h-6 flex items-center justify-center hover:bg-amber-600 rounded">+</button>
+                </div>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function addC(id) {
+      const p = prods.find(x => x.id === id);
+      cart[id] = { id: p.id, name: p.name, p: p.p, q: 1 };
+      svCart();
+    }
+
+    function modC(id, d) {
+      if (!cart[id]) return;
+      cart[id].q += d;
+      if (cart[id].q <= 0) delete cart[id];
+      svCart();
+    }
+
+    function clrCart() { cart = {}; svCart(); }
+    
+    function svCart() {
+      localStorage.setItem('sp_c', JSON.stringify(cart));
+      updCart();
+      renderP();
+    }
+
+    function updCart() {
+      const keys = Object.keys(cart);
+      const count = keys.reduce((s,k) => s + cart[k].q, 0);
+      const bdg = document.getElementById('badge');
+      if (count > 0) { bdg.innerText = count; bdg.classList.remove('hidden'); }
+      else { bdg.classList.add('hidden'); }
+
+      document.getElementById('cItems').innerHTML = keys.length ? keys.map(k => `
+        <div class="flex items-center justify-between bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-xs">
+          <div>
+            <div class="font-bold text-slate-200">${cart[k].name}</div>
+            <div class="text-[10px] text-amber-400 font-bold">${cart[k].p} × ${cart[k].q} = ${cart[k].p * cart[k].q} ج.م</div>
+          </div>
+          <div class="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+            <button onclick="modC(${k}, -1)" class="w-5 h-5 bg-slate-800 text-slate-200 rounded font-bold">-</button>
+            <span class="font-bold text-amber-400 px-1">${cart[k].q}</span>
+            <button onclick="modC(${k}, 1)" class="w-5 h-5 bg-slate-800 text-slate-200 rounded font-bold">+</button>
+          </div>
+        </div>
+      `).join('') : '<div class="text-center text-slate-500 text-xs py-6 bg-slate-900/50 rounded-xl border border-slate-800/50">🛒 الفاتورة فارغة حالياً</div>';
+
+      updTot();
+    }
+
+    function tgDel() {
+      const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
+      document.getElementById('delBox').classList.toggle('hidden', !isD);
+      updTot();
+    }
+
+    function updTot() {
+      const sub = Object.keys(cart).reduce((s,k) => s + cart[k].p * cart[k].q, 0);
+      document.getElementById('subTot').innerText = sub + ' ج.م';
+      const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
+      const fee = isD ? (parseFloat(document.getElementById('delFee').value) || 0) : 0;
+      document.getElementById('grndTot').innerText = (sub + fee) + ' ج.م';
+    }
+
+    // Send Order & Save to Firestore Cloud Real-time Database
+    async function sendOrder() {
+      const keys = Object.keys(cart);
+      if (!keys.length) return showToast('⚠️ أضف أصنافاً للفاتورة أولاً!');
+
+      const name = document.getElementById('cName').value.trim() || 'عميل المحل';
+      const ph = document.getElementById('cPhone').value.trim() || '';
+      const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
+      const fee = isD ? (parseFloat(document.getElementById('delFee').value) || 0) : 0;
+      const addr = isD ? (document.getElementById('custAddr').value.trim() || 'عنوان غير مدون') : 'استلام من المحل';
+      const sub = keys.reduce((s,k) => s + cart[k].p * cart[k].q, 0);
+      const ordIdNum = Math.floor(1000 + Math.random() * 9000);
+      const timeStr = new Date().toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'});
+
+      // Save Customer Info locally for next purchases
+      localStorage.setItem('sp_saved_name', name);
+      localStorage.setItem('sp_saved_phone', ph);
+      if(isD) localStorage.setItem('sp_saved_addr', addr);
+
+      const ordData = {
+        id: ordIdNum,
+        createdAt: Date.now(),
+        time: timeStr,
+        name, 
+        ph, 
+        type: isD ? 'دليفري' : 'استلام', 
+        addr, 
+        fee, 
+        tot: sub + fee,
+        status: 'pending',
+        items: keys.map(k => cart[k])
+      };
+
+      // Push to Firestore Cloud Database if connected
+      try {
+        if (window.db && window.firebaseFirestore) {
+          const docId = 'ord_' + Date.now() + '_' + ordIdNum;
+          const docRef = window.firebaseFirestore.doc(window.db, 'artifacts', window.appId || 'smoke-shop-app', 'public', 'data', 'orders', docId);
+          await window.firebaseFirestore.setDoc(docRef, ordData);
+        }
+      } catch (err) {
+        console.error("Firestore push error:", err);
+      }
+
+      beep();
+      showToast('🚀 تم إرسال الطلب سحابياً بنجاح!');
+
+      // WhatsApp Message payload
+      let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph || 'بدون رقم'})\n📍 الاستلام: ${ordData.type}\n`;
+      if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
+      msgShop += `-------------------\n📦 الأصناف:\n`;
+      ordData.items.forEach(i => { msgShop += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
+      msgShop += `-------------------\n💵 الإجمالي: ${ordData.tot} ج.م`;
+
+      let dstShop = phone.trim();
+      if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
+      window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`, '_blank');
+
+      if (ph) {
+        sendCustomerMsg(ordData, 'pending');
+      }
+
+      clrCart();
+      tab('ord');
+    }
+
+    function sendCustomerMsg(o, statusType) {
+      if (!o || !o.ph) return showToast('⚠️ لم يتم تسجيل رقم هاتف للعميل!');
+
+      let text = '';
+      if (statusType === 'pending') {
+        text = `أهلاً بك أ/${o.name} ✋\nتم استلام طلبك رقم (#${o.id}) في *Smoke Shop* 🏪\nجاري الآن *تجهيز الطلب* وسنخطرك فور الانتهاء ⏳`;
+      } else if (statusType === 'ready') {
+        text = `أهلاً بك أ/${o.name} ✨\nيسعدنا إعلامك بأنه *تم تجهيز طلبك* رقم (#${o.id}) بنجاح 📦\n${o.type === 'دليفري' ? 'الطلب في طريقه إليك مع الدليفري 🛵' : 'يمكنك الحضور للمحل للاستلام الآن 🏪'}`;
+      } else if (statusType === 'completed') {
+        text = `🧾 *فاتورة استلام - Smoke Shop*\nعزيزي أ/${o.name}\nتم تسليم الطلب رقم (#${o.id}) بنجاح وتسديد المبلغ 💵\n-------------------\n📦 *تفاصيل الفاتورة:*\n`;
+        o.items.forEach(i => { text += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
+        if (o.type === 'دليفري') text += `🛵 خدمة التوصيل: ${o.fee} ج.م\n`;
+        text += `-------------------\n💰 *إجمالي المدفوع:* ${o.tot} ج.م\n\nشكراً لتسوقكم معنا ونتمنى لكم يوماً سعيداً! ❤️`;
+      }
+
+      let dst = o.ph.trim();
+      if (dst.startsWith('01')) dst = '2' + dst;
+      window.open(`https://wa.me/${dst}?text=${encodeURIComponent(text)}`, '_blank');
+    }
+
+    // Update status in cloud database in real-time
+    async function updateOrderStatus(docId, newStatus) {
+      const o = ords.find(x => x.docId === docId || x.id === docId);
+      if (!o) return;
+
+      try {
+        if (window.db && window.firebaseFirestore && o.docId) {
+          const docRef = window.firebaseFirestore.doc(window.db, 'artifacts', window.appId || 'smoke-shop-app', 'public', 'data', 'orders', o.docId);
+          await window.firebaseFirestore.updateDoc(docRef, { status: newStatus });
+        }
+        showToast(`تم تحديث حالة الطلب #${o.id}`);
+        sendCustomerMsg(o, newStatus);
+      } catch (err) {
+        console.error("Status update error:", err);
       }
     }
-  });
 
-  if (count > 0) {
-    localStorage.setItem('sp_p', JSON.stringify(prods));
-    renderP();
-    alert(`تم تحديث ${count} صنفاً بنجاح!`);
-    tab('cat');
-  } else {
-    alert('لم يتم التعرف على أية أسعار. تأكد من إدراج اسم الصنف والسعر في السطر.');
-  }
-}
+    // Render Orders Screen (Driven by Cloud Real-time data)
+    function renderO() {
+      const container = document.getElementById('ordList');
+      if (!ords || !ords.length) {
+        container.innerHTML = `
+          <div class="text-center text-slate-500 text-xs py-10 bg-slate-900/50 rounded-2xl border border-slate-800/50 space-y-2">
+            <span class="text-3xl block">📦</span>
+            <div>لا توجد طلبات واردة حتى الآن</div>
+            <p class="text-[10px] text-slate-600">أي طلب يتم إرساله سينزل هنا فوراً وبشكل آلي</p>
+          </div>
+        `;
+        return;
+      }
 
-function promptOwner() {
-  if (isOwn) { openSetModal(); return; }
-  if (prompt('رمز PIN للمالك:') === pin) {
-    isOwn = true;
-    document.getElementById('ownerBar').classList.remove('hidden');
-    renderP();
-  } else { alert('PIN غير صحيح!'); }
-}
+      container.innerHTML = ords.map(o => {
+        let stBadge = o.status === 'completed' 
+          ? '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">تم التسليم 🧾</span>'
+          : o.status === 'ready' 
+          ? '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">تم التجهيز 📦</span>'
+          : '<span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">تحت التجهيز ⏳</span>';
 
-function exitOwner() {
-  isOwn = false;
-  document.getElementById('ownerBar').classList.add('hidden');
-  renderP();
-}
+        const identifier = o.docId || o.id;
 
-function openEdit(id) {
-  editId = id;
-  const p = prods.find(x => x.id === id);
-  document.getElementById('pmTitle').innerText = 'تعديل: ' + p.name;
-  document.getElementById('pmName').value = p.name;
-  document.getElementById('pmPrice').value = p.p;
-  document.getElementById('pModal').classList.remove('hidden');
-}
+        return `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2.5">
+            <div class="flex justify-between items-start border-b border-slate-800 pb-2">
+              <div>
+                <div class="font-extrabold text-sm text-slate-100 flex items-center gap-1.5">
+                  <span>#${o.id}</span>
+                  <span class="text-xs text-amber-400 font-normal">(${o.name})</span>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-0.5">${o.ph || 'بدون رقم هاتف'}</div>
+              </div>
+              <div class="text-left">
+                <div class="font-black text-amber-400 text-sm">${o.tot} ج.م</div>
+                <div class="text-[9px] text-slate-500">${o.time}</div>
+              </div>
+            </div>
 
-function savePChange() {
-  const p = prods.find(x => x.id === editId);
-  if (p) {
-    p.name = document.getElementById('pmName').value.trim() || p.name;
-    p.p = parseFloat(document.getElementById('pmPrice').value) || p.p;
-    localStorage.setItem('sp_p', JSON.stringify(prods));
-    renderP();
-  }
-  document.getElementById('pModal').classList.add('hidden');
-}
+            <div class="flex justify-between items-center text-xs">
+              <span class="text-slate-300 font-semibold">${o.type} ${o.fee ? `(+${o.fee} دليفري)` : ''} | ${o.addr}</span>
+              <div>${stBadge}</div>
+            </div>
 
-function openSetModal() {
-  document.getElementById('stPhone').value = phone;
-  document.getElementById('stPin').value = pin;
-  document.getElementById('setModal').classList.remove('hidden');
-}
+            <div class="bg-slate-950 p-2 rounded-xl text-xs space-y-1 border border-slate-800/80">
+              <div class="text-[10px] text-slate-400 font-bold">محتويات الطلب:</div>
+              <div class="text-slate-200 font-semibold text-[11px] leading-relaxed">
+                ${o.items.map(i=>`<span class="inline-block bg-slate-900 px-2 py-0.5 rounded border border-slate-800 ml-1 mb-1">${i.q} × ${i.name} (${i.p * i.q}ج)</span>`).join('')}
+              </div>
+            </div>
 
-function saveSet() {
-  phone = document.getElementById('stPhone').value.trim() || phone;
-  pin = document.getElementById('stPin').value.trim() || pin;
-  localStorage.setItem('sp_ph', phone);
-  localStorage.setItem('sp_pin', pin);
-  document.getElementById('setModal').classList.add('hidden');
-  alert('تم الحفظ!');
-}
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
+              <button onclick="updateOrderStatus('${identifier}', 'pending')" class="bg-blue-950/60 hover:bg-blue-900 text-blue-300 border border-blue-800 py-1.5 rounded-lg text-[10px] font-bold">
+                ⏳ تحت التجهيز
+              </button>
+              <button onclick="updateOrderStatus('${identifier}', 'ready')" class="bg-amber-950/60 hover:bg-amber-900 text-amber-300 border border-amber-800 py-1.5 rounded-lg text-[10px] font-bold">
+                📦 تم التجهيز
+              </button>
+              <button onclick="updateOrderStatus('${identifier}', 'completed')" class="col-span-2 sm:col-span-1 bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 py-1.5 rounded-lg text-[10px] font-bold">
+                🧾 تم التسليم
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
 
-function uploadImg(e) {
-  const file = e.target.files[0];
-  if (!file || !camId) return;
-  const r = new FileReader();
-  r.onload = function(evt) {
-    const im = new Image();
-    im.onload = function() {
-      const cvs = document.createElement('canvas');
-      const max = 400;
-      let w = im.width, h = im.height;
-      if (w > h && w > max) { h = (h * max) / w; w = max; }
-      else if (h > max) { w = (w * max) / h; h = max; }
-      cvs.width = w; cvs.height = h;
-      cvs.getContext('2d').drawImage(im, 0, 0, w, h);
-      const p = prods.find(x => x.id === camId);
-      if (p) {
-        p.i = cvs.toDataURL('image/jpeg', 0.7);
+    // Clear Orders from Cloud Database
+    async function clrOrd() {
+      if (!confirm('هل أنت تأكد من مسح جميع الطلبات من السحابة؟')) return;
+
+      try {
+        if (window.db && window.firebaseFirestore) {
+          for (let o of ords) {
+            if (o.docId) {
+              const docRef = window.firebaseFirestore.doc(window.db, 'artifacts', window.appId || 'smoke-shop-app', 'public', 'data', 'orders', o.docId);
+              await window.firebaseFirestore.deleteDoc(docRef);
+            }
+          }
+        }
+        ords = [];
+        renderO();
+        showToast('تم مسح جميع الطلبات');
+      } catch (err) {
+        console.error("Clear orders error:", err);
+      }
+    }
+
+    // WhatsApp Text Parser for price updates
+    function parseWp() {
+      let t = document.getElementById('wpText').value;
+      if (!t.trim()) return showToast('⚠️ الصق المنشور أولاً!');
+      
+      const arabicNumbers = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+      arabicNumbers.forEach((n, idx) => { t = t.replaceAll(n, idx); });
+
+      let count = 0;
+      t.split('\n').forEach(line => {
+        let cleanLine = line.trim();
+        if (!cleanLine) return;
+
+        const numMatch = cleanLine.match(/\d+/);
+        if (numMatch) {
+          const priceVal = parseFloat(numMatch[0]);
+          const lineName = cleanLine
+            .replace(numMatch[0], '')
+            .replace(/(ج\.م|جنيه|ج|خرطوشة|علبة|[•\-*#_])/g, '')
+            .trim()
+            .toLowerCase();
+
+          if (lineName.length > 0) {
+            const p = prods.find(x => 
+              lineName.includes(x.name.toLowerCase()) || 
+              x.name.toLowerCase().includes(lineName)
+            );
+            if (p && !isNaN(priceVal)) {
+              p.p = priceVal;
+              count++;
+            }
+          }
+        }
+      });
+
+      if (count > 0) {
         localStorage.setItem('sp_p', JSON.stringify(prods));
         renderP();
+        showToast(`✅ تم تحديث اسعار ${count} صنفاً بنجاح!`);
+        tab('cat');
+      } else {
+        showToast('⚠️ لم يتم التعرف على أية أسعار. تأكد من إدراج السعر والصنف.');
       }
-      document.getElementById('camModal').classList.add('hidden');
-    };
-    im.src = evt.target.result;
-  };
-  r.readAsDataURL(file);
-}
-</script>
+    }
+
+    // Owner Auth & PIN Modal
+    function promptOwner() {
+      if (isOwn) { openSetModal(); return; }
+      const enteredPin = prompt('رمز PIN للمالك:');
+      if (enteredPin === pin) {
+        isOwn = true;
+        document.getElementById('ownerBar').classList.remove('hidden');
+        renderP();
+        showToast('🔓 وضع المالك مفعل الان');
+      } else if(enteredPin !== null) { 
+        showToast('❌ رمز PIN غير صحيح!'); 
+      }
+    }
+
+    function exitOwner() {
+      isOwn = false;
+      document.getElementById('ownerBar').classList.add('hidden');
+      renderP();
+    }
+
+    function openEdit(id) {
+      editId = id;
+      const p = prods.find(x => x.id === id);
+      document.getElementById('pmTitle').innerText = 'تعديل: ' + p.name;
+      document.getElementById('pmName').value = p.name;
+      document.getElementById('pmPrice').value = p.p;
+      document.getElementById('pModal').classList.remove('hidden');
+    }
+
+    function savePChange() {
+      const p = prods.find(x => x.id === editId);
+      if (p) {
+        p.name = document.getElementById('pmName').value.trim() || p.name;
+        p.p = parseFloat(document.getElementById('pmPrice').value) || p.p;
+        localStorage.setItem('sp_p', JSON.stringify(prods));
+        renderP();
+        showToast('تم حفظ تعديلات الصنف');
+      }
+      document.getElementById('pModal').classList.add('hidden');
+    }
+
+    function openSetModal() {
+      document.getElementById('stPhone').value = phone;
+      document.getElementById('stPin').value = pin;
+      document.getElementById('setModal').classList.remove('hidden');
+    }
+
+    function saveSet() {
+      phone = document.getElementById('stPhone').value.trim() || phone;
+      pin = document.getElementById('stPin').value.trim() || pin;
+      localStorage.setItem('sp_ph', phone);
+      localStorage.setItem('sp_pin', pin);
+      document.getElementById('setModal').classList.add('hidden');
+      showToast('تم حفظ إعدادات المالك!');
+    }
+  </script>
 </body>
 </html>
