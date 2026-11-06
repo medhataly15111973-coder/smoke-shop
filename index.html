@@ -62,8 +62,6 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 
 <main class="max-w-md mx-auto p-3 space-y-3">
 
-  <!-- ==================== تبويبات العميل ==================== -->
-
   <!-- 1. المتجر والمنتجات -->
   <section id="tab-products" class="tab-content active space-y-3">
     <div class="relative">
@@ -99,7 +97,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
         </div>
       </div>
 
-      <!-- حقل العنوان فقط بدون أي إشارة للأسعار -->
+      <!-- إدخال العنوان فقط في حالة الدليفري بدون أي أسعار -->
       <div id="deliveryBox" class="hidden space-y-1.5 pt-2 border-t border-slate-800">
         <label class="block text-[10px] text-slate-400">عنوان التوصيل بالتفصيل *</label>
         <input type="text" id="custAddress" placeholder="المنطقة، اسم الشارع، رقم العمارة والدور..." class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
@@ -116,7 +114,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
         </div>
       </div>
 
-      <!-- الإجمالي: أصناف فقط -->
+      <!-- الإجمالي المعروض للعميل هو الأصناف فقط -->
       <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 pt-2">
         <div class="flex justify-between items-center text-sm font-black">
           <span class="text-white">إجمالي الفاتورة:</span>
@@ -151,7 +149,6 @@ body.owner-mode nav.owner-nav { display: flex !important; }
       <button onclick="clearAllOrders()" class="text-[11px] text-red-400 hover:underline">مسح الكل</button>
     </div>
 
-    <!-- أزرار الفلترة -->
     <div class="flex gap-1.5 overflow-x-auto pb-1 hide-sb text-xs" id="orderFilterPills">
       <button onclick="setOrderFilter('all')" class="ord-filter-btn px-2.5 py-1 rounded-lg font-bold bg-amber-500 text-slate-950" data-filter="all">الكل</button>
       <button onclick="setOrderFilter('pending')" class="ord-filter-btn px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800" data-filter="pending">قيد الانتظار ⏳</button>
@@ -355,7 +352,7 @@ const CATEGORIES = [
 let products = JSON.parse(localStorage.getItem('sp_p') || 'null') || INITIAL_PRODUCTS;
 if(!localStorage.getItem('sp_p')) localStorage.setItem('sp_p', JSON.stringify(INITIAL_PRODUCTS));
 
-let cart = JSON.parse(localStorage.getItem('sp_c') || '{}');
+let cart = JSON.parse(localStorage.getItem('sp_c')) || '{}';
 let shopPhone = localStorage.getItem('sp_ph') || '01221143854';
 let ownerPin = localStorage.getItem('sp_pin') || '1234';
 let staffList = JSON.parse(localStorage.getItem('sp_staff') || '[]');
@@ -585,7 +582,6 @@ function calculateTotals() {
   document.getElementById('grandTotalTxt').innerText = subTotal + ' ج.م';
 }
 
-// تأكيد وإرسال طلب العميل
 function submitOrderViaWhatsapp() {
   const items = Object.values(cart);
   if(!items.length) {
@@ -633,7 +629,6 @@ function submitOrderViaWhatsapp() {
     try { db.collection("orders").add(orderPayload); } catch(err) { console.error("Firebase sync error:", err); }
   }
 
-  // رسالة الواتساب للطلب بدون ذكر أي رسوم دليفري
   let msg = `🧾 *طلب شراء جديد - Smoke Shop*\n`;
   msg += `🔢 رقم الطلب: #${orderPayload.id}\n`;
   msg += `👤 العميل: ${name} (${phone})\n`;
@@ -657,7 +652,6 @@ function submitOrderViaWhatsapp() {
   window.open(`https://wa.me/${dest}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-// عرض طلبات العميل
 function renderCustomerOrders() {
   const container = document.getElementById('customerOrdersList');
   if(!container) return;
@@ -690,8 +684,6 @@ function renderCustomerOrders() {
     `;
   }).join('');
 }
-
-// ==================== وظائف لوحة المالك ====================
 
 function setOrderFilter(filter) {
   activeOrderFilter = filter;
@@ -765,7 +757,6 @@ function renderOwnerOrders() {
           </div>
         </div>
 
-        <!-- حقل تحديد قيمة التوصيل يدوياً للمالك فقط -->
         ${o.type === 'دليفري' ? `
           <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
             <div class="text-[11px] text-slate-300">
