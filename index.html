@@ -14,10 +14,14 @@
 body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 .hide-sb::-webkit-scrollbar{display:none}
 
-/* إخفاء عناصر المالك كلياً عن العميل افتراضياً */
+/* إخفاء عناصر المالك كلياً عن العميل افتراضياً وضمان عدم التداخل */
 .owner-only { display: none !important; }
 body.is-owner-mode .owner-only { display: flex !important; }
 body.is-owner-mode div.owner-only { display: block !important; }
+
+/* عزل تام للأقسام */
+.app-section { display: none !important; }
+.app-section.active-section { display: block !important; }
 </style>
 </head>
 <body class="bg-[#0b0f19] text-slate-100 min-h-screen">
@@ -44,7 +48,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="tab('cart')" class="relative p-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">
+      <button onclick="switchTab('cart')" class="relative p-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">
         🛒<span id="badge" class="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center hidden">0</span>
       </button>
     </div>
@@ -52,8 +56,8 @@ body.is-owner-mode div.owner-only { display: block !important; }
 </header>
 
 <main class="max-w-md mx-auto p-3 space-y-3">
-  <!-- قائمة المنتجات -->
-  <div id="tab-cat" class="space-y-3">
+  <!-- 1. قائمة المنتجات -->
+  <div id="sec-cat" class="app-section active-section space-y-3">
     <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-3 rounded-2xl border border-slate-800 flex items-center justify-between">
       <div>
         <h2 class="font-black text-xs text-amber-400">مباشر ومُحدث</h2>
@@ -70,8 +74,8 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5" id="grid"></div>
   </div>
 
-  <!-- الفاتورة -->
-  <div id="tab-cart" class="hidden space-y-3">
+  <!-- 2. الفاتورة -->
+  <div id="sec-cart" class="app-section space-y-3">
     <div class="flex justify-between items-center">
       <h2 class="font-bold text-sm text-slate-200">🧾 تفاصيل الفاتورة</h2>
       <button onclick="clrCart()" class="text-[11px] text-red-400 hover:underline">تفريغ</button>
@@ -113,22 +117,22 @@ body.is-owner-mode div.owner-only { display: block !important; }
     </button>
   </div>
 
-  <!-- تتبع الطلبات (للعميل) -->
-  <div id="tab-track" class="hidden space-y-3">
+  <!-- 3. تتبع الطلبات (للعميل) -->
+  <div id="sec-track" class="app-section space-y-3">
     <h2 class="font-bold text-sm text-slate-200">📦 تتبع طلباتي</h2>
     <div id="myOrdList" class="space-y-3"></div>
   </div>
 
-  <!-- تحديث الأسعار (للمالك فقط - مخفي افتراضياً ولا يظهر إلا عند النقر على زر التحديث) -->
-  <div id="tab-upd" class="owner-only hidden space-y-3">
+  <!-- 4. تحديث الأسعار (للمالك فقط - قسم منفصل ومستقل تماماً) -->
+  <div id="sec-upd" class="owner-only app-section space-y-3">
     <h2 class="font-bold text-sm text-slate-200">📋 تحديث الأسعار من منشور الواتس</h2>
     <p class="text-[11px] text-slate-400">الصق نص المنشور اليومي:</p>
     <textarea id="wpText" rows="6" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم نص كيلو ١٢٠0" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-amber-300 font-mono"></textarea>
     <button onclick="parseWp()" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs">⚡ تحديث الأسعار الآن</button>
   </div>
 
-  <!-- شاشة الطلبات الواردة والتجهيز (للمالك فقط) -->
-  <div id="tab-ord" class="owner-only hidden space-y-3">
+  <!-- 5. الطلبات الواردة والتجهيز (للمالك فقط - قسم منفصل ومستقل تماماً) -->
+  <div id="sec-ord" class="owner-only app-section space-y-3">
     <div class="flex justify-between items-center">
       <h2 class="font-bold text-sm text-slate-200">📋 الطلبات الواردة والتجهيز</h2>
       <button onclick="clrOrd()" class="text-[11px] text-red-400 hover:underline">مسح الكل</button>
@@ -140,10 +144,10 @@ body.is-owner-mode div.owner-only { display: block !important; }
 <!-- القائمة السفلية -->
 <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 py-2 px-4 z-40 max-w-md mx-auto">
   <div class="flex justify-around items-center text-[10px]">
-    <button onclick="tab('cat')" id="nb-cat" class="flex flex-col items-center gap-1 text-amber-400">🛍️ المنتجات</button>
-    <button onclick="tab('cart')" id="nb-cart" class="flex flex-col items-center gap-1 text-slate-400">🛒 الفاتورة</button>
-    <button onclick="tab(isOwn ? 'ord' : 'track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 <span id="trackLabel">تتبع طلباتي</span></button>
-    <button onclick="tab('upd')" id="nb-upd" class="owner-only flex flex-col items-center gap-1 text-slate-400">⚡ تحديث الأسعار</button>
+    <button onclick="switchTab('cat')" id="nb-cat" class="flex flex-col items-center gap-1 text-amber-400">🛍️ المنتجات</button>
+    <button onclick="switchTab('cart')" id="nb-cart" class="flex flex-col items-center gap-1 text-slate-400">🛒 الفاتورة</button>
+    <button onclick="switchTab(isOwn ? 'ord' : 'track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 <span id="trackLabel">تتبع طلباتي</span></button>
+    <button onclick="switchTab('upd')" id="nb-upd" class="owner-only flex flex-col items-center gap-1 text-slate-400">⚡ تحديث الأسعار</button>
   </div>
 </nav>
 
@@ -309,24 +313,32 @@ function handleLogoClick() {
   }
 }
 
-function tab(t) {
+// دالة التبديل الآمن والمضمون بين الأقسام
+function switchTab(t) {
   if(!isOwn && (t === 'upd' || t === 'ord')) return;
 
-  // إخفاء جميع الأقسام تماماً
+  // إزالة التنشيط عن كل الأقسام
+  document.querySelectorAll('.app-section').forEach(el => {
+    el.classList.remove('active-section');
+  });
+
+  // إزالة تلون أزرار القائمة السفلية
   ['cat','cart','track','upd','ord'].forEach(x => {
-    const el = document.getElementById('tab-' + x);
-    if(el) el.classList.add('hidden');
     const nb = document.getElementById('nb-' + x);
     if(nb) nb.classList.replace('text-amber-400','text-slate-400');
   });
   
-  // إظهار القسم المطلوب حصرياً
-  const activeTabId = isOwn && t === 'track' ? 'ord' : t;
-  const targetTab = document.getElementById('tab-' + activeTabId);
-  if(targetTab) targetTab.classList.remove('hidden');
+  // تحديد القسم المستهدف بدقة
+  const targetId = (isOwn && t === 'track') ? 'ord' : t;
+  const targetSec = document.getElementById('sec-' + targetId);
+  if(targetSec) {
+    targetSec.classList.add('active-section');
+  }
   
   const targetNb = document.getElementById('nb-' + t);
-  if(targetNb) targetNb.classList.replace('text-slate-400','text-amber-400');
+  if(targetNb) {
+    targetNb.classList.replace('text-slate-400','text-amber-400');
+  }
 
   if(t === 'track' && !isOwn) renderMyOrders();
   if((t === 'ord' || (t === 'track' && isOwn)) && isOwn) renderO();
@@ -341,7 +353,7 @@ function promptOwner() {
     document.getElementById('ownerBar').classList.remove('hidden');
     document.getElementById('trackLabel').innerText = 'الطلبات الواردة';
     renderP();
-    tab('ord');
+    switchTab('ord');
   } else if (inputPin !== null) { 
     alert('PIN غير صحيح!'); 
   }
@@ -353,7 +365,7 @@ function exitOwner() {
   document.getElementById('ownerBar').classList.add('hidden');
   document.getElementById('trackLabel').innerText = 'تتبع طلباتي';
   renderP();
-  tab('cat');
+  switchTab('cat');
 }
 
 function renderCats() {
@@ -485,17 +497,14 @@ function sendOrder() {
     items: keys.map(k => cart[k])
   };
 
-  // حفظ محلي فوري
   let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
   myOrders.unshift(ordData);
   localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
 
-  // رفع سحابي لـ Firebase
   try {
     db.collection("orders").add(ordData);
   } catch(e) { console.error("Cloud Error:", e); }
 
-  // تحضير نص الواتساب
   let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph})\n📍 الاستلام: ${ordData.type}\n`;
   if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
   msgShop += `-------------------\n📦 الأصناف:\n`;
@@ -506,9 +515,8 @@ function sendOrder() {
   if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
 
   clrCart();
-  tab('track');
+  switchTab('track');
 
-  // فتح رابط الواتس المباشر
   window.location.href = `https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`;
 }
 
@@ -656,7 +664,7 @@ function parseWp() {
     localStorage.setItem('sp_p', JSON.stringify(prods));
     renderP();
     alert(`تم تحديث ${count} صنفاً بنجاح!`);
-    tab('cat');
+    switchTab('cat');
   } else {
     alert('لم يتم التعرف على أية أسعار.');
   }
