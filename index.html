@@ -37,7 +37,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <!-- اضغط 4 ضغطات متتالية على اللوجو لفتح وضع المالك -->
     <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoClick()">
       <div class="w-9 h-9 rounded-full overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center font-bold text-amber-400 text-xs">
-        <img id="hLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" class="w-full h-full object-cover">
+        <img id="hLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" onerror="this.src='https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png'" class="w-full h-full object-cover">
       </div>
       <div>
         <h1 class="font-black text-sm tracking-wider text-amber-400">SMOKE SHOP</h1>
@@ -205,7 +205,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
 </div>
 
 <script>
-// إعدادات Firebase الخاصة بمشروعك
+// إعدادات Firebase الخاصة بمشروعك الحقيقي
 const firebaseConfig = {
   apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
   authDomain: "smokeshop-40107.firebaseapp.com",
