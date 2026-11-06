@@ -34,9 +34,10 @@ body.is-owner-mode div.owner-only { display: block !important; }
 <!-- الهيدر -->
 <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
   <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
-    <div class="flex items-center gap-2.5 cursor-pointer" onclick="handleLogoClick()">
+    <!-- اضغط 4 ضغطات متتالية على اللوجو لفتح وضع المالك -->
+    <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoClick()">
       <div class="w-9 h-9 rounded-full overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center font-bold text-amber-400 text-xs">
-        <img id="hLogo" src="" onerror="this.src='https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png'" class="w-full h-full object-cover">
+        <img id="hLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" class="w-full h-full object-cover">
       </div>
       <div>
         <h1 class="font-black text-sm tracking-wider text-amber-400">SMOKE SHOP</h1>
@@ -60,7 +61,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
         <p class="text-[11px] text-slate-300">أهلاً بكم في متجر Smoke Shop</p>
       </div>
       <div class="w-10 h-10 rounded-xl overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center shadow">
-        <img id="bLogo" src="" onerror="this.src='https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png'" class="w-full h-full object-cover">
+        <img id="bLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" class="w-full h-full object-cover">
       </div>
     </div>
 
@@ -204,7 +205,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
 </div>
 
 <script>
-// إعدادات Firebase الخاصة بمشروعك الحقيقي
+// إعدادات Firebase الخاصة بمشروعك
 const firebaseConfig = {
   apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
   authDomain: "smokeshop-40107.firebaseapp.com",
@@ -278,8 +279,6 @@ let curCat = 'all', isOwn = false, editId = null, camId = null;
 let logoClicks = 0, logoTimer = null;
 
 document.addEventListener("DOMContentLoaded", function() {
-  document.getElementById('hLogo').src = LOGO;
-  document.getElementById('bLogo').src = LOGO;
   renderCats();
   renderP();
   updCart();
@@ -334,13 +333,16 @@ function tab(t) {
 
 function promptOwner() {
   if (isOwn) { openSetModal(); return; }
-  if (prompt('رمز PIN الخاص بالمالك:') === pin) {
+  let inputPin = prompt('رمز PIN الخاص بالمالك:');
+  if (inputPin === pin) {
     isOwn = true;
     document.body.classList.add('is-owner-mode');
     document.getElementById('ownerBar').classList.remove('hidden');
     renderP();
     tab('ord');
-  } else { alert('PIN غير صحيح!'); }
+  } else if (inputPin !== null) { 
+    alert('PIN غير صحيح!'); 
+  }
 }
 
 function exitOwner() {
