@@ -34,7 +34,6 @@ body.is-owner-mode div.owner-only { display: block !important; }
 <!-- الهيدر -->
 <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
   <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
-    <!-- اضغط 4 ضغطات متتالية على اللوجو لفتح وضع المالك -->
     <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoClick()">
       <div class="w-9 h-9 rounded-full overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center font-bold text-amber-400 text-xs">
         <img id="hLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" onerror="this.src='https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png'" class="w-full h-full object-cover">
@@ -114,7 +113,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
     </button>
   </div>
 
-  <!-- تتبع الطلبات -->
+  <!-- تتبع الطلبات (للعميل) -->
   <div id="tab-track" class="hidden space-y-3">
     <h2 class="font-bold text-sm text-slate-200">📦 تتبع طلباتي</h2>
     <div id="myOrdList" class="space-y-3"></div>
@@ -128,10 +127,10 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <button onclick="parseWp()" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs">⚡ تحديث الأسعار الآن</button>
   </div>
 
-  <!-- شاشة مسؤول التجهيز السحابية (للمالك فقط) -->
+  <!-- شاشة الطلبات الواردة والتجهيز (للمالك فقط - تظهر بدل تتبع الطلبات) -->
   <div id="tab-ord" class="owner-only hidden space-y-3">
     <div class="flex justify-between items-center">
-      <h2 class="font-bold text-sm text-slate-200">📋 شاشة مسؤول التجهيز السحابية</h2>
+      <h2 class="font-bold text-sm text-slate-200">📋 تتبع الطلبات الواردة والتجهيز</h2>
       <button onclick="clrOrd()" class="text-[11px] text-red-400 hover:underline">مسح الكل</button>
     </div>
     <div id="ordList" class="space-y-3"></div>
@@ -143,10 +142,11 @@ body.is-owner-mode div.owner-only { display: block !important; }
   <div class="flex justify-around items-center text-[10px]">
     <button onclick="tab('cat')" id="nb-cat" class="flex flex-col items-center gap-1 text-amber-400">🛍️ المنتجات</button>
     <button onclick="tab('cart')" id="nb-cart" class="flex flex-col items-center gap-1 text-slate-400">🛒 الفاتورة</button>
-    <button onclick="tab('track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 تتبع طلباتي</button>
+    
+    <!-- زر تتبع الطلبات للعميل، ويتحول إلى "الطلبات الواردة" للمالك تلقائياً -->
+    <button onclick="tab(isOwn ? 'ord' : 'track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 <span id="trackLabel">تتبع طلباتي</span></button>
     
     <button onclick="tab('upd')" id="nb-upd" class="owner-only flex flex-col items-center gap-1 text-slate-400">⚡ تحديث</button>
-    <button onclick="tab('ord')" id="nb-ord" class="owner-only flex flex-col items-center gap-1 text-slate-400">📋 التجهيز</button>
   </div>
 </nav>
 
@@ -205,7 +205,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
 </div>
 
 <script>
-// إعدادات Firebase الخاصة بمشروعك الحقيقي
+// إعدادات Firebase الخاصة بمشروعك[cite: 1]
 const firebaseConfig = {
   apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
   authDomain: "smokeshop-40107.firebaseapp.com",
@@ -321,14 +321,14 @@ function tab(t) {
     if(nb) nb.classList.replace('text-amber-400','text-slate-400');
   });
   
-  const targetTab = document.getElementById('tab-' + t);
+  const targetTab = document.getElementById('tab-' + (isOwn && t === 'track' ? 'ord' : t));
   if(targetTab) targetTab.classList.remove('hidden');
   
   const targetNb = document.getElementById('nb-' + t);
   if(targetNb) targetNb.classList.replace('text-slate-400','text-amber-400');
 
-  if(t === 'track') renderMyOrders();
-  if(t === 'ord') renderO();
+  if(t === 'track' && !isOwn) renderMyOrders();
+  if((t === 'ord' || (t === 'track' && isOwn)) && isOwn) renderO();
 }
 
 function promptOwner() {
@@ -338,6 +338,7 @@ function promptOwner() {
     isOwn = true;
     document.body.classList.add('is-owner-mode');
     document.getElementById('ownerBar').classList.remove('hidden');
+    document.getElementById('trackLabel').innerText = 'الطلبات الواردة';
     renderP();
     tab('ord');
   } else if (inputPin !== null) { 
@@ -349,6 +350,7 @@ function exitOwner() {
   isOwn = false;
   document.body.classList.remove('is-owner-mode');
   document.getElementById('ownerBar').classList.add('hidden');
+  document.getElementById('trackLabel').innerText = 'تتبع طلباتي';
   renderP();
   tab('cat');
 }
