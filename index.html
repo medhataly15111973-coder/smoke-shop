@@ -15,12 +15,12 @@
 body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 .hide-sb::-webkit-scrollbar{display:none}
 
-/* إخفاء عناصر المالك كلياً عن العميل افتراضياً مهما كانت كلاسات Tailwind */
+/* عزل تام لعناصر المالك عن الزبائن */
 .owner-only { display: none !important; }
 body.is-owner-mode .owner-only { display: flex !important; }
 body.is-owner-mode div.owner-only { display: block !important; }
 
-/* عزل تام للأقسام */
+/* عزل الأقسام والتبويبات */
 .app-section { display: none !important; }
 .app-section.active-section { display: block !important; }
 </style>
@@ -148,7 +148,6 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <button onclick="switchTab('cat')" id="nb-cat" class="flex flex-col items-center gap-1 text-amber-400">🛍️ المنتجات</button>
     <button onclick="switchTab('cart')" id="nb-cart" class="flex flex-col items-center gap-1 text-slate-400">🛒 الفاتورة</button>
     <button onclick="switchTab('track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 <span id="trackLabel">تتبع طلباتي</span></button>
-    <!-- تم ضبط الفئات هنا بحيث لا يطغى كلاس flex على إخفاء المالك -->
     <button onclick="switchTab('upd')" id="nb-upd" class="owner-only flex-col items-center gap-1 text-slate-400">⚡ تحديث الأسعار</button>
   </div>
 </nav>
@@ -166,7 +165,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
   </div>
 </div>
 
-<!-- نافذة إعدادات المالك -->
+<!-- نافذة إعدادات المالك وطاقم التجهيز -->
 <div id="setModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-sm space-y-3">
     <h3 class="font-bold text-sm text-amber-400">إعدادات المالك وطاقم التجهيز</h3>
@@ -179,8 +178,8 @@ body.is-owner-mode div.owner-only { display: block !important; }
       <input type="password" id="stPin" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white">
     </div>
     <div>
-      <label class="block text-[11px] text-slate-400 mb-1">أسماء طاقم التجهيز (مفصولة بفاصلة):</label>
-      <textarea id="stStaff" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-amber-300" placeholder="محمد علي, مصطفى"></textarea>
+      <label class="block text-[11px] text-slate-400 mb-1">أسماء طاقم التجهيز (اسم في كل سطر أو بفاصلة):</label>
+      <textarea id="stStaff" rows="4" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-amber-300" placeholder="محمد علي&#10;مصطفى&#10;إبراهيم"></textarea>
     </div>
     <div class="flex gap-2 pt-2">
       <button onclick="saveSet()" class="w-1/2 bg-emerald-600 text-white py-1.5 rounded text-xs font-bold">حفظ</button>
@@ -280,7 +279,14 @@ let cart = JSON.parse(localStorage.getItem('sp_c')) || {};
 let ords = [];
 let phone = localStorage.getItem('sp_ph') || '01221143854';
 let pin = localStorage.getItem('sp_pin') || '1234';
-let staffList = localStorage.getItem('sp_staff') ? JSON.parse(localStorage.getItem('sp_staff')) : [];
+let staffList = [];
+try {
+  let savedStaff = localStorage.getItem('sp_staff');
+  staffList = savedStaff ? JSON.parse(savedStaff) : [];
+  if (!Array.isArray(staffList)) staffList = [];
+} catch(e) {
+  staffList = [];
+}
 
 let curCat = 'all', isOwn = false, editId = null, camId = null;
 let logoClicks = 0, logoTimer = null;
@@ -393,7 +399,7 @@ function renderP() {
         <div>
           <h3 class="font-bold text-xs text-white mb-1 truncate">${p.name}</h3>
           <div class="flex justify-between items-center text-[11px] mb-2">
-            <span onclick="${isOwn ? `openEdit(${p.id})` : ''}" class="text-amber-400 font-bold cursor-pointer">${isOwn ? p.p + ' ج.م ✏️' : p.p + ' ج.م'}</span>
+            <span onclick="${isOwn ? `openEdit(${p.id})` : ''}" class="text-amber-400 font-bold ${isOwn ? 'cursor-pointer' : ''}">${isOwn ? p.p + ' ج.م ✏️' : p.p + ' ج.م'}</span>
             <span class="text-slate-400">${p.u||''}</span>
           </div>
           ${qty===0 ? `
@@ -571,7 +577,7 @@ function renderO() {
       ? 'تم التجهيز 📦'
       : 'تحت التجهيز ⏳';
 
-    const staffOptions = staffList.length > 0 
+    const staffOptions = (Array.isArray(staffList) && staffList.length > 0)
       ? staffList.map(s => `<option value="${s}" ${o.staff===s?'selected':''}>${s}</option>`).join('')
       : '<option value="غير محدد">لا توجد أسماء مسجلة (أضف من الإعدادات)</option>';
 
@@ -706,7 +712,7 @@ function savePChange() {
 function openSetModal() {
   document.getElementById('stPhone').value = phone;
   document.getElementById('stPin').value = pin;
-  document.getElementById('stStaff').value = staffList.join(', ');
+  document.getElementById('stStaff').value = (Array.isArray(staffList) ? staffList : []).join('\n');
   document.getElementById('setModal').classList.remove('hidden');
 }
 
@@ -716,7 +722,10 @@ function saveSet() {
   const staffInput = document.getElementById('stStaff').value.trim();
   
   if (staffInput) {
-    staffList = staffInput.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    staffList = staffInput
+      .split(/[\n,،]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
   } else {
     staffList = [];
   }
@@ -725,7 +734,7 @@ function saveSet() {
   localStorage.setItem('sp_pin', pin);
   localStorage.setItem('sp_staff', JSON.stringify(staffList));
   document.getElementById('setModal').classList.add('hidden');
-  alert('تم حفظ إعدادات المسؤول وطاقم التجهيز بنجاح!');
+  alert(`تم حفظ الإعدادات! (${staffList.length} أفراد في طاقم التجهيز)`);
   if(isOwn) renderO();
 }
 
