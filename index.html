@@ -35,7 +35,9 @@ body.is-owner-mode div.owner-only { display: block !important; }
 <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
   <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
     <div class="flex items-center gap-2.5 cursor-pointer" onclick="handleLogoClick()">
-      <img id="hLogo" src="" class="w-9 h-9 rounded-full object-cover border border-slate-700">
+      <div class="w-9 h-9 rounded-full overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center font-bold text-amber-400 text-xs">
+        <img id="hLogo" src="" onerror="this.src='https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png'" class="w-full h-full object-cover">
+      </div>
       <div>
         <h1 class="font-black text-sm tracking-wider text-amber-400">SMOKE SHOP</h1>
         <p class="text-[10px] text-slate-400">قائمة الأسعار والطلبات الفورية</p>
@@ -57,7 +59,9 @@ body.is-owner-mode div.owner-only { display: block !important; }
         <h2 class="font-black text-xs text-amber-400">مباشر ومُحدث</h2>
         <p class="text-[11px] text-slate-300">أهلاً بكم في متجر Smoke Shop</p>
       </div>
-      <img id="bLogo" src="" class="w-10 h-10 rounded-xl object-cover border border-slate-700 shadow">
+      <div class="w-10 h-10 rounded-xl overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center shadow">
+        <img id="bLogo" src="" onerror="this.src='https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png'" class="w-full h-full object-cover">
+      </div>
     </div>
 
     <input type="text" id="srch" oninput="renderP()" placeholder="🔍 ابحث عن صنف..." class="w-full bg-slate-900 border border-slate-700 text-white rounded-xl py-2 px-3 text-xs focus:outline-none">
@@ -284,7 +288,6 @@ document.addEventListener("DOMContentLoaded", function() {
   if(localStorage.getItem('sp_saved_phone')) document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
   if(localStorage.getItem('sp_saved_addr')) document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
 
-  // استماع فوري ولحظي للطلبات من السحابة (Firestore Real-time)
   db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
     ords = [];
     snapshot.forEach((doc) => {
@@ -363,7 +366,7 @@ function renderP() {
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-col justify-between relative shadow">
         ${isOwn ? `<button onclick="camId=${p.id};document.getElementById('camModal').classList.remove('hidden')" class="absolute top-2 left-2 bg-slate-800/80 p-1 rounded-lg text-xs">📷</button>` : ''}
         <div class="w-full h-24 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800">
-          <img src="${p.i || LOGO}" class="w-full h-full object-cover">
+          <img src="${p.i || LOGO}" onerror="this.src='${LOGO}'" class="w-full h-full object-cover">
         </div>
         <div>
           <h3 class="font-bold text-xs text-white mb-1 truncate">${p.name}</h3>
@@ -468,7 +471,6 @@ function sendOrder() {
     items: keys.map(k => cart[k])
   };
 
-  // حفظ الطلب مباشرة في قاعدة بيانات Firestore السحابية
   db.collection("orders").add(ordData).then(() => {
     let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
     myOrders.unshift(ordData);
