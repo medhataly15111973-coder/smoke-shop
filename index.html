@@ -186,16 +186,21 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 </div>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDummyKeyForDemoPurposesOnly12345",
-  authDomain: "smokeshop-app.firebaseapp.com",
-  projectId: "smokeshop-app",
-  storageBucket: "smokeshop-app.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+let db = null;
+try {
+  const firebaseConfig = {
+    apiKey: "AIzaSyDummyKeyForDemoPurposesOnly12345",
+    authDomain: "smokeshop-app.firebaseapp.com",
+    projectId: "smokeshop-app",
+    storageBucket: "smokeshop-app.appspot.com",
+    messagingSenderId: "123456789",
+    appId: "1:123456789:web:abcdef"
+  };
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+} catch(e) {
+  console.warn("Firebase غير متصل:", e);
+}
 
 const LOGO = "https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png";
 
@@ -248,11 +253,10 @@ let prods = (rawP && rawP !== '[]') ? JSON.parse(rawP) : INIT_P;
 if (!rawP || rawP === '[]') localStorage.setItem('sp_p', JSON.stringify(INIT_P));
 
 let cart = JSON.parse(localStorage.getItem('sp_c')) || {};
-let ords = [];
+let ords = JSON.parse(localStorage.getItem('sp_o')) || [];
 let phone = localStorage.getItem('sp_ph') || '01221143854';
 let pin = localStorage.getItem('sp_pin') || '1234';
 
-// إذا لم يكن هناك طاقم مسجل، تبدأ القائمة فارغة ليقوم المسؤول بإضافتهم بنفسه
 let staffList = localStorage.getItem('sp_staff') ? JSON.parse(localStorage.getItem('sp_staff')) : [];
 
 let curCat = 'all', isOwn = false, editId = null, camId = null;
@@ -268,13 +272,21 @@ document.addEventListener("DOMContentLoaded", function() {
   if(localStorage.getItem('sp_saved_phone')) document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
   if(localStorage.getItem('sp_saved_addr')) document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
 
-  db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
-    ords = [];
-    snapshot.forEach((doc) => {
-      ords.push({ docId: doc.id, ...doc.data() });
+  if (db) {
+    db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+      ords = [];
+      snapshot.forEach((doc) => {
+        ords.push({ docId: doc.id, ...doc.data() });
+      });
+      localStorage.setItem('sp_o', JSON.stringify(ords));
+      renderO();
+    }, (error) => {
+      console.warn("استخدام الحفظ المحلي فقط:", error);
+      renderO();
     });
+  } else {
     renderO();
-  });
+  }
 });
 
 function beep() {
@@ -395,6 +407,7 @@ function updTot() {
 function sendOrder() {
   const keys = Object.keys(cart);
   if (!keys.length) return alert('أضف أصنافاً أولاً!');
+
   const name = document.getElementById('cName').value.trim() || 'عميل المحل';
   const ph = document.getElementById('cPhone').value.trim() || '';
   const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
@@ -409,34 +422,42 @@ function sendOrder() {
   const ordData = {
     id: Math.floor(1000 + Math.random() * 9000),
     time: new Date().toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'}),
-    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
     name, ph, type: isD ? 'دليفري' : 'استلام', addr, fee, tot: sub + fee,
     status: 'pending',
     staff: 'غير محدد',
     items: keys.map(k => cart[k])
   };
 
-  db.collection("orders").add(ordData).then(() => {
-    beep();
-    let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph || 'بدون رقم'})\n📍 الاستلام: ${ordData.type}\n`;
-    if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
-    msgShop += `-------------------\n📦 الأصناف:\n`;
-    ordData.items.forEach(i => { msgShop += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
-    msgShop += `-------------------\n💵 الإجمالي: ${ordData.tot} ج.م`;
+  // حفظ محلي فوري ضماناً لسرعة التطبيق
+  ords.unshift(ordData);
+  localStorage.setItem('sp_o', JSON.stringify(ords));
 
-    let dstShop = phone.trim();
-    if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
-    window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`, '_blank');
+  // إرسال للسحابة بشكل خلفي غير معطل
+  if (db) {
+    db.collection("orders").add({
+      ...ordData,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(err => console.warn("تعذر الحفظ في السحابة:", err));
+  }
 
-    if (ph) {
-      sendCustomerMsgLocal(ordData, 'pending');
-    }
+  beep();
+  renderO();
 
-    clrCart();
-    tab('ord');
-  }).catch(err => {
-    alert('حدث خطأ أثناء إرسال الطلب: ' + err.message);
-  });
+  // تجهيز نص الواتساب للمحل
+  let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph || 'بدون رقم'})\n📍 الاستلام: ${ordData.type}\n`;
+  if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
+  msgShop += `-------------------\n📦 الأصناف:\n`;
+  ordData.items.forEach(i => { msgShop += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
+  msgShop += `-------------------\n💵 الإجمالي: ${ordData.tot} ج.م`;
+
+  let dstShop = phone.trim();
+  if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
+
+  clrCart();
+  tab('ord');
+
+  // التوجيه المباشر للواتساب لتفادي الحظر
+  window.location.href = `https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`;
 }
 
 function sendCustomerMsgLocal(o, statusType) {
@@ -446,7 +467,7 @@ function sendCustomerMsgLocal(o, statusType) {
   } else if (statusType === 'ready') {
     text = `أهلاً بك أ/${o.name} ✨\nيسعدنا إعلامك بأنه *تم تجهيز طلبك* رقم (#${o.id}) بنجاح بواسطة (${o.staff}) 📦\n${o.type === 'دليفري' ? 'الطلب في طريقه إليك مع الدليفري 🛵' : 'يمكنك الحضور للمحل للاستلام الآن 🏪'}`;
   } else if (statusType === 'completed') {
-    text = `🧾 *فاتورة استلاستلام - Smoke Shop*\nعزيزي أ/${o.name}\nتم تسليم الطلب رقم (#${o.id}) بنجاح وتسديد المبلغ 💵\n-------------------\n📦 *تفاصيل الفاتورة:*\n`;
+    text = `🧾 *فاتورة استلام - Smoke Shop*\nعزيزي أ/${o.name}\nتم تسليم الطلب رقم (#${o.id}) بنجاح وتسديد المبلغ 💵\n-------------------\n📦 *تفاصيل الفاتورة:*\n`;
     o.items.forEach(i => { text += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
     if (o.type === 'دليفري') text += `🛵 خدمة التوصيل: ${o.fee} ج.م\n`;
     text += `-------------------\n💰 *إجمالي المدفوع:* ${o.tot} ج.م\n\nشكراً لتسوقكم معنا ونتمنى لكم يوماً سعيداً! ❤️`;
@@ -457,31 +478,50 @@ function sendCustomerMsgLocal(o, statusType) {
   window.open(`https://wa.me/${dst}?text=${encodeURIComponent(text)}`, '_blank');
 }
 
-function updateOrderStaff(docId, staffName) {
-  db.collection("orders").doc(docId).update({ staff: staffName });
+function updateOrderStaff(docIdOrId, staffName) {
+  const o = ords.find(x => x.docId === docIdOrId || x.id == docIdOrId);
+  if (o) {
+    o.staff = staffName;
+    localStorage.setItem('sp_o', JSON.stringify(ords));
+    if (db && o.docId) {
+      db.collection("orders").doc(o.docId).update({ staff: staffName });
+    }
+  }
 }
 
-function notifySupervisor(docId) {
-  const o = ords.find(x => x.docId === docId);
+function notifySupervisor(docIdOrId) {
+  const o = ords.find(x => x.docId === docIdOrId || x.id == docIdOrId);
   if (!o) return;
   if (!o.staff || o.staff === 'غير محدد') {
     return alert('الرجاء اختيار اسم القائم بالتجهيز أولاً!');
   }
-  db.collection("orders").doc(docId).update({ status: 'ready' }).then(() => {
-    let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام المسؤول (*${o.staff}*) بالانتهاء من تجهيز الطلب رقم (#${o.id}) للعميل: ${o.name} 📦.\nيرجى إرسال الإشعار للعميل.`;
-    let dstShop = phone.trim();
-    if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
-    window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(supMsg)}`, '_blank');
-    sendCustomerMsgLocal(o, 'ready');
-  });
+  
+  o.status = 'ready';
+  localStorage.setItem('sp_o', JSON.stringify(ords));
+  renderO();
+
+  if (db && o.docId) {
+    db.collection("orders").doc(o.docId).update({ status: 'ready' });
+  }
+
+  let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام المسؤول (*${o.staff}*) بالانتهاء من تجهيز الطلب رقم (#${o.id}) للعميل: ${o.name} 📦.\nيرجى إرسال الإشعار للعميل.`;
+  let dstShop = phone.trim();
+  if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
+  
+  window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(supMsg)}`, '_blank');
+  if (o.ph) sendCustomerMsgLocal(o, 'ready');
 }
 
-function updateOrderStatus(docId, newStatus) {
-  const o = ords.find(x => x.docId === docId);
+function updateOrderStatus(docIdOrId, newStatus) {
+  const o = ords.find(x => x.docId === docIdOrId || x.id == docIdOrId);
   if (o) {
-    db.collection("orders").doc(docId).update({ status: newStatus }).then(() => {
-      sendCustomerMsgLocal(o, newStatus);
-    });
+    o.status = newStatus;
+    localStorage.setItem('sp_o', JSON.stringify(ords));
+    renderO();
+    if (db && o.docId) {
+      db.collection("orders").doc(o.docId).update({ status: newStatus });
+    }
+    if (o.ph) sendCustomerMsgLocal(o, newStatus);
   }
 }
 
@@ -492,6 +532,8 @@ function renderO() {
       : o.status === 'ready' 
       ? 'تم التجهيز 📦'
       : 'تحت التجهيز ⏳';
+
+    const targetId = o.docId || o.id;
 
     const staffOptions = staffList.length > 0 
       ? staffList.map(s => `<option value="${s}" ${o.staff===s?'selected':''}>${s}</option>`).join('')
@@ -512,14 +554,14 @@ function renderO() {
         </div>
         <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
           <span class="text-[11px] text-slate-400">القائم بالتجهيز:</span>
-          <select onchange="updateOrderStaff('${o.docId}', this.value)" class="bg-slate-950 border border-slate-700 text-amber-300 rounded p-1 text-xs w-full">
+          <select onchange="updateOrderStaff('${targetId}', this.value)" class="bg-slate-950 border border-slate-700 text-amber-300 rounded p-1 text-xs w-full">
             <option value="غير محدد">اختر اسمك...</option>
             ${staffOptions}
           </select>
         </div>
         <div class="grid grid-cols-2 gap-2 pt-1">
-          <button onclick="notifySupervisor('${o.docId}')" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 تم التجهيز وإشعار المشرف</button>
-          <button onclick="updateOrderStatus('${o.docId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلاستلام والفاتورة</button>
+          <button onclick="notifySupervisor('${targetId}')" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 تم التجهيز وإشعار المشرف</button>
+          <button onclick="updateOrderStatus('${targetId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلام والفاتورة</button>
         </div>
       </div>
     `;
@@ -527,10 +569,15 @@ function renderO() {
 }
 
 function clrOrd() {
-  if (confirm('مسح جميع الطلبات من السحابة؟')) {
-    ords.forEach(o => {
-      db.collection("orders").doc(o.docId).delete();
-    });
+  if (confirm('مسح جميع الطلبات؟')) {
+    if (db) {
+      ords.forEach(o => {
+        if (o.docId) db.collection("orders").doc(o.docId).delete();
+      });
+    }
+    ords = [];
+    localStorage.setItem('sp_o', '[]');
+    renderO();
   }
 }
 
