@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smoke Shop</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<!-- مكتبة Firebase Firestore -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 <style>
 *{font-family:'Cairo',sans-serif;-webkit-tap-highlight-color:transparent}
@@ -186,22 +183,6 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 </div>
 
 <script>
-let db = null;
-try {
-  const firebaseConfig = {
-    apiKey: "AIzaSyDummyKeyForDemoPurposesOnly12345",
-    authDomain: "smokeshop-app.firebaseapp.com",
-    projectId: "smokeshop-app",
-    storageBucket: "smokeshop-app.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef"
-  };
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.firestore();
-} catch(e) {
-  console.warn("Firebase غير متصل:", e);
-}
-
 const LOGO = "https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png";
 
 const INIT_P = [
@@ -256,7 +237,6 @@ let cart = JSON.parse(localStorage.getItem('sp_c')) || {};
 let ords = JSON.parse(localStorage.getItem('sp_o')) || [];
 let phone = localStorage.getItem('sp_ph') || '01221143854';
 let pin = localStorage.getItem('sp_pin') || '1234';
-
 let staffList = localStorage.getItem('sp_staff') ? JSON.parse(localStorage.getItem('sp_staff')) : [];
 
 let curCat = 'all', isOwn = false, editId = null, camId = null;
@@ -267,27 +247,28 @@ document.addEventListener("DOMContentLoaded", function() {
   renderCats();
   renderP();
   updCart();
+  renderO();
   
   if(localStorage.getItem('sp_saved_name')) document.getElementById('cName').value = localStorage.getItem('sp_saved_name');
   if(localStorage.getItem('sp_saved_phone')) document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
   if(localStorage.getItem('sp_saved_addr')) document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
 
-  if (db) {
-    db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
-      ords = [];
-      snapshot.forEach((doc) => {
-        ords.push({ docId: doc.id, ...doc.data() });
-      });
-      localStorage.setItem('sp_o', JSON.stringify(ords));
-      renderO();
-    }, (error) => {
-      console.warn("استخدام الحفظ المحلي فقط:", error);
-      renderO();
-    });
-  } else {
-    renderO();
-  }
+  // مزامنة تلقائية كل ثانيتين لشاشة التجهيز لضمان ظهور الطلبات بين الأجهزة فوراً
+  setInterval(syncOrders, 2000);
 });
+
+function syncOrders() {
+  const localSaved = localStorage.getItem('sp_o');
+  if (localSaved) {
+    try {
+      const parsed = JSON.parse(localSaved);
+      if (parsed.length !== ords.length) {
+        ords = parsed;
+        renderO();
+      }
+    } catch(e){}
+  }
+}
 
 function beep() {
   try {
@@ -307,6 +288,7 @@ function tab(t) {
   });
   document.getElementById('tab-' + t).classList.remove('hidden');
   document.getElementById('nb-' + t).classList.replace('text-slate-400','text-amber-400');
+  if(t === 'ord') renderO();
 }
 
 function renderCats() {
@@ -428,22 +410,11 @@ function sendOrder() {
     items: keys.map(k => cart[k])
   };
 
-  // حفظ محلي فوري ضماناً لسرعة التطبيق
   ords.unshift(ordData);
   localStorage.setItem('sp_o', JSON.stringify(ords));
-
-  // إرسال للسحابة بشكل خلفي غير معطل
-  if (db) {
-    db.collection("orders").add({
-      ...ordData,
-      timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(err => console.warn("تعذر الحفظ في السحابة:", err));
-  }
-
   beep();
   renderO();
 
-  // تجهيز نص الواتساب للمحل
   let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph || 'بدون رقم'})\n📍 الاستلام: ${ordData.type}\n`;
   if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
   msgShop += `-------------------\n📦 الأصناف:\n`;
@@ -456,8 +427,7 @@ function sendOrder() {
   clrCart();
   tab('ord');
 
-  // التوجيه المباشر للواتساب لتفادي الحظر
-  window.location.href = `https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`;
+  window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`, '_blank');
 }
 
 function sendCustomerMsgLocal(o, statusType) {
@@ -478,19 +448,16 @@ function sendCustomerMsgLocal(o, statusType) {
   window.open(`https://wa.me/${dst}?text=${encodeURIComponent(text)}`, '_blank');
 }
 
-function updateOrderStaff(docIdOrId, staffName) {
-  const o = ords.find(x => x.docId === docIdOrId || x.id == docIdOrId);
+function updateOrderStaff(orderId, staffName) {
+  const o = ords.find(x => x.id == orderId);
   if (o) {
     o.staff = staffName;
     localStorage.setItem('sp_o', JSON.stringify(ords));
-    if (db && o.docId) {
-      db.collection("orders").doc(o.docId).update({ staff: staffName });
-    }
   }
 }
 
-function notifySupervisor(docIdOrId) {
-  const o = ords.find(x => x.docId === docIdOrId || x.id == docIdOrId);
+function notifySupervisor(orderId) {
+  const o = ords.find(x => x.id == orderId);
   if (!o) return;
   if (!o.staff || o.staff === 'غير محدد') {
     return alert('الرجاء اختيار اسم القائم بالتجهيز أولاً!');
@@ -500,10 +467,6 @@ function notifySupervisor(docIdOrId) {
   localStorage.setItem('sp_o', JSON.stringify(ords));
   renderO();
 
-  if (db && o.docId) {
-    db.collection("orders").doc(o.docId).update({ status: 'ready' });
-  }
-
   let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام المسؤول (*${o.staff}*) بالانتهاء من تجهيز الطلب رقم (#${o.id}) للعميل: ${o.name} 📦.\nيرجى إرسال الإشعار للعميل.`;
   let dstShop = phone.trim();
   if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
@@ -512,28 +475,26 @@ function notifySupervisor(docIdOrId) {
   if (o.ph) sendCustomerMsgLocal(o, 'ready');
 }
 
-function updateOrderStatus(docIdOrId, newStatus) {
-  const o = ords.find(x => x.docId === docIdOrId || x.id == docIdOrId);
+function updateOrderStatus(orderId, newStatus) {
+  const o = ords.find(x => x.id == orderId);
   if (o) {
     o.status = newStatus;
     localStorage.setItem('sp_o', JSON.stringify(ords));
     renderO();
-    if (db && o.docId) {
-      db.collection("orders").doc(o.docId).update({ status: newStatus });
-    }
     if (o.ph) sendCustomerMsgLocal(o, newStatus);
   }
 }
 
 function renderO() {
-  document.getElementById('ordList').innerHTML = ords.length ? ords.map(o => {
+  const container = document.getElementById('ordList');
+  if (!container) return;
+
+  container.innerHTML = ords.length ? ords.map(o => {
     let stBadge = o.status === 'completed' 
       ? 'تم الاستلام 🧾'
       : o.status === 'ready' 
       ? 'تم التجهيز 📦'
       : 'تحت التجهيز ⏳';
-
-    const targetId = o.docId || o.id;
 
     const staffOptions = staffList.length > 0 
       ? staffList.map(s => `<option value="${s}" ${o.staff===s?'selected':''}>${s}</option>`).join('')
@@ -554,14 +515,14 @@ function renderO() {
         </div>
         <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
           <span class="text-[11px] text-slate-400">القائم بالتجهيز:</span>
-          <select onchange="updateOrderStaff('${targetId}', this.value)" class="bg-slate-950 border border-slate-700 text-amber-300 rounded p-1 text-xs w-full">
+          <select onchange="updateOrderStaff(${o.id}, this.value)" class="bg-slate-950 border border-slate-700 text-amber-300 rounded p-1 text-xs w-full">
             <option value="غير محدد">اختر اسمك...</option>
             ${staffOptions}
           </select>
         </div>
         <div class="grid grid-cols-2 gap-2 pt-1">
-          <button onclick="notifySupervisor('${targetId}')" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 تم التجهيز وإشعار المشرف</button>
-          <button onclick="updateOrderStatus('${targetId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلام والفاتورة</button>
+          <button onclick="notifySupervisor(${o.id})" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 تم التجهيز وإشعار المشرف</button>
+          <button onclick="updateOrderStatus(${o.id}, 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلام والفاتورة</button>
         </div>
       </div>
     `;
@@ -570,11 +531,6 @@ function renderO() {
 
 function clrOrd() {
   if (confirm('مسح جميع الطلبات؟')) {
-    if (db) {
-      ords.forEach(o => {
-        if (o.docId) db.collection("orders").doc(o.docId).delete();
-      });
-    }
     ords = [];
     localStorage.setItem('sp_o', '[]');
     renderO();
