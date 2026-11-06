@@ -170,7 +170,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-sm space-y-3">
     <h3 class="font-bold text-sm text-amber-400">إعدادات المالك وطاقم التجهيز</h3>
     <div>
-      <label class="block text-[11px] text-slate-400 mb-1">هاتف الواتساب للمحل:</label>
+      <label class="block text-[11px] text-slate-400 mb-1">هاتف الواتساب للمحل (المسؤول):</label>
       <input type="text" id="stPhone" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white">
     </div>
     <div>
@@ -178,8 +178,9 @@ body.is-owner-mode div.owner-only { display: block !important; }
       <input type="password" id="stPin" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white">
     </div>
     <div>
-      <label class="block text-[11px] text-slate-400 mb-1">أسماء طاقم التجهيز (اسم في كل سطر أو بفاصلة):</label>
-      <textarea id="stStaff" rows="4" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-amber-300" placeholder="محمد علي&#10;مصطفى&#10;إبراهيم"></textarea>
+      <label class="block text-[11px] text-slate-400 mb-1">طاقم التجهيز (الاسم: رقم الهاتف في كل سطر):</label>
+      <p class="text-[10px] text-slate-500 mb-1">مثال: مصطفى: 01012345678 أو محمد علي</p>
+      <textarea id="stStaff" rows="4" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-amber-300" placeholder="مصطفى: 01012345678&#10;محمد علي: 01198765432"></textarea>
     </div>
     <div class="flex gap-2 pt-2">
       <button onclick="saveSet()" class="w-1/2 bg-emerald-600 text-white py-1.5 rounded text-xs font-bold">حفظ</button>
@@ -577,7 +578,6 @@ function renderO() {
       ? 'تم التجهيز 📦'
       : 'تحت التجهيز ⏳';
 
-    // قراءة طاقم التجهيز سواء كانت مصفوفة أو نصاً مفرداً قديم
     let assignedStaff = [];
     if (Array.isArray(o.staff)) {
       assignedStaff = o.staff;
@@ -586,16 +586,25 @@ function renderO() {
     }
 
     const staffCheckboxes = (Array.isArray(staffList) && staffList.length > 0)
-      ? staffList.map(s => {
-          const isChecked = assignedStaff.includes(s);
+      ? staffList.map(item => {
+          const sName = typeof item === 'object' ? item.name : item;
+          const sPh = typeof item === 'object' ? item.phone : '';
+          const isChecked = assignedStaff.includes(sName);
           return `
-            <label class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 px-2 py-1 rounded text-[11px] cursor-pointer hover:border-amber-500 transition">
-              <input type="checkbox" value="${s}" ${isChecked ? 'checked' : ''} onchange="toggleOrderStaff('${o.docId}', '${s}', this.checked)" class="accent-amber-500 rounded">
-              <span class="${isChecked ? 'text-amber-300 font-bold' : 'text-slate-300'}">${s}</span>
-            </label>
+            <div class="flex items-center justify-between bg-slate-900 border border-slate-700 px-2 py-1.5 rounded text-[11px]">
+              <label class="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" value="${sName}" ${isChecked ? 'checked' : ''} onchange="toggleOrderStaff('${o.docId}', '${sName}', this.checked)" class="accent-amber-500 rounded">
+                <span class="${isChecked ? 'text-amber-300 font-bold' : 'text-slate-300'}">${sName}</span>
+              </label>
+              ${isChecked ? `
+                <button onclick="sendPrepOrderToWorker('${o.docId}', '${sName}', '${sPh}')" class="bg-blue-600 hover:bg-blue-500 text-white px-2 py-0.5 rounded text-[10px] flex items-center gap-1">
+                  📲 إرسال أمر التجهيز (كميات فقط)
+                </button>
+              ` : ''}
+            </div>
           `;
         }).join('')
-      : '<p class="text-[11px] text-slate-500">لا توجد أسماء مسجلة (أضف من الإعدادات)</p>';
+      : '<p class="text-[11px] text-slate-500">لا توجد أسماء مسجلة (أضف من الإعدادات مع أرقام الواتساب)</p>';
 
     return `
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 text-xs">
@@ -608,20 +617,20 @@ function renderO() {
           <span class="bg-slate-800 px-2 py-0.5 rounded text-amber-300">${stBadge}</span>
         </div>
         <div class="bg-slate-950 p-2 rounded border border-slate-800 text-[11px] text-slate-300">
-          ${(o.items||[]).map(i=>`${i.q}×${i.name}`).join(' ، ')}
+          ${(o.items||[]).map(i=>`${i.q} × ${i.name}`).join(' ، ')}
         </div>
         <div class="pt-2 border-t border-slate-800 space-y-1.5">
           <div class="flex justify-between items-center text-[11px]">
-            <span class="text-slate-400 font-bold">طاقم التجهيز:</span>
-            <span class="text-amber-400">${assignedStaff.length ? assignedStaff.join(' + ') : 'لم يتم تحديد أحد'}</span>
+            <span class="text-slate-400 font-bold">طاقم التجهيز المعين:</span>
+            <span class="text-amber-400 font-semibold">${assignedStaff.length ? assignedStaff.join(' + ') : 'لم يتم التعيين بعد'}</span>
           </div>
-          <div class="flex flex-wrap gap-1.5">
+          <div class="flex flex-col gap-1.5">
             ${staffCheckboxes}
           </div>
         </div>
         <div class="grid grid-cols-2 gap-2 pt-1">
-          <button onclick="notifySupervisor('${o.docId}', ${o.id})" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 إشعار تم التجهيز</button>
-          <button onclick="updateOrderStatus('${o.docId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلام</button>
+          <button onclick="notifySupervisor('${o.docId}', ${o.id})" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 إشعار المسؤول بالجاهزية</button>
+          <button onclick="updateOrderStatus('${o.docId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلام والفاتورة</button>
         </div>
       </div>
     `;
@@ -653,6 +662,41 @@ function toggleOrderStaff(docId, staffName, isChecked) {
   renderO();
 }
 
+// 1. إرسال أمر التجهيز لعامل التجهيز (كميات فقط وبدون أسعار أو بيانات عميل)
+function sendPrepOrderToWorker(docId, workerName, workerPhone) {
+  const o = ords.find(x => x.docId === docId);
+  if (!o) return;
+
+  let targetPhone = workerPhone ? workerPhone.trim() : '';
+  if (!targetPhone) {
+    targetPhone = prompt(`أدخل رقم واتساب المسؤول عن التجهيز (${workerName}):`, '');
+    if (!targetPhone) return;
+  }
+
+  if (targetPhone.startsWith('01')) targetPhone = '2' + targetPhone;
+
+  let prepMsg = `📋 *أمر تجهيز بضاعة - Smoke Shop*\n`;
+  prepMsg += `#️⃣ طلب رقم: #${o.id}\n`;
+  prepMsg += `👤 المسؤول عن التجهيز: ${workerName}\n`;
+  prepMsg += `⏰ وقت الطلب: ${o.time}\n`;
+  prepMsg += `-----------------------------\n`;
+  prepMsg += `📦 الأصناف والكميات المطلوبة:\n`;
+  o.items.forEach((item, index) => {
+    prepMsg += `${index + 1}. [ ${item.q} ] × ${item.name}\n`;
+  });
+  prepMsg += `-----------------------------\n`;
+  prepMsg += `⚠️ تنبيه: برجاء مطابقة الكميات والتأكد من سلامة الأصناف.\n`;
+  prepMsg += `✅ عند الانتهاء، اضغط على الرابط التالي لإشعار المشرف مباشرة:\n`;
+  
+  let supPhone = phone.trim();
+  if (supPhone.startsWith('01')) supPhone = '2' + supPhone;
+  let readyMsgText = encodeURIComponent(`✅ تم الانتهاء من تجهيز الطلب رقم (#${o.id}) بواسطة: ${workerName} 📦`);
+  prepMsg += `https://wa.me/${supPhone}?text=${readyMsgText}`;
+
+  window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(prepMsg)}`, '_blank');
+}
+
+// 2. إشعار المشرف/المسؤول بجاهزية الطلب
 function notifySupervisor(docId, orderId) {
   const o = ords.find(x => x.docId === docId);
   if (!o) return;
@@ -672,7 +716,16 @@ function notifySupervisor(docId, orderId) {
   const updatePromise = (db && docId) ? db.collection("orders").doc(docId).update({ status: 'ready' }) : Promise.resolve();
   
   updatePromise.then(() => {
-    let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام بالانتهاء من التجهيز: (*${staffText}*)\nطلب رقم: (#${orderId})\nالعميل: ${o.name} 📦\nيرجى التواصل مع العميل للتسليم.`;
+    let supMsg = `🚨 *تنبيه جاهزية طلب* 🚨\n`;
+    supMsg += `قام بالانتهاء من التجهيز: (*${staffText}*)\n`;
+    supMsg += `طلب رقم: (#${orderId})\n`;
+    supMsg += `العميل: ${o.name} (${o.ph || 'بدون هاتف'})\n`;
+    supMsg += `نوع الاستلام: ${o.type}\n`;
+    supMsg += `العنوان: ${o.addr}\n`;
+    supMsg += `المطلوب تحصيله: ${o.tot} ج.م 💵\n`;
+    supMsg += `-----------------------------\n`;
+    supMsg += `الطلب جاهز الآن للتسليم للعميل أو الدليفري 🛵📦.`;
+
     let dstShop = phone.trim();
     if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
     
@@ -758,7 +811,18 @@ function savePChange() {
 function openSetModal() {
   document.getElementById('stPhone').value = phone;
   document.getElementById('stPin').value = pin;
-  document.getElementById('stStaff').value = (Array.isArray(staffList) ? staffList : []).join('\n');
+  
+  // تجهيز نص الطاقم بصيغة: الاسم: الرقم
+  let text = '';
+  if (Array.isArray(staffList)) {
+    text = staffList.map(item => {
+      if (typeof item === 'object') {
+        return item.phone ? `${item.name}: ${item.phone}` : item.name;
+      }
+      return item;
+    }).join('\n');
+  }
+  document.getElementById('stStaff').value = text;
   document.getElementById('setModal').classList.remove('hidden');
 }
 
@@ -769,9 +833,16 @@ function saveSet() {
   
   if (staffInput) {
     staffList = staffInput
-      .split(/[\n,،]+/)
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => {
+        let parts = line.split(/[:：]/);
+        if (parts.length > 1) {
+          return { name: parts[0].trim(), phone: parts[1].trim() };
+        }
+        return { name: line.trim(), phone: '' };
+      });
   } else {
     staffList = [];
   }
@@ -780,7 +851,7 @@ function saveSet() {
   localStorage.setItem('sp_pin', pin);
   localStorage.setItem('sp_staff', JSON.stringify(staffList));
   document.getElementById('setModal').classList.add('hidden');
-  alert(`تم حفظ الإعدادات! (${staffList.length} أفراد في طاقم التجهيز)`);
+  alert(`تم حفظ الإعدادات! (${staffList.length} أفراد مسجلين في طاقم التجهيز)`);
   if(isOwn) renderO();
 }
 
