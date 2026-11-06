@@ -506,7 +506,7 @@ function sendOrder() {
     timestamp: firebase.firestore.FieldValue.serverTimestamp ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
     name, ph, type: isD ? 'دليفري' : 'استلام', addr, fee, tot: sub + fee,
     status: 'pending',
-    staff: 'غير محدد',
+    staff: [],
     items: keys.map(k => cart[k])
   };
 
@@ -577,9 +577,25 @@ function renderO() {
       ? 'تم التجهيز 📦'
       : 'تحت التجهيز ⏳';
 
-    const staffOptions = (Array.isArray(staffList) && staffList.length > 0)
-      ? staffList.map(s => `<option value="${s}" ${o.staff===s?'selected':''}>${s}</option>`).join('')
-      : '<option value="غير محدد">لا توجد أسماء مسجلة (أضف من الإعدادات)</option>';
+    // قراءة طاقم التجهيز سواء كانت مصفوفة أو نصاً مفرداً قديم
+    let assignedStaff = [];
+    if (Array.isArray(o.staff)) {
+      assignedStaff = o.staff;
+    } else if (typeof o.staff === 'string' && o.staff !== 'غير محدد' && o.staff.trim()) {
+      assignedStaff = [o.staff.trim()];
+    }
+
+    const staffCheckboxes = (Array.isArray(staffList) && staffList.length > 0)
+      ? staffList.map(s => {
+          const isChecked = assignedStaff.includes(s);
+          return `
+            <label class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 px-2 py-1 rounded text-[11px] cursor-pointer hover:border-amber-500 transition">
+              <input type="checkbox" value="${s}" ${isChecked ? 'checked' : ''} onchange="toggleOrderStaff('${o.docId}', '${s}', this.checked)" class="accent-amber-500 rounded">
+              <span class="${isChecked ? 'text-amber-300 font-bold' : 'text-slate-300'}">${s}</span>
+            </label>
+          `;
+        }).join('')
+      : '<p class="text-[11px] text-slate-500">لا توجد أسماء مسجلة (أضف من الإعدادات)</p>';
 
     return `
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 text-xs">
@@ -594,12 +610,14 @@ function renderO() {
         <div class="bg-slate-950 p-2 rounded border border-slate-800 text-[11px] text-slate-300">
           ${(o.items||[]).map(i=>`${i.q}×${i.name}`).join(' ، ')}
         </div>
-        <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
-          <span class="text-[11px] text-slate-400">القائم بالتجهيز:</span>
-          <select onchange="updateOrderStaff('${o.docId}', this.value)" class="bg-slate-950 border border-slate-700 text-amber-300 rounded p-1 text-xs w-full">
-            <option value="غير محدد">اختر اسمك...</option>
-            ${staffOptions}
-          </select>
+        <div class="pt-2 border-t border-slate-800 space-y-1.5">
+          <div class="flex justify-between items-center text-[11px]">
+            <span class="text-slate-400 font-bold">طاقم التجهيز:</span>
+            <span class="text-amber-400">${assignedStaff.length ? assignedStaff.join(' + ') : 'لم يتم تحديد أحد'}</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            ${staffCheckboxes}
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-2 pt-1">
           <button onclick="notifySupervisor('${o.docId}', ${o.id})" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 إشعار تم التجهيز</button>
@@ -610,23 +628,51 @@ function renderO() {
   }).join('') : '<div class="text-center py-8 text-slate-500 text-xs">لا توجد طلبات واردة</div>';
 }
 
-function updateOrderStaff(docId, staffName) {
-  if (db && docId) {
-    db.collection("orders").doc(docId).update({ staff: staffName });
+function toggleOrderStaff(docId, staffName, isChecked) {
+  const o = ords.find(x => x.docId === docId);
+  if (!o) return;
+
+  let currentStaff = [];
+  if (Array.isArray(o.staff)) {
+    currentStaff = [...o.staff];
+  } else if (typeof o.staff === 'string' && o.staff !== 'غير محدد' && o.staff.trim()) {
+    currentStaff = [o.staff.trim()];
   }
+
+  if (isChecked) {
+    if (!currentStaff.includes(staffName)) currentStaff.push(staffName);
+  } else {
+    currentStaff = currentStaff.filter(s => s !== staffName);
+  }
+
+  o.staff = currentStaff;
+
+  if (db && docId) {
+    db.collection("orders").doc(docId).update({ staff: currentStaff });
+  }
+  renderO();
 }
 
 function notifySupervisor(docId, orderId) {
   const o = ords.find(x => x.docId === docId);
   if (!o) return;
-  if (!o.staff || o.staff === 'غير محدد') {
-    return alert('الرجاء اختيار اسم القائم بالتجهيز أولاً!');
+
+  let assigned = [];
+  if (Array.isArray(o.staff)) {
+    assigned = o.staff;
+  } else if (typeof o.staff === 'string' && o.staff !== 'غير محدد' && o.staff.trim()) {
+    assigned = [o.staff.trim()];
+  }
+
+  if (!assigned.length) {
+    return alert('الرجاء اختيار شخص أو أكثر من طاقم التجهيز أولاً!');
   }
   
+  const staffText = assigned.join(' + ');
   const updatePromise = (db && docId) ? db.collection("orders").doc(docId).update({ status: 'ready' }) : Promise.resolve();
   
   updatePromise.then(() => {
-    let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام المسؤول (*${o.staff}*) بالانتهاء من تجهيز الطلب رقم (#${orderId}) للعميل: ${o.name} 📦.\nيرجى إرسال الإشعار للعميل.`;
+    let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام بالانتهاء من التجهيز: (*${staffText}*)\nطلب رقم: (#${orderId})\nالعميل: ${o.name} 📦\nيرجى التواصل مع العميل للتسليم.`;
     let dstShop = phone.trim();
     if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
     
