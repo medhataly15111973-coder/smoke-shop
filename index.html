@@ -158,7 +158,7 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
     </div>
     <div>
       <label class="block text-[11px] text-slate-400 mb-1">أسماء طاقم التجهيز (مفصولة بفاصلة ,):</label>
-      <input type="text" id="stStaff" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-amber-300" placeholder="أحمد, محمود, إبراهيم">
+      <textarea id="stStaff" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-amber-300" placeholder="اكتب الأسماء هنا مفصولة بفاصلة مثل: محمد علي, مصطفى"></textarea>
     </div>
     <div class="flex gap-2 pt-2">
       <button onclick="saveSet()" class="w-1/2 bg-emerald-600 text-white py-1.5 rounded text-xs font-bold">حفظ</button>
@@ -186,7 +186,6 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 </div>
 
 <script>
-// إعداد Firebase (يمكنك استبداله بمعلومات مشروعك الخاص)
 const firebaseConfig = {
   apiKey: "AIzaSyDummyKeyForDemoPurposesOnly12345",
   authDomain: "smokeshop-app.firebaseapp.com",
@@ -252,7 +251,10 @@ let cart = JSON.parse(localStorage.getItem('sp_c')) || {};
 let ords = [];
 let phone = localStorage.getItem('sp_ph') || '01221143854';
 let pin = localStorage.getItem('sp_pin') || '1234';
-let staffList = localStorage.getItem('sp_staff') ? localStorage.getItem('sp_staff').split(',') : ['أحمد', 'محمود', 'إبراهيم'];
+
+// إذا لم يكن هناك طاقم مسجل، تبدأ القائمة فارغة ليقوم المسؤول بإضافتهم بنفسه
+let staffList = localStorage.getItem('sp_staff') ? JSON.parse(localStorage.getItem('sp_staff')) : [];
+
 let curCat = 'all', isOwn = false, editId = null, camId = null;
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -266,7 +268,6 @@ document.addEventListener("DOMContentLoaded", function() {
   if(localStorage.getItem('sp_saved_phone')) document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
   if(localStorage.getItem('sp_saved_addr')) document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
 
-  // استماع فوري للطلبات من Firestore Real-time
   db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
     ords = [];
     snapshot.forEach((doc) => {
@@ -441,11 +442,11 @@ function sendOrder() {
 function sendCustomerMsgLocal(o, statusType) {
   let text = '';
   if (statusType === 'pending') {
-    text = `أهلاً بك أ/${o.name} ✋\nتم استلاستلم طلبك رقم (#${o.id}) في *Smoke Shop* 🏪\nجاري الآن *تجهيز الطلب* وسنخطرك فور الانتهاء ⏳`;
+    text = `أهلاً بك أ/${o.name} ✋\nتم استلام طلبك رقم (#${o.id}) في *Smoke Shop* 🏪\nجاري الآن *تجهيز الطلب* وسنخطرك فور الانتهاء ⏳`;
   } else if (statusType === 'ready') {
     text = `أهلاً بك أ/${o.name} ✨\nيسعدنا إعلامك بأنه *تم تجهيز طلبك* رقم (#${o.id}) بنجاح بواسطة (${o.staff}) 📦\n${o.type === 'دليفري' ? 'الطلب في طريقه إليك مع الدليفري 🛵' : 'يمكنك الحضور للمحل للاستلام الآن 🏪'}`;
   } else if (statusType === 'completed') {
-    text = `🧾 *فاتورة استلام - Smoke Shop*\nعزيزي أ/${o.name}\nتم تسليم الطلب رقم (#${o.id}) بنجاح وتسديد المبلغ 💵\n-------------------\n📦 *تفاصيل الفاتورة:*\n`;
+    text = `🧾 *فاتورة استلاستلام - Smoke Shop*\nعزيزي أ/${o.name}\nتم تسليم الطلب رقم (#${o.id}) بنجاح وتسديد المبلغ 💵\n-------------------\n📦 *تفاصيل الفاتورة:*\n`;
     o.items.forEach(i => { text += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
     if (o.type === 'دليفري') text += `🛵 خدمة التوصيل: ${o.fee} ج.م\n`;
     text += `-------------------\n💰 *إجمالي المدفوع:* ${o.tot} ج.م\n\nشكراً لتسوقكم معنا ونتمنى لكم يوماً سعيداً! ❤️`;
@@ -463,6 +464,9 @@ function updateOrderStaff(docId, staffName) {
 function notifySupervisor(docId) {
   const o = ords.find(x => x.docId === docId);
   if (!o) return;
+  if (!o.staff || o.staff === 'غير محدد') {
+    return alert('الرجاء اختيار اسم القائم بالتجهيز أولاً!');
+  }
   db.collection("orders").doc(docId).update({ status: 'ready' }).then(() => {
     let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام المسؤول (*${o.staff}*) بالانتهاء من تجهيز الطلب رقم (#${o.id}) للعميل: ${o.name} 📦.\nيرجى إرسال الإشعار للعميل.`;
     let dstShop = phone.trim();
@@ -489,7 +493,9 @@ function renderO() {
       ? 'تم التجهيز 📦'
       : 'تحت التجهيز ⏳';
 
-    const staffOptions = staffList.map(s => `<option value="${s}" ${o.staff===s?'selected':''}>${s}</option>`).join('');
+    const staffOptions = staffList.length > 0 
+      ? staffList.map(s => `<option value="${s}" ${o.staff===s?'selected':''}>${s}</option>`).join('')
+      : '<option value="غير محدد">لا توجد أسماء مسجلة (أضف من الإعدادات)</option>';
 
     return `
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 text-xs">
@@ -505,15 +511,15 @@ function renderO() {
           ${o.items.map(i=>`${i.q}×${i.name}`).join(' ، ')}
         </div>
         <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
-          <span class="text-[11px] text-slate-400">المتجهّز:</span>
-          <select onchange="updateOrderStaff('${o.docId}', this.value)" class="bg-slate-950 border border-slate-700 text-amber-300 rounded p-1 text-xs">
-            <option value="غير محدد">اختر المسؤول...</option>
+          <span class="text-[11px] text-slate-400">القائم بالتجهيز:</span>
+          <select onchange="updateOrderStaff('${o.docId}', this.value)" class="bg-slate-950 border border-slate-700 text-amber-300 rounded p-1 text-xs w-full">
+            <option value="غير محدد">اختر اسمك...</option>
             ${staffOptions}
           </select>
         </div>
         <div class="grid grid-cols-2 gap-2 pt-1">
           <button onclick="notifySupervisor('${o.docId}')" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 تم التجهيز وإشعار المشرف</button>
-          <button onclick="updateOrderStatus('${o.docId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلام والفاتورة</button>
+          <button onclick="updateOrderStatus('${o.docId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلاستلام والفاتورة</button>
         </div>
       </div>
     `;
@@ -605,7 +611,7 @@ function savePChange() {
 function openSetModal() {
   document.getElementById('stPhone').value = phone;
   document.getElementById('stPin').value = pin;
-  document.getElementById('stStaff').value = staffList.join(',');
+  document.getElementById('stStaff').value = staffList.join(', ');
   document.getElementById('setModal').classList.remove('hidden');
 }
 
@@ -613,13 +619,19 @@ function saveSet() {
   phone = document.getElementById('stPhone').value.trim() || phone;
   pin = document.getElementById('stPin').value.trim() || pin;
   const staffInput = document.getElementById('stStaff').value.trim();
-  if (staffInput) staffList = staffInput.split(',').map(s => s.trim());
+  
+  if (staffInput) {
+    staffList = staffInput.split(',').map(s => s.trim()).filter(s => s.length > 0);
+  } else {
+    staffList = [];
+  }
   
   localStorage.setItem('sp_ph', phone);
   localStorage.setItem('sp_pin', pin);
-  localStorage.setItem('sp_staff', staffList.join(','));
+  localStorage.setItem('sp_staff', JSON.stringify(staffList));
   document.getElementById('setModal').classList.add('hidden');
-  alert('تم الحفظ بنجاح!');
+  alert('تم حفظ إعدادات المسؤول وطاقم التجهيز بنجاح!');
+  renderO();
 }
 
 function uploadImg(e) {
