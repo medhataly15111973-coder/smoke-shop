@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smoke Shop</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<!-- مكتبات Firebase الأساسية -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 <style>
 *{font-family:'Cairo',sans-serif;-webkit-tap-highlight-color:transparent}
@@ -19,9 +22,9 @@ body.is-owner-mode div.owner-only { display: block !important; }
 </head>
 <body class="bg-[#0b0f19] text-slate-100 min-h-screen">
 
-<!-- شريط المالك العلوي (مخفي للعميل تماماً) -->
+<!-- شريط المالك العلوي -->
 <div id="ownerBar" class="owner-only bg-amber-500 text-slate-950 px-3 py-1.5 text-xs font-bold flex justify-between items-center sticky top-0 z-50 shadow-md">
-  <span>🛡️ لوحة تحكم المالك نشطة</span>
+  <span>🛡️ لوحة تحكم المالك نشطة (متصل بالسحابة ☁️)</span>
   <div class="flex items-center gap-2">
     <button onclick="openSetModal()" class="bg-slate-900 text-amber-400 px-2 py-0.5 rounded text-[10px]">⚙️ الإعدادات وطاقم العمل</button>
     <button onclick="exitOwner()" class="bg-slate-950 text-red-400 px-2 py-0.5 rounded text-[10px]">خروج</button>
@@ -39,7 +42,6 @@ body.is-owner-mode div.owner-only { display: block !important; }
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <!-- زر دخول المالك يظهر فقط للمالك أو بالضغط المطول على اللوجو -->
       <button onclick="tab('cart')" class="relative p-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">
         🛒<span id="badge" class="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center hidden">0</span>
       </button>
@@ -48,7 +50,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
 </header>
 
 <main class="max-w-md mx-auto p-3 space-y-3">
-  <!-- قائمة المنتجات (للجميع) -->
+  <!-- قائمة المنتجات -->
   <div id="tab-cat" class="space-y-3">
     <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-3 rounded-2xl border border-slate-800 flex items-center justify-between">
       <div>
@@ -64,7 +66,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5" id="grid"></div>
   </div>
 
-  <!-- الفاتورة (للجميع) -->
+  <!-- الفاتورة -->
   <div id="tab-cart" class="hidden space-y-3">
     <div class="flex justify-between items-center">
       <h2 class="font-bold text-sm text-slate-200">🧾 تفاصيل الفاتورة</h2>
@@ -107,13 +109,13 @@ body.is-owner-mode div.owner-only { display: block !important; }
     </button>
   </div>
 
-  <!-- تتبع الطلبات (خاص بالعميل لطلباته فقط) -->
+  <!-- تتبع الطلبات -->
   <div id="tab-track" class="hidden space-y-3">
     <h2 class="font-bold text-sm text-slate-200">📦 تتبع طلباتي</h2>
     <div id="myOrdList" class="space-y-3"></div>
   </div>
 
-  <!-- تحديث الأسعار (للمالك فقط - مخفي تماماً عن العميل) -->
+  <!-- تحديث الأسعار (للمالك فقط) -->
   <div id="tab-upd" class="owner-only hidden space-y-3">
     <h2 class="font-bold text-sm text-slate-200">📋 تحديث الأسعار من منشور الواتس</h2>
     <p class="text-[11px] text-slate-400">الصق نص المنشور اليومي:</p>
@@ -121,10 +123,10 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <button onclick="parseWp()" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs">⚡ تحديث الأسعار الآن</button>
   </div>
 
-  <!-- شاشة مسؤول التجهيز (للمالك فقط - مخفي تماماً عن العميل) -->
+  <!-- شاشة مسؤول التجهيز السحابية (للمالك فقط) -->
   <div id="tab-ord" class="owner-only hidden space-y-3">
     <div class="flex justify-between items-center">
-      <h2 class="font-bold text-sm text-slate-200">📋 شاشة مسؤول التجهيز</h2>
+      <h2 class="font-bold text-sm text-slate-200">📋 شاشة مسؤول التجهيز السحابية</h2>
       <button onclick="clrOrd()" class="text-[11px] text-red-400 hover:underline">مسح الكل</button>
     </div>
     <div id="ordList" class="space-y-3"></div>
@@ -134,18 +136,16 @@ body.is-owner-mode div.owner-only { display: block !important; }
 <!-- القائمة السفلية -->
 <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 py-2 px-4 z-40 max-w-md mx-auto">
   <div class="flex justify-around items-center text-[10px]">
-    <!-- أزرار العميل الرسمية -->
     <button onclick="tab('cat')" id="nb-cat" class="flex flex-col items-center gap-1 text-amber-400">🛍️ المنتجات</button>
     <button onclick="tab('cart')" id="nb-cart" class="flex flex-col items-center gap-1 text-slate-400">🛒 الفاتورة</button>
     <button onclick="tab('track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 تتبع طلباتي</button>
     
-    <!-- أزرار المالك والمسؤول (تظهر فقط عند تسجيل تفعيل وضع المالك) -->
     <button onclick="tab('upd')" id="nb-upd" class="owner-only flex flex-col items-center gap-1 text-slate-400">⚡ تحديث</button>
     <button onclick="tab('ord')" id="nb-ord" class="owner-only flex flex-col items-center gap-1 text-slate-400">📋 التجهيز</button>
   </div>
 </nav>
 
-<!-- نافذة تعديل المنتج للمالك -->
+<!-- نافذة تعديل المنتج -->
 <div id="pModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-xs space-y-3">
     <h3 id="pmTitle" class="font-bold text-sm text-amber-400">تعديل الصنف</h3>
@@ -172,7 +172,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
     </div>
     <div>
       <label class="block text-[11px] text-slate-400 mb-1">أسماء طاقم التجهيز (مفصولة بفاصلة ,):</label>
-      <textarea id="stStaff" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-amber-300" placeholder="اكتب الأسماء هنا مفصولة بفاصلة مثل: محمد علي, مصطفى"></textarea>
+      <textarea id="stStaff" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-amber-300" placeholder="محمد علي, مصطفى"></textarea>
     </div>
     <div class="flex gap-2 pt-2">
       <button onclick="saveSet()" class="w-1/2 bg-emerald-600 text-white py-1.5 rounded text-xs font-bold">حفظ</button>
@@ -200,6 +200,20 @@ body.is-owner-mode div.owner-only { display: block !important; }
 </div>
 
 <script>
+// إعدادات Firebase الخاصة بمشروعك الحقيقي
+const firebaseConfig = {
+  apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
+  authDomain: "smokeshop-40107.firebaseapp.com",
+  projectId: "smokeshop-40107",
+  storageBucket: "smokeshop-40107.firebasestorage.app",
+  messagingSenderId: "374658562456",
+  appId: "1:374658562456:web:f88582e223579683a0d3ed",
+  measurementId: "G-R420RTFBFV"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 const LOGO = "https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png";
 
 const INIT_P = [
@@ -251,7 +265,7 @@ let prods = (rawP && rawP !== '[]') ? JSON.parse(rawP) : INIT_P;
 if (!rawP || rawP === '[]') localStorage.setItem('sp_p', JSON.stringify(INIT_P));
 
 let cart = JSON.parse(localStorage.getItem('sp_c')) || {};
-let ords = JSON.parse(localStorage.getItem('sp_o')) || [];
+let ords = [];
 let phone = localStorage.getItem('sp_ph') || '01221143854';
 let pin = localStorage.getItem('sp_pin') || '1234';
 let staffList = localStorage.getItem('sp_staff') ? JSON.parse(localStorage.getItem('sp_staff')) : [];
@@ -270,7 +284,15 @@ document.addEventListener("DOMContentLoaded", function() {
   if(localStorage.getItem('sp_saved_phone')) document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
   if(localStorage.getItem('sp_saved_addr')) document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
 
-  // فحص ما إذا كان هناك طلب لدخول وضع المالك عبر الرابط mode=admin
+  // استماع فوري ولحظي للطلبات من السحابة (Firestore Real-time)
+  db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+    ords = [];
+    snapshot.forEach((doc) => {
+      ords.push({ docId: doc.id, ...doc.data() });
+    });
+    if (isOwn) renderO();
+  });
+
   const urlParams = new URLSearchParams(window.location.search);
   if(urlParams.get('mode') === 'admin') {
     promptOwner();
@@ -288,7 +310,7 @@ function handleLogoClick() {
 }
 
 function tab(t) {
-  if(!isOwn && (t === 'upd' || t === 'ord')) return; // حماية ضد الدخول بالدوال للعميل
+  if(!isOwn && (t === 'upd' || t === 'ord')) return;
 
   ['cat','cart','track','upd','ord'].forEach(x => {
     const el = document.getElementById('tab-' + x);
@@ -439,32 +461,35 @@ function sendOrder() {
   const ordData = {
     id: Math.floor(1000 + Math.random() * 9000),
     time: new Date().toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'}),
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
     name, ph, type: isD ? 'دليفري' : 'استلام', addr, fee, tot: sub + fee,
     status: 'pending',
     staff: 'غير محدد',
     items: keys.map(k => cart[k])
   };
 
-  ords.unshift(ordData);
-  localStorage.setItem('sp_o', JSON.stringify(ords));
+  // حفظ الطلب مباشرة في قاعدة بيانات Firestore السحابية
+  db.collection("orders").add(ordData).then(() => {
+    let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
+    myOrders.unshift(ordData);
+    localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
 
-  let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
-  myOrders.unshift(ordData);
-  localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
+    let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph || 'بدون رقم'})\n📍 الاستلام: ${ordData.type}\n`;
+    if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
+    msgShop += `-------------------\n📦 الأصناف:\n`;
+    ordData.items.forEach(i => { msgShop += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
+    msgShop += `-------------------\n💵 الإجمالي: ${ordData.tot} ج.م`;
 
-  let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph || 'بدون رقم'})\n📍 الاستلام: ${ordData.type}\n`;
-  if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
-  msgShop += `-------------------\n📦 الأصناف:\n`;
-  ordData.items.forEach(i => { msgShop += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
-  msgShop += `-------------------\n💵 الإجمالي: ${ordData.tot} ج.م`;
+    let dstShop = phone.trim();
+    if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
 
-  let dstShop = phone.trim();
-  if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
+    clrCart();
+    tab('track');
 
-  clrCart();
-  tab('track');
-
-  window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`, '_blank');
+    window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`, '_blank');
+  }).catch(err => {
+    alert('حدث خطأ في إرسال الطلب للسحابة: ' + err.message);
+  });
 }
 
 function renderMyOrders() {
@@ -528,60 +553,53 @@ function renderO() {
         </div>
         <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
           <span class="text-[11px] text-slate-400">القائم بالتجهيز:</span>
-          <select onchange="updateOrderStaff(${o.id}, this.value)" class="bg-slate-950 border border-slate-700 text-amber-300 rounded p-1 text-xs w-full">
+          <select onchange="updateOrderStaff('${o.docId}', this.value)" class="bg-slate-950 border border-slate-700 text-amber-300 rounded p-1 text-xs w-full">
             <option value="غير محدد">اختر اسمك...</option>
             ${staffOptions}
           </select>
         </div>
         <div class="grid grid-cols-2 gap-2 pt-1">
-          <button onclick="notifySupervisor(${o.id})" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 تم التجهيز وإشعار المشرف</button>
-          <button onclick="updateOrderStatus(${o.id}, 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلام والفاتورة</button>
+          <button onclick="notifySupervisor('${o.docId}', ${o.id})" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 تم التجهيز وإشعار المشرف</button>
+          <button onclick="updateOrderStatus('${o.docId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلام والفاتورة</button>
         </div>
       </div>
     `;
   }).join('') : '<div class="text-center py-8 text-slate-500 text-xs">لا توجد طلبات واردة</div>';
 }
 
-function updateOrderStaff(orderId, staffName) {
-  const o = ords.find(x => x.id == orderId);
-  if (o) {
-    o.staff = staffName;
-    localStorage.setItem('sp_o', JSON.stringify(ords));
+function updateOrderStaff(docId, staffName) {
+  if (docId) {
+    db.collection("orders").doc(docId).update({ staff: staffName });
   }
 }
 
-function notifySupervisor(orderId) {
-  const o = ords.find(x => x.id == orderId);
+function notifySupervisor(docId, orderId) {
+  const o = ords.find(x => x.docId === docId);
   if (!o) return;
   if (!o.staff || o.staff === 'غير محدد') {
     return alert('الرجاء اختيار اسم القائم بالتجهيز أولاً!');
   }
   
-  o.status = 'ready';
-  localStorage.setItem('sp_o', JSON.stringify(ords));
-  renderO();
-
-  let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام المسؤول (*${o.staff}*) بالانتهاء من تجهيز الطلب رقم (#${o.id}) للعميل: ${o.name} 📦.\nيرجى إرسال الإشعار للعميل.`;
-  let dstShop = phone.trim();
-  if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
-  
-  window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(supMsg)}`, '_blank');
+  db.collection("orders").doc(docId).update({ status: 'ready' }).then(() => {
+    let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام المسؤول (*${o.staff}*) بالانتهاء من تجهيز الطلب رقم (#${orderId}) للعميل: ${o.name} 📦.\nيرجى إرسال الإشعار للعميل.`;
+    let dstShop = phone.trim();
+    if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
+    
+    window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(supMsg)}`, '_blank');
+  });
 }
 
-function updateOrderStatus(orderId, newStatus) {
-  const o = ords.find(x => x.id == orderId);
-  if (o) {
-    o.status = newStatus;
-    localStorage.setItem('sp_o', JSON.stringify(ords));
-    renderO();
+function updateOrderStatus(docId, newStatus) {
+  if (docId) {
+    db.collection("orders").doc(docId).update({ status: newStatus });
   }
 }
 
 function clrOrd() {
-  if (confirm('مسح جميع الطلبات؟')) {
-    ords = [];
-    localStorage.setItem('sp_o', '[]');
-    renderO();
+  if (confirm('مسح جميع الطلبات من السحابة؟')) {
+    ords.forEach(o => {
+      if (o.docId) db.collection("orders").doc(o.docId).delete();
+    });
   }
 }
 
@@ -668,7 +686,7 @@ function saveSet() {
   localStorage.setItem('sp_staff', JSON.stringify(staffList));
   document.getElementById('setModal').classList.add('hidden');
   alert('تم حفظ إعدادات المسؤول وطاقم التجهيز بنجاح!');
-  renderO();
+  if(isOwn) renderO();
 }
 
 function uploadImg(e) {
