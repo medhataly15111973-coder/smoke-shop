@@ -102,7 +102,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
       </div>
       <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
         <input type="text" id="cName" placeholder="اسم العميل *" class="bg-slate-900 border border-slate-700 text-white rounded p-1.5 text-xs">
-        <input type="tel" id="cPhone" placeholder="رقم هاتف العميل (واتساب) *" class="bg-slate-900 border border-slate-700 text-white rounded p-1.5 text-xs">
+        <input type="tel" id="cPhone" placeholder="رقم الهاتف (واتساب) *" class="bg-slate-900 border border-slate-700 text-white rounded p-1.5 text-xs">
       </div>
       <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-800 font-black">
         <span>المطلوب دفعه:</span><span id="grndTot" class="text-amber-400 text-base">0 ج.م</span>
@@ -202,7 +202,6 @@ body.is-owner-mode div.owner-only { display: block !important; }
 </div>
 
 <script>
-// إعدادات Firebase الخاصة بمشروعك[cite: 1]
 const firebaseConfig = {
   apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
   authDomain: "smokeshop-40107.firebaseapp.com",
@@ -284,13 +283,15 @@ document.addEventListener("DOMContentLoaded", function() {
   if(localStorage.getItem('sp_saved_phone')) document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
   if(localStorage.getItem('sp_saved_addr')) document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
 
-  db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
-    ords = [];
-    snapshot.forEach((doc) => {
-      ords.push({ docId: doc.id, ...doc.data() });
+  try {
+    db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+      ords = [];
+      snapshot.forEach((doc) => {
+        ords.push({ docId: doc.id, ...doc.data() });
+      });
+      if (isOwn) renderO();
     });
-    if (isOwn) renderO();
-  });
+  } catch(e) { console.error(e); }
 
   const urlParams = new URLSearchParams(window.location.search);
   if(urlParams.get('mode') === 'admin') {
@@ -449,13 +450,17 @@ function updTot() {
 
 function sendOrder() {
   const keys = Object.keys(cart);
-  if (!keys.length) return alert('أضف أصنافاً للفاتورة أولاً!');
+  if (!keys.length) {
+    alert('الفاتورة فارغة! أضف بعض المنتجات أولاً.');
+    return;
+  }
 
   const name = document.getElementById('cName').value.trim();
   const ph = document.getElementById('cPhone').value.trim();
 
   if (!name || !ph) {
-    return alert('الرجاء إدخال اسم العميل ورقم الهاتف (الواتساب) لتأكيد الطلب!');
+    alert('برجاء كتابة الاسم ورقم الهاتف لمتابعة الطلب!');
+    return;
   }
 
   const isD = document.querySelector('input[name="delType"]:checked').value === 'del';
@@ -477,32 +482,31 @@ function sendOrder() {
     items: keys.map(k => cart[k])
   };
 
-  db.collection("orders").add(ordData).then(() => {
-    let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
-    myOrders.unshift(ordData);
-    localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
+  // حفظ محلي فوري
+  let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
+  myOrders.unshift(ordData);
+  localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
 
-    let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph})\n📍 الاستلام: ${ordData.type}\n`;
-    if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
-    msgShop += `-------------------\n📦 الأصناف:\n`;
-    ordData.items.forEach(i => { msgShop += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
-    msgShop += `-------------------\n💵 الإجمالي: ${ordData.tot} ج.م`;
+  // رفع سحابي لـ Firebase
+  try {
+    db.collection("orders").add(ordData);
+  } catch(e) { console.error("Cloud Error:", e); }
 
-    let dstShop = phone.trim();
-    if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
+  // تحضير نص الواتساب
+  let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph})\n📍 الاستلام: ${ordData.type}\n`;
+  if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
+  msgShop += `-------------------\n📦 الأصناف:\n`;
+  ordData.items.forEach(i => { msgShop += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
+  msgShop += `-------------------\n💵 الإجمالي: ${ordData.tot} ج.م`;
 
-    clrCart();
-    tab('track');
+  let dstShop = phone.trim();
+  if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
 
-    // فتح واتساب بشكل آمن
-    const waUrl = `https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`;
-    const win = window.open(waUrl, '_blank');
-    if (!win) {
-      window.location.href = waUrl;
-    }
-  }).catch(err => {
-    alert('حدث خطأ أثناء إرسال الطلب للسحابة: ' + err.message);
-  });
+  clrCart();
+  tab('track');
+
+  // فتح رابط الواتس المباشر
+  window.location.href = `https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`;
 }
 
 function renderMyOrders() {
@@ -598,7 +602,7 @@ function notifySupervisor(docId, orderId) {
     let dstShop = phone.trim();
     if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
     
-    window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(supMsg)}`, '_blank');
+    window.location.href = `https://wa.me/${dstShop}?text=${encodeURIComponent(supMsg)}`;
   });
 }
 
