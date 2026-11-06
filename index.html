@@ -10,15 +10,20 @@
 *{font-family:'Cairo',sans-serif;-webkit-tap-highlight-color:transparent}
 body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 .hide-sb::-webkit-scrollbar{display:none}
+
+/* إخفاء عناصر المالك كلياً عن العميل افتراضياً */
+.owner-only { display: none !important; }
+body.is-owner-mode .owner-only { display: flex !important; }
+body.is-owner-mode div.owner-only { display: block !important; }
 </style>
 </head>
 <body class="bg-[#0b0f19] text-slate-100 min-h-screen">
 
-<!-- شريط المالك العلوي (يظهر للمالك فقط) -->
-<div id="ownerBar" class="hidden bg-amber-500 text-slate-950 px-3 py-1.5 text-xs font-bold flex justify-between items-center sticky top-0 z-50 shadow-md">
-  <span>🛡️ وضع المالك نشط (لوحة التحكم كاملة)</span>
+<!-- شريط المالك العلوي (مخفي للعميل تماماً) -->
+<div id="ownerBar" class="owner-only bg-amber-500 text-slate-950 px-3 py-1.5 text-xs font-bold flex justify-between items-center sticky top-0 z-50 shadow-md">
+  <span>🛡️ لوحة تحكم المالك نشطة</span>
   <div class="flex items-center gap-2">
-    <button onclick="openSetModal()" class="bg-slate-900 text-amber-400 px-2 py-0.5 rounded text-[10px]">⚙️ الإعدادات والطاقم</button>
+    <button onclick="openSetModal()" class="bg-slate-900 text-amber-400 px-2 py-0.5 rounded text-[10px]">⚙️ الإعدادات وطاقم العمل</button>
     <button onclick="exitOwner()" class="bg-slate-950 text-red-400 px-2 py-0.5 rounded text-[10px]">خروج</button>
   </div>
 </div>
@@ -26,7 +31,7 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 <!-- الهيدر -->
 <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
   <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
-    <div class="flex items-center gap-2.5">
+    <div class="flex items-center gap-2.5 cursor-pointer" onclick="handleLogoClick()">
       <img id="hLogo" src="" class="w-9 h-9 rounded-full object-cover border border-slate-700">
       <div>
         <h1 class="font-black text-sm tracking-wider text-amber-400">SMOKE SHOP</h1>
@@ -34,8 +39,7 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <!-- زر دخول المالك -->
-      <button id="ownerLoginBtn" onclick="promptOwner()" class="p-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition" title="دخول المالك">🛡️</button>
+      <!-- زر دخول المالك يظهر فقط للمالك أو بالضغط المطول على اللوجو -->
       <button onclick="tab('cart')" class="relative p-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">
         🛒<span id="badge" class="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center hidden">0</span>
       </button>
@@ -103,22 +107,22 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
     </button>
   </div>
 
-  <!-- تتبع الطلبات الخاص بالعميل فقط -->
+  <!-- تتبع الطلبات (خاص بالعميل لطلباته فقط) -->
   <div id="tab-track" class="hidden space-y-3">
     <h2 class="font-bold text-sm text-slate-200">📦 تتبع طلباتي</h2>
     <div id="myOrdList" class="space-y-3"></div>
   </div>
 
-  <!-- تحديث الأسعار (للمالك فقط) -->
-  <div id="tab-upd" class="hidden space-y-3">
+  <!-- تحديث الأسعار (للمالك فقط - مخفي تماماً عن العميل) -->
+  <div id="tab-upd" class="owner-only hidden space-y-3">
     <h2 class="font-bold text-sm text-slate-200">📋 تحديث الأسعار من منشور الواتس</h2>
     <p class="text-[11px] text-slate-400">الصق نص المنشور اليومي:</p>
     <textarea id="wpText" rows="6" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم نص كيلو ١٢٠٠" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-amber-300 font-mono"></textarea>
     <button onclick="parseWp()" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs">⚡ تحديث الأسعار الآن</button>
   </div>
 
-  <!-- شاشة مسؤول التجهيز (للمالك وطاقم التجهيز فقط) -->
-  <div id="tab-ord" class="hidden space-y-3">
+  <!-- شاشة مسؤول التجهيز (للمالك فقط - مخفي تماماً عن العميل) -->
+  <div id="tab-ord" class="owner-only hidden space-y-3">
     <div class="flex justify-between items-center">
       <h2 class="font-bold text-sm text-slate-200">📋 شاشة مسؤول التجهيز</h2>
       <button onclick="clrOrd()" class="text-[11px] text-red-400 hover:underline">مسح الكل</button>
@@ -130,17 +134,18 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 <!-- القائمة السفلية -->
 <nav class="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 py-2 px-4 z-40 max-w-md mx-auto">
   <div class="flex justify-around items-center text-[10px]">
+    <!-- أزرار العميل الرسمية -->
     <button onclick="tab('cat')" id="nb-cat" class="flex flex-col items-center gap-1 text-amber-400">🛍️ المنتجات</button>
     <button onclick="tab('cart')" id="nb-cart" class="flex flex-col items-center gap-1 text-slate-400">🛒 الفاتورة</button>
     <button onclick="tab('track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 تتبع طلباتي</button>
     
-    <!-- الأزرار الخاصة بالمالك فقط (مخفية عن العميل) -->
-    <button onclick="tab('upd')" id="nb-upd" class="owner-only hidden flex flex-col items-center gap-1 text-slate-400">⚡ تحديث</button>
-    <button onclick="tab('ord')" id="nb-ord" class="owner-only hidden flex flex-col items-center gap-1 text-slate-400">📋 التجهيز</button>
+    <!-- أزرار المالك والمسؤول (تظهر فقط عند تسجيل تفعيل وضع المالك) -->
+    <button onclick="tab('upd')" id="nb-upd" class="owner-only flex flex-col items-center gap-1 text-slate-400">⚡ تحديث</button>
+    <button onclick="tab('ord')" id="nb-ord" class="owner-only flex flex-col items-center gap-1 text-slate-400">📋 التجهيز</button>
   </div>
 </nav>
 
-<!-- نافذة تعديل المنتج -->
+<!-- نافذة تعديل المنتج للمالك -->
 <div id="pModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-xs space-y-3">
     <h3 id="pmTitle" class="font-bold text-sm text-amber-400">تعديل الصنف</h3>
@@ -252,6 +257,7 @@ let pin = localStorage.getItem('sp_pin') || '1234';
 let staffList = localStorage.getItem('sp_staff') ? JSON.parse(localStorage.getItem('sp_staff')) : [];
 
 let curCat = 'all', isOwn = false, editId = null, camId = null;
+let logoClicks = 0, logoTimer = null;
 
 document.addEventListener("DOMContentLoaded", function() {
   document.getElementById('hLogo').src = LOGO;
@@ -264,11 +270,26 @@ document.addEventListener("DOMContentLoaded", function() {
   if(localStorage.getItem('sp_saved_phone')) document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
   if(localStorage.getItem('sp_saved_addr')) document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
 
-  renderO();
-  renderMyOrders();
+  // فحص ما إذا كان هناك طلب لدخول وضع المالك عبر الرابط mode=admin
+  const urlParams = new URLSearchParams(window.location.search);
+  if(urlParams.get('mode') === 'admin') {
+    promptOwner();
+  }
 });
 
+function handleLogoClick() {
+  logoClicks++;
+  clearTimeout(logoTimer);
+  logoTimer = setTimeout(() => { logoClicks = 0; }, 1500);
+  if(logoClicks >= 4) {
+    logoClicks = 0;
+    promptOwner();
+  }
+}
+
 function tab(t) {
+  if(!isOwn && (t === 'upd' || t === 'ord')) return; // حماية ضد الدخول بالدوال للعميل
+
   ['cat','cart','track','upd','ord'].forEach(x => {
     const el = document.getElementById('tab-' + x);
     if(el) el.classList.add('hidden');
@@ -288,10 +309,10 @@ function tab(t) {
 
 function promptOwner() {
   if (isOwn) { openSetModal(); return; }
-  if (prompt('رمز PIN للمالك:') === pin) {
+  if (prompt('رمز PIN الخاص بالمالك:') === pin) {
     isOwn = true;
+    document.body.classList.add('is-owner-mode');
     document.getElementById('ownerBar').classList.remove('hidden');
-    document.querySelectorAll('.owner-only').forEach(el => el.classList.remove('hidden'));
     renderP();
     tab('ord');
   } else { alert('PIN غير صحيح!'); }
@@ -299,8 +320,8 @@ function promptOwner() {
 
 function exitOwner() {
   isOwn = false;
+  document.body.classList.remove('is-owner-mode');
   document.getElementById('ownerBar').classList.add('hidden');
-  document.querySelectorAll('.owner-only').forEach(el => el.classList.add('hidden'));
   renderP();
   tab('cat');
 }
@@ -424,11 +445,9 @@ function sendOrder() {
     items: keys.map(k => cart[k])
   };
 
-  // حفظ الطلب في السجل المحلي للعميل وسجل المحل
   ords.unshift(ordData);
   localStorage.setItem('sp_o', JSON.stringify(ords));
 
-  // حفظ طلبات العميل الحالية لتتبعها
   let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
   myOrders.unshift(ordData);
   localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
