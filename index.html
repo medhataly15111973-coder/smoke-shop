@@ -9,16 +9,18 @@
 <style>
 *{font-family:'Cairo',sans-serif;-webkit-tap-highlight-color:transparent}
 body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
-.neon{box-shadow:0 0 10px rgba(0,210,255,0.2)}
 .hide-sb::-webkit-scrollbar{display:none}
 </style>
 </head>
 <body class="bg-[#0b0f19] text-slate-100 min-h-screen">
 
-<!-- شريط المالك العلوي -->
+<!-- شريط المالك العلوي (يظهر للمالك فقط) -->
 <div id="ownerBar" class="hidden bg-amber-500 text-slate-950 px-3 py-1.5 text-xs font-bold flex justify-between items-center sticky top-0 z-50 shadow-md">
-  <span>🛡️ وضع المالك نشط (اضغط على السعر للتعديل)</span>
-  <button onclick="exitOwner()" class="bg-slate-950 text-amber-400 px-2 py-0.5 rounded text-[10px]">خروج</button>
+  <span>🛡️ وضع المالك نشط (لوحة التحكم كاملة)</span>
+  <div class="flex items-center gap-2">
+    <button onclick="openSetModal()" class="bg-slate-900 text-amber-400 px-2 py-0.5 rounded text-[10px]">⚙️ الإعدادات والطاقم</button>
+    <button onclick="exitOwner()" class="bg-slate-950 text-red-400 px-2 py-0.5 rounded text-[10px]">خروج</button>
+  </div>
 </div>
 
 <!-- الهيدر -->
@@ -32,7 +34,8 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="promptOwner()" class="p-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition" title="إعدادات المالك">🛡️</button>
+      <!-- زر دخول المالك -->
+      <button id="ownerLoginBtn" onclick="promptOwner()" class="p-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition" title="دخول المالك">🛡️</button>
       <button onclick="tab('cart')" class="relative p-2 bg-slate-800 rounded-xl text-xs hover:bg-slate-700 transition">
         🛒<span id="badge" class="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-bold text-[10px] w-4 h-4 rounded-full flex items-center justify-center hidden">0</span>
       </button>
@@ -41,7 +44,7 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 </header>
 
 <main class="max-w-md mx-auto p-3 space-y-3">
-  <!-- قائمة المنتجات -->
+  <!-- قائمة المنتجات (للجميع) -->
   <div id="tab-cat" class="space-y-3">
     <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-3 rounded-2xl border border-slate-800 flex items-center justify-between">
       <div>
@@ -57,7 +60,7 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5" id="grid"></div>
   </div>
 
-  <!-- الفاتورة -->
+  <!-- الفاتورة (للجميع) -->
   <div id="tab-cart" class="hidden space-y-3">
     <div class="flex justify-between items-center">
       <h2 class="font-bold text-sm text-slate-200">🧾 تفاصيل الفاتورة</h2>
@@ -100,7 +103,13 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
     </button>
   </div>
 
-  <!-- تحديث الأسعار -->
+  <!-- تتبع الطلبات الخاص بالعميل فقط -->
+  <div id="tab-track" class="hidden space-y-3">
+    <h2 class="font-bold text-sm text-slate-200">📦 تتبع طلباتي</h2>
+    <div id="myOrdList" class="space-y-3"></div>
+  </div>
+
+  <!-- تحديث الأسعار (للمالك فقط) -->
   <div id="tab-upd" class="hidden space-y-3">
     <h2 class="font-bold text-sm text-slate-200">📋 تحديث الأسعار من منشور الواتس</h2>
     <p class="text-[11px] text-slate-400">الصق نص المنشور اليومي:</p>
@@ -108,7 +117,7 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
     <button onclick="parseWp()" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs">⚡ تحديث الأسعار الآن</button>
   </div>
 
-  <!-- شاشة التجهيز -->
+  <!-- شاشة مسؤول التجهيز (للمالك وطاقم التجهيز فقط) -->
   <div id="tab-ord" class="hidden space-y-3">
     <div class="flex justify-between items-center">
       <h2 class="font-bold text-sm text-slate-200">📋 شاشة مسؤول التجهيز</h2>
@@ -123,8 +132,11 @@ body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
   <div class="flex justify-around items-center text-[10px]">
     <button onclick="tab('cat')" id="nb-cat" class="flex flex-col items-center gap-1 text-amber-400">🛍️ المنتجات</button>
     <button onclick="tab('cart')" id="nb-cart" class="flex flex-col items-center gap-1 text-slate-400">🛒 الفاتورة</button>
-    <button onclick="tab('upd')" id="nb-upd" class="flex flex-col items-center gap-1 text-slate-400">⚡ تحديث</button>
-    <button onclick="tab('ord')" id="nb-ord" class="flex flex-col items-center gap-1 text-slate-400">📋 التجهيز</button>
+    <button onclick="tab('track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 تتبع طلباتي</button>
+    
+    <!-- الأزرار الخاصة بالمالك فقط (مخفية عن العميل) -->
+    <button onclick="tab('upd')" id="nb-upd" class="owner-only hidden flex flex-col items-center gap-1 text-slate-400">⚡ تحديث</button>
+    <button onclick="tab('ord')" id="nb-ord" class="owner-only hidden flex flex-col items-center gap-1 text-slate-400">📋 التجهيز</button>
   </div>
 </nav>
 
@@ -247,48 +259,50 @@ document.addEventListener("DOMContentLoaded", function() {
   renderCats();
   renderP();
   updCart();
-  renderO();
   
   if(localStorage.getItem('sp_saved_name')) document.getElementById('cName').value = localStorage.getItem('sp_saved_name');
   if(localStorage.getItem('sp_saved_phone')) document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
   if(localStorage.getItem('sp_saved_addr')) document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
 
-  // مزامنة تلقائية كل ثانيتين لشاشة التجهيز لضمان ظهور الطلبات بين الأجهزة فوراً
-  setInterval(syncOrders, 2000);
+  renderO();
+  renderMyOrders();
 });
 
-function syncOrders() {
-  const localSaved = localStorage.getItem('sp_o');
-  if (localSaved) {
-    try {
-      const parsed = JSON.parse(localSaved);
-      if (parsed.length !== ords.length) {
-        ords = parsed;
-        renderO();
-      }
-    } catch(e){}
-  }
-}
-
-function beep() {
-  try {
-    const c = new (window.AudioContext || window.webkitAudioContext)();
-    const o = c.createOscillator();
-    o.connect(c.destination);
-    o.frequency.setValueAtTime(800, c.currentTime);
-    o.start();
-    o.stop(c.currentTime + 0.25);
-  } catch(e){}
-}
-
 function tab(t) {
-  ['cat','cart','upd','ord'].forEach(x => {
-    document.getElementById('tab-' + x).classList.add('hidden');
-    document.getElementById('nb-' + x).classList.replace('text-amber-400','text-slate-400');
+  ['cat','cart','track','upd','ord'].forEach(x => {
+    const el = document.getElementById('tab-' + x);
+    if(el) el.classList.add('hidden');
+    const nb = document.getElementById('nb-' + x);
+    if(nb) nb.classList.replace('text-amber-400','text-slate-400');
   });
-  document.getElementById('tab-' + t).classList.remove('hidden');
-  document.getElementById('nb-' + t).classList.replace('text-slate-400','text-amber-400');
+  
+  const targetTab = document.getElementById('tab-' + t);
+  if(targetTab) targetTab.classList.remove('hidden');
+  
+  const targetNb = document.getElementById('nb-' + t);
+  if(targetNb) targetNb.classList.replace('text-slate-400','text-amber-400');
+
+  if(t === 'track') renderMyOrders();
   if(t === 'ord') renderO();
+}
+
+function promptOwner() {
+  if (isOwn) { openSetModal(); return; }
+  if (prompt('رمز PIN للمالك:') === pin) {
+    isOwn = true;
+    document.getElementById('ownerBar').classList.remove('hidden');
+    document.querySelectorAll('.owner-only').forEach(el => el.classList.remove('hidden'));
+    renderP();
+    tab('ord');
+  } else { alert('PIN غير صحيح!'); }
+}
+
+function exitOwner() {
+  isOwn = false;
+  document.getElementById('ownerBar').classList.add('hidden');
+  document.querySelectorAll('.owner-only').forEach(el => el.classList.add('hidden'));
+  renderP();
+  tab('cat');
 }
 
 function renderCats() {
@@ -410,10 +424,14 @@ function sendOrder() {
     items: keys.map(k => cart[k])
   };
 
+  // حفظ الطلب في السجل المحلي للعميل وسجل المحل
   ords.unshift(ordData);
   localStorage.setItem('sp_o', JSON.stringify(ords));
-  beep();
-  renderO();
+
+  // حفظ طلبات العميل الحالية لتتبعها
+  let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
+  myOrders.unshift(ordData);
+  localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
 
   let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph || 'بدون رقم'})\n📍 الاستلام: ${ordData.type}\n`;
   if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
@@ -425,67 +443,43 @@ function sendOrder() {
   if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
 
   clrCart();
-  tab('ord');
+  tab('track');
 
   window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`, '_blank');
 }
 
-function sendCustomerMsgLocal(o, statusType) {
-  let text = '';
-  if (statusType === 'pending') {
-    text = `أهلاً بك أ/${o.name} ✋\nتم استلام طلبك رقم (#${o.id}) في *Smoke Shop* 🏪\nجاري الآن *تجهيز الطلب* وسنخطرك فور الانتهاء ⏳`;
-  } else if (statusType === 'ready') {
-    text = `أهلاً بك أ/${o.name} ✨\nيسعدنا إعلامك بأنه *تم تجهيز طلبك* رقم (#${o.id}) بنجاح بواسطة (${o.staff}) 📦\n${o.type === 'دليفري' ? 'الطلب في طريقه إليك مع الدليفري 🛵' : 'يمكنك الحضور للمحل للاستلام الآن 🏪'}`;
-  } else if (statusType === 'completed') {
-    text = `🧾 *فاتورة استلام - Smoke Shop*\nعزيزي أ/${o.name}\nتم تسليم الطلب رقم (#${o.id}) بنجاح وتسديد المبلغ 💵\n-------------------\n📦 *تفاصيل الفاتورة:*\n`;
-    o.items.forEach(i => { text += `• ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`; });
-    if (o.type === 'دليفري') text += `🛵 خدمة التوصيل: ${o.fee} ج.م\n`;
-    text += `-------------------\n💰 *إجمالي المدفوع:* ${o.tot} ج.م\n\nشكراً لتسوقكم معنا ونتمنى لكم يوماً سعيداً! ❤️`;
-  }
+function renderMyOrders() {
+  const container = document.getElementById('myOrdList');
+  if (!container) return;
+  const myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
 
-  let dst = o.ph.trim();
-  if (dst.startsWith('01')) dst = '2' + dst;
-  window.open(`https://wa.me/${dst}?text=${encodeURIComponent(text)}`, '_blank');
-}
+  container.innerHTML = myOrders.length ? myOrders.map(o => {
+    let stBadge = o.status === 'completed' 
+      ? '<span class="bg-emerald-900/50 text-emerald-400 px-2 py-0.5 rounded border border-emerald-700">تم التسليم والتسديد 🧾</span>'
+      : o.status === 'ready' 
+      ? '<span class="bg-amber-900/50 text-amber-300 px-2 py-0.5 rounded border border-amber-700 font-bold">تم التجهيز وفي الطريق 📦</span>'
+      : '<span class="bg-blue-900/50 text-blue-300 px-2 py-0.5 rounded border border-blue-700">جاري التجهيز ⏳</span>';
 
-function updateOrderStaff(orderId, staffName) {
-  const o = ords.find(x => x.id == orderId);
-  if (o) {
-    o.staff = staffName;
-    localStorage.setItem('sp_o', JSON.stringify(ords));
-  }
-}
-
-function notifySupervisor(orderId) {
-  const o = ords.find(x => x.id == orderId);
-  if (!o) return;
-  if (!o.staff || o.staff === 'غير محدد') {
-    return alert('الرجاء اختيار اسم القائم بالتجهيز أولاً!');
-  }
-  
-  o.status = 'ready';
-  localStorage.setItem('sp_o', JSON.stringify(ords));
-  renderO();
-
-  let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام المسؤول (*${o.staff}*) بالانتهاء من تجهيز الطلب رقم (#${o.id}) للعميل: ${o.name} 📦.\nيرجى إرسال الإشعار للعميل.`;
-  let dstShop = phone.trim();
-  if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
-  
-  window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(supMsg)}`, '_blank');
-  if (o.ph) sendCustomerMsgLocal(o, 'ready');
-}
-
-function updateOrderStatus(orderId, newStatus) {
-  const o = ords.find(x => x.id == orderId);
-  if (o) {
-    o.status = newStatus;
-    localStorage.setItem('sp_o', JSON.stringify(ords));
-    renderO();
-    if (o.ph) sendCustomerMsgLocal(o, newStatus);
-  }
+    return `
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2 text-xs">
+        <div class="flex justify-between items-center font-bold">
+          <span class="text-amber-400">طلب رقم #${o.id}</span>
+          <span class="text-white">${o.tot} ج.م</span>
+        </div>
+        <div class="flex justify-between items-center text-[11px] text-slate-400">
+          <span>${o.type} (${o.time})</span>
+          ${stBadge}
+        </div>
+        <div class="bg-slate-950 p-2 rounded border border-slate-800 text-[11px] text-slate-300">
+          ${o.items.map(i=>`${i.q}×${i.name}`).join(' ، ')}
+        </div>
+      </div>
+    `;
+  }).join('') : '<div class="text-center py-8 text-slate-500 text-xs">لا توجد لديك طلبات حالية</div>';
 }
 
 function renderO() {
+  if(!isOwn) return;
   const container = document.getElementById('ordList');
   if (!container) return;
 
@@ -527,6 +521,41 @@ function renderO() {
       </div>
     `;
   }).join('') : '<div class="text-center py-8 text-slate-500 text-xs">لا توجد طلبات واردة</div>';
+}
+
+function updateOrderStaff(orderId, staffName) {
+  const o = ords.find(x => x.id == orderId);
+  if (o) {
+    o.staff = staffName;
+    localStorage.setItem('sp_o', JSON.stringify(ords));
+  }
+}
+
+function notifySupervisor(orderId) {
+  const o = ords.find(x => x.id == orderId);
+  if (!o) return;
+  if (!o.staff || o.staff === 'غير محدد') {
+    return alert('الرجاء اختيار اسم القائم بالتجهيز أولاً!');
+  }
+  
+  o.status = 'ready';
+  localStorage.setItem('sp_o', JSON.stringify(ords));
+  renderO();
+
+  let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام المسؤول (*${o.staff}*) بالانتهاء من تجهيز الطلب رقم (#${o.id}) للعميل: ${o.name} 📦.\nيرجى إرسال الإشعار للعميل.`;
+  let dstShop = phone.trim();
+  if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
+  
+  window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(supMsg)}`, '_blank');
+}
+
+function updateOrderStatus(orderId, newStatus) {
+  const o = ords.find(x => x.id == orderId);
+  if (o) {
+    o.status = newStatus;
+    localStorage.setItem('sp_o', JSON.stringify(ords));
+    renderO();
+  }
 }
 
 function clrOrd() {
@@ -576,22 +605,8 @@ function parseWp() {
   }
 }
 
-function promptOwner() {
-  if (isOwn) { openSetModal(); return; }
-  if (prompt('رمز PIN للمالك:') === pin) {
-    isOwn = true;
-    document.getElementById('ownerBar').classList.remove('hidden');
-    renderP();
-  } else { alert('PIN غير صحيح!'); }
-}
-
-function exitOwner() {
-  isOwn = false;
-  document.getElementById('ownerBar').classList.add('hidden');
-  renderP();
-}
-
 function openEdit(id) {
+  if (!isOwn) return;
   editId = id;
   const p = prods.find(x => x.id === id);
   document.getElementById('pmTitle').innerText = 'تعديل: ' + p.name;
