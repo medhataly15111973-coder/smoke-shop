@@ -30,7 +30,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 </head>
 <body class="bg-[#090d16] text-slate-100 min-h-screen">
 
-<!-- شريط الإدارة العلوي المستمر عند تفعيل وضع المالك -->
+<!-- شريط الإدارة العلوي -->
 <div id="topOwnerBar" class="owner-view bg-gradient-to-r from-amber-600 to-amber-500 text-slate-950 px-3 py-2 text-xs font-black justify-between items-center sticky top-0 z-50 shadow-lg">
   <div class="flex items-center gap-1.5">
     <span>🛡️ لوحة إدارة المتجر</span>
@@ -52,7 +52,6 @@ body.owner-mode nav.owner-nav { display: flex !important; }
       </div>
     </div>
     
-    <!-- زر السلة السريع للعميل -->
     <div class="client-view flex items-center">
       <button onclick="switchTab('cart')" class="relative p-2 bg-slate-800 border border-slate-700 rounded-xl text-xs hover:border-amber-500/50 transition">
         🛒<span id="cartCountBadge" class="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow hidden">0</span>
@@ -61,57 +60,49 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   </div>
 </header>
 
-<!-- جسم التطبيق الأساسي -->
 <main class="max-w-md mx-auto p-3 space-y-3">
 
   <!-- ==================== تبويبات العميل ==================== -->
 
   <!-- 1. المتجر والمنتجات -->
   <section id="tab-products" class="tab-content active space-y-3">
-    <!-- شريط البحث -->
     <div class="relative">
       <input type="text" id="srchInput" oninput="renderProducts()" placeholder="ابحث باسم الصنف (سجائر، معسل، ولاعات...)" class="w-full bg-slate-900/80 border border-slate-800 text-white rounded-xl py-2 px-3 pr-8 text-xs focus:outline-none focus:border-amber-500 transition">
       <span class="absolute right-2.5 top-2.5 text-slate-500 text-xs">🔍</span>
     </div>
 
-    <!-- شريط التصنيفات السريع -->
     <div class="flex gap-1.5 overflow-x-auto pb-1 hide-sb" id="catsBar"></div>
-
-    <!-- شبكة عرض المنتجات -->
     <div class="grid grid-cols-2 gap-2.5" id="productsGrid"></div>
   </section>
 
-  <!-- 2. الفاتورة وسلة المشتريات -->
+  <!-- 2. الفاتورة وسلة المشتريات للعميل -->
   <section id="tab-cart" class="tab-content space-y-3">
     <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
       <h2 class="font-black text-sm text-amber-400 flex items-center gap-1.5">🧾 مراجعة الفاتورة والطلب</h2>
       <button onclick="clearCart()" class="text-[11px] text-red-400 hover:text-red-300 font-bold">تفريغ السلة</button>
     </div>
 
-    <!-- قائمة عناصر السلة -->
     <div id="cartItemsList" class="space-y-2"></div>
 
-    <!-- تفاصيل الاستلام والبيانات -->
     <div class="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl space-y-3 text-xs">
       <div>
         <label class="block text-[11px] font-bold text-amber-400 mb-1.5">طريقة الاستلام:</label>
         <div class="grid grid-cols-2 gap-2 text-xs">
           <label class="flex items-center justify-center gap-1.5 p-2 bg-slate-950 rounded-xl border border-slate-700 cursor-pointer">
-            <input type="radio" name="delOpt" value="pickup" checked onchange="toggleDeliveryFee()" class="accent-amber-500">
+            <input type="radio" name="delOpt" value="pickup" checked onchange="toggleDeliveryBox()" class="accent-amber-500">
             <span>استلام من المحل</span>
           </label>
           <label class="flex items-center justify-center gap-1.5 p-2 bg-slate-950 rounded-xl border border-slate-700 cursor-pointer">
-            <input type="radio" name="delOpt" value="del" onchange="toggleDeliveryFee()" class="accent-amber-500">
+            <input type="radio" name="delOpt" value="del" onchange="toggleDeliveryBox()" class="accent-amber-500">
             <span>توصيل دليفري 🛵</span>
           </label>
         </div>
       </div>
 
-      <div id="deliveryBox" class="hidden space-y-2 pt-2 border-t border-slate-800">
-        <div class="bg-amber-950/30 border border-amber-800/40 p-2 rounded-xl text-[11px] text-amber-300">
-          ℹ️ سيتم تحديد تكلفة التوصيل الدليفري بواسطة إدارة المحل حسب مسافة وعنوان التوصيل.
-        </div>
-        <input type="text" id="custAddress" placeholder="أدخل العنوان بالتفصيل والعلامة المميزة..." class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
+      <!-- حقل العنوان فقط بدون أي إشارة للأسعار -->
+      <div id="deliveryBox" class="hidden space-y-1.5 pt-2 border-t border-slate-800">
+        <label class="block text-[10px] text-slate-400">عنوان التوصيل بالتفصيل *</label>
+        <input type="text" id="custAddress" placeholder="المنطقة، اسم الشارع، رقم العمارة والدور..." class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
       </div>
 
       <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
@@ -125,18 +116,10 @@ body.owner-mode nav.owner-nav { display: flex !important; }
         </div>
       </div>
 
-      <!-- ملخص الحساب -->
-      <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5 pt-2">
-        <div class="flex justify-between text-slate-400">
-          <span>إجمالي الأصناف:</span>
-          <span id="subTotalTxt" class="font-bold text-white">0 ج.م</span>
-        </div>
-        <div class="flex justify-between text-slate-400" id="deliveryRow" style="display:none">
-          <span>خدمة التوصيل:</span>
-          <span class="text-amber-400 font-bold">يحددها المحل حسب المسافة</span>
-        </div>
-        <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-800 font-black">
-          <span class="text-white">إجمالي الفاتورة المبدئي:</span>
+      <!-- الإجمالي: أصناف فقط -->
+      <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 pt-2">
+        <div class="flex justify-between items-center text-sm font-black">
+          <span class="text-white">إجمالي الفاتورة:</span>
           <span id="grandTotalTxt" class="text-amber-400 text-base">0 ج.م</span>
         </div>
       </div>
@@ -150,12 +133,11 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   <!-- 3. تتبع طلبات العميل -->
   <section id="tab-track" class="tab-content space-y-3">
     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
-      <h2 class="font-bold text-sm text-slate-200">📦 طلباتي السابقة والجارية</h2>
-      <p class="text-[11px] text-slate-400 mt-0.5">يمكنك متابعة حالة تجهيز وتسليم كل طلب لحظياً</p>
+      <h2 class="font-bold text-sm text-slate-200">📦 طلباتي</h2>
+      <p class="text-[11px] text-slate-400 mt-0.5">متابعة حالة التجهيز والاستلام</p>
     </div>
     <div id="customerOrdersList" class="space-y-3"></div>
   </section>
-
 
   <!-- ==================== تبويبات الإدارة (للمالك فقط) ==================== -->
 
@@ -164,12 +146,12 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
       <div>
         <h2 class="font-black text-sm text-amber-400">📋 متابعة وتجهيز الطلبات</h2>
-        <p class="text-[10px] text-slate-400">تحديد سعر الدليفري وإسناد التجهيز</p>
+        <p class="text-[10px] text-slate-400">تحديد مصاريف الدليفري وإرسال الفاتورة الرسمية</p>
       </div>
       <button onclick="clearAllOrders()" class="text-[11px] text-red-400 hover:underline">مسح الكل</button>
     </div>
 
-    <!-- أزرار فلترة حالة الطلبات -->
+    <!-- أزرار الفلترة -->
     <div class="flex gap-1.5 overflow-x-auto pb-1 hide-sb text-xs" id="orderFilterPills">
       <button onclick="setOrderFilter('all')" class="ord-filter-btn px-2.5 py-1 rounded-lg font-bold bg-amber-500 text-slate-950" data-filter="all">الكل</button>
       <button onclick="setOrderFilter('pending')" class="ord-filter-btn px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800" data-filter="pending">قيد الانتظار ⏳</button>
@@ -177,27 +159,26 @@ body.owner-mode nav.owner-nav { display: flex !important; }
       <button onclick="setOrderFilter('completed')" class="ord-filter-btn px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800" data-filter="completed">مكتمل ومسدد ✅</button>
     </div>
 
-    <!-- قائمة الطلبات المعروضة -->
     <div id="incomingOrdersList" class="space-y-3"></div>
   </section>
 
-  <!-- 5. تعديل الأصناف والأسعار يدوياً -->
+  <!-- 5. تعديل الأصناف والأسعار -->
   <section id="tab-owner-products" class="tab-content owner-view space-y-3">
     <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
       <div>
         <h2 class="font-bold text-sm text-slate-200">🏷️ الأصناف وقائمة الأسعار</h2>
-        <p class="text-[10px] text-slate-400">اضغط على السعر للتعديل السريع أو الكاميرا لتغيير الصورة</p>
+        <p class="text-[10px] text-slate-400">اضغط على السعر للتعديل السريع</p>
       </div>
       <button onclick="promptNewProduct()" class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-lg text-xs">+ صنف جديد</button>
     </div>
     <div class="grid grid-cols-2 gap-2.5" id="ownerProductsGrid"></div>
   </section>
 
-  <!-- 6. تحديث الأسعار بنص الواتس اليومي -->
+  <!-- 6. تحديث الأسعار بالواتس -->
   <section id="tab-owner-update" class="tab-content owner-view space-y-3">
     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1">
       <h2 class="font-bold text-sm text-amber-400">⚡ تحديث الأسعار الذكي</h2>
-      <p class="text-[11px] text-slate-400">الصق رسالة الأسعار اليومية وسيتعرف التطبيق على الأصناف والأسعار تلقائياً:</p>
+      <p class="text-[11px] text-slate-400">الصق رسالة الأسعار اليومية لتحديثها تلقائياً:</p>
     </div>
     <textarea id="wpImportText" rows="6" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم نص كيلو ١٢٠٠" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-500"></textarea>
     <button onclick="processPriceImport()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition shadow-md">
@@ -205,11 +186,10 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     </button>
   </section>
 
-  <!-- 7. إعدادات المتجر وطاقم العمل -->
+  <!-- 7. إعدادات المتجر والطاقم -->
   <section id="tab-owner-settings" class="tab-content owner-view space-y-3">
     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
       <h2 class="font-bold text-sm text-slate-200">⚙️ إعدادات المتجر وطاقم التجهيز</h2>
-      <p class="text-[10px] text-slate-400">تحديد أرقام التواصل وأفراد فريق العمل</p>
     </div>
     
     <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl space-y-3 text-xs">
@@ -234,9 +214,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 
 </main>
 
-<!-- ==================== القوائم السفلية (Navigation) ==================== -->
-
-<!-- 1. شريط العميل السفلي -->
+<!-- شريط العميل السفلي -->
 <nav class="client-nav fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 py-2 px-6 z-40 max-w-md mx-auto flex justify-between items-center text-[10px]">
   <button onclick="switchTab('products')" id="navBtn-products" class="nav-btn flex flex-col items-center gap-1 text-amber-400 font-bold">
     <span class="text-base">🛍️</span><span>المنتجات</span>
@@ -249,7 +227,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   </button>
 </nav>
 
-<!-- 2. شريط المالك السفلي (يظهر فقط في وضع الإدارة) -->
+<!-- شريط المالك السفلي -->
 <nav class="owner-nav fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 py-2 px-3 z-40 max-w-md mx-auto hidden justify-around items-center text-[10px]">
   <button onclick="switchTab('owner-orders')" id="navBtn-owner-orders" class="nav-btn flex flex-col items-center gap-0.5 text-amber-400 font-bold">
     <span class="text-base">📋</span><span>الطلبات</span>
@@ -265,7 +243,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   </button>
 </nav>
 
-<!-- نافذة تعديل المنتج منبثقة -->
+<!-- نافذة تعديل المنتج -->
 <div id="productEditModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-xs space-y-3 shadow-2xl">
     <h3 id="editModalTitle" class="font-bold text-sm text-amber-400">تعديل المنتج</h3>
@@ -284,7 +262,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   </div>
 </div>
 
-<!-- نافذة رفع وتحديث الصورة -->
+<!-- نافذة تغيير الصورة -->
 <div id="imageUploadModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-xs space-y-3 text-center shadow-2xl">
     <h3 class="font-bold text-sm text-amber-400">تغيير صورة الصنف</h3>
@@ -303,7 +281,6 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 </div>
 
 <script>
-// تهيئة Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
   authDomain: "smokeshop-40107.firebaseapp.com",
@@ -375,7 +352,6 @@ const CATEGORIES = [
   {id:'acc', n:'ولاعات وبفرة'}
 ];
 
-// حالة التطبيق العامة
 let products = JSON.parse(localStorage.getItem('sp_p') || 'null') || INITIAL_PRODUCTS;
 if(!localStorage.getItem('sp_p')) localStorage.setItem('sp_p', JSON.stringify(INITIAL_PRODUCTS));
 
@@ -390,8 +366,6 @@ let activeOrderFilter = 'all';
 let editTargetId = null;
 let imageTargetId = null;
 let incomingOrders = [];
-
-// عداد الدخول السري للإدارة عبر اللوجو
 let logoClickCount = 0;
 let logoTimer = null;
 
@@ -404,12 +378,10 @@ function initApp() {
   renderProducts();
   updateCartBadge();
   
-  // استرجاع بيانات العميل المخزنة
   if(localStorage.getItem('sp_cname')) document.getElementById('custName').value = localStorage.getItem('sp_cname');
   if(localStorage.getItem('sp_cphone')) document.getElementById('custPhone').value = localStorage.getItem('sp_cphone');
   if(localStorage.getItem('sp_caddr')) document.getElementById('custAddress').value = localStorage.getItem('sp_caddr');
 
-  // الاستماع المباشر للطلبات من فايربيس
   if(db) {
     try {
       db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
@@ -421,14 +393,12 @@ function initApp() {
     } catch(err) { console.error(err); }
   }
 
-  // دعم الدخول عبر رابط الإدارة المباشر (?admin=1)
   const params = new URLSearchParams(window.location.search);
   if(params.get('admin') === '1') {
     requestOwnerAuth();
   }
 }
 
-// النقر السري على اللوجو (4 نقرات سريعة)
 function handleLogoClick() {
   logoClickCount++;
   clearTimeout(logoTimer);
@@ -462,7 +432,6 @@ function exitOwnerMode() {
   switchTab('products');
 }
 
-// التبديل بين التبويبات بسلاسة
 function switchTab(tabId) {
   if(!isOwner && tabId.startsWith('owner-')) {
     tabId = 'products';
@@ -492,7 +461,6 @@ function switchTab(tabId) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// عرض شريط التصنيفات
 function renderCategories() {
   const container = document.getElementById('catsBar');
   container.innerHTML = CATEGORIES.map(c => `
@@ -508,7 +476,6 @@ function setCategory(catId) {
   renderProducts();
 }
 
-// عرض المنتجات للعميل
 function renderProducts() {
   const searchQ = (document.getElementById('srchInput')?.value || '').trim().toLowerCase();
   const filtered = products.filter(p => (currentCat === 'all' || p.c === currentCat) && p.name.toLowerCase().includes(searchQ));
@@ -544,7 +511,6 @@ function renderProducts() {
   }).join('');
 }
 
-// عمليات السلة
 function addToCart(id) {
   const p = products.find(x => x.id === id);
   if(!p) return;
@@ -609,20 +575,17 @@ function renderCartItems() {
   calculateTotals();
 }
 
-function toggleDeliveryFee() {
+function toggleDeliveryBox() {
   const isDel = document.querySelector('input[name="delOpt"]:checked').value === 'del';
   document.getElementById('deliveryBox').classList.toggle('hidden', !isDel);
-  document.getElementById('deliveryRow').style.display = isDel ? 'flex' : 'none';
-  calculateTotals();
 }
 
 function calculateTotals() {
   const subTotal = Object.values(cart).reduce((s, i) => s + (i.p * i.q), 0);
-  document.getElementById('subTotalTxt').innerText = subTotal + ' ج.م';
   document.getElementById('grandTotalTxt').innerText = subTotal + ' ج.م';
 }
 
-// تأكيد وإرسال طلب العميل عبر واتساب (بدون تحديد سعر توصيل مسبق من العميل)
+// تأكيد وإرسال طلب العميل
 function submitOrderViaWhatsapp() {
   const items = Object.values(cart);
   if(!items.length) {
@@ -642,7 +605,6 @@ function submitOrderViaWhatsapp() {
   const address = isDel ? (document.getElementById('custAddress').value.trim() || 'بدون عنوان مفصل') : 'استلام من المحل';
   const subTotal = items.reduce((s, i) => s + (i.p * i.q), 0);
 
-  // حفظ بيانات العميل لتسهيل الطلبات القادمة
   localStorage.setItem('sp_cname', name);
   localStorage.setItem('sp_cphone', phone);
   if(isDel) localStorage.setItem('sp_caddr', address);
@@ -655,7 +617,7 @@ function submitOrderViaWhatsapp() {
     ph: phone,
     type: isDel ? 'دليفري' : 'استلام',
     addr: address,
-    fee: 0, // يحددها المالك لاحقاً
+    fee: 0,
     subTot: subTotal,
     tot: subTotal,
     status: 'pending',
@@ -663,24 +625,21 @@ function submitOrderViaWhatsapp() {
     items
   };
 
-  // حفظ في السجل المحلي للعميل
   let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
   myOrders.unshift(orderPayload);
   localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
 
-  // رفع الطلب لفايربيس
   if(db) {
     try { db.collection("orders").add(orderPayload); } catch(err) { console.error("Firebase sync error:", err); }
   }
 
-  // إنشاء رسالة الواتساب المنسقة
+  // رسالة الواتساب للطلب بدون ذكر أي رسوم دليفري
   let msg = `🧾 *طلب شراء جديد - Smoke Shop*\n`;
   msg += `🔢 رقم الطلب: #${orderPayload.id}\n`;
   msg += `👤 العميل: ${name} (${phone})\n`;
-  msg += `📍 نوع الاستلام: ${orderPayload.type}\n`;
+  msg += `📍 الاستلام: ${orderPayload.type}\n`;
   if(isDel) {
     msg += `🏠 العنوان: ${address}\n`;
-    msg += `🛵 التوصيل: (سيتم احتساب التكلفة وإبلاغك بها مع الفاتورة)\n`;
   }
   msg += `-----------------------------\n`;
   msg += `📦 الأصناف المطلوبة:\n`;
@@ -688,7 +647,7 @@ function submitOrderViaWhatsapp() {
     msg += `${idx + 1}. ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`;
   });
   msg += `-----------------------------\n`;
-  msg += `💵 إجمالي الأصناف: *${subTotal} ج.م*`;
+  msg += `💵 إجمالي الفاتورة: *${subTotal} ج.م*`;
 
   let dest = shopPhone.trim();
   if(dest.startsWith('01')) dest = '2' + dest;
@@ -711,14 +670,14 @@ function renderCustomerOrders() {
 
   container.innerHTML = myOrders.map(o => {
     let badge = '<span class="bg-amber-900/40 text-amber-300 border border-amber-700/50 px-2 py-0.5 rounded text-[10px]">قيد الانتظار ⏳</span>';
-    if(o.status === 'ready') badge = '<span class="bg-blue-900/40 text-blue-300 border border-blue-700/50 px-2 py-0.5 rounded text-[10px] font-bold">تم التجهيز وفي الطريق 📦</span>';
+    if(o.status === 'ready') badge = '<span class="bg-blue-900/40 text-blue-300 border border-blue-700/50 px-2 py-0.5 rounded text-[10px] font-bold">تم التجهيز 📦</span>';
     if(o.status === 'completed') badge = '<span class="bg-emerald-900/40 text-emerald-300 border border-emerald-700/50 px-2 py-0.5 rounded text-[10px]">تم التسليم ✅</span>';
 
     return `
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2 text-xs">
         <div class="flex justify-between items-center font-bold">
           <span class="text-amber-400">طلب #${o.id}</span>
-          <span class="text-white">${o.tot} ج.م ${o.fee > 0 ? `(شامل توصيل ${o.fee} ج.م)` : ''}</span>
+          <span class="text-white">${o.tot} ج.م</span>
         </div>
         <div class="flex justify-between items-center text-[11px] text-slate-400">
           <span>${o.type} (${o.time})</span>
@@ -748,7 +707,6 @@ function setOrderFilter(filter) {
   renderOwnerOrders();
 }
 
-// عرض الطلبات للمالك مع تحكم تكلفة التوصيل
 function renderOwnerOrders() {
   const container = document.getElementById('incomingOrdersList');
   if(!container) return;
@@ -793,7 +751,6 @@ function renderOwnerOrders() {
 
     return `
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2.5 text-xs shadow-md">
-        <!-- ترويسة الطلب -->
         <div class="flex justify-between items-start border-b border-slate-800 pb-2">
           <div>
             <div class="flex items-center gap-2">
@@ -808,14 +765,14 @@ function renderOwnerOrders() {
           </div>
         </div>
 
-        <!-- العنوان وحساب الدليفري بواسطة المالك -->
+        <!-- حقل تحديد قيمة التوصيل يدوياً للمالك فقط -->
         ${o.type === 'دليفري' ? `
           <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
             <div class="text-[11px] text-slate-300">
               📍 <span class="text-amber-400 font-bold">العنوان:</span> ${o.addr}
             </div>
             <div class="flex items-center justify-between pt-1 border-t border-slate-800/80">
-              <span class="text-slate-400 font-bold">قيمة التوصيل (حسب المسافة):</span>
+              <span class="text-slate-400 font-bold">قيمة التوصيل (يحددها المالك):</span>
               <div class="flex items-center gap-1.5">
                 <input type="number" value="${fee}" id="fee-inp-${o.docId}" onchange="updateDeliveryFee('${o.docId}', this.value, ${sub})" class="w-16 bg-slate-900 border border-slate-700 text-amber-400 font-bold rounded py-0.5 px-1.5 text-center text-xs">
                 <span>ج.م</span>
@@ -824,7 +781,6 @@ function renderOwnerOrders() {
           </div>
         ` : ''}
 
-        <!-- الأصناف -->
         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 space-y-1">
           ${(o.items || []).map(i => `<div class="flex justify-between"><span>• ${i.name}</span><span class="text-amber-400 font-bold">${i.q} × ${i.p} ج.م</span></div>`).join('')}
           <div class="pt-1 border-t border-slate-800 flex justify-between text-slate-400 text-[10px]">
@@ -833,7 +789,6 @@ function renderOwnerOrders() {
           </div>
         </div>
 
-        <!-- طاقم التجهيز -->
         <div class="space-y-1.5 pt-1">
           <div class="flex justify-between items-center text-[10px]">
             <span class="text-slate-400 font-bold">القائم بالتجهيز:</span>
@@ -844,7 +799,6 @@ function renderOwnerOrders() {
           </div>
         </div>
 
-        <!-- أزرار الإجراءات -->
         <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
           <button onclick="sendInvoiceToCustomer('${o.docId}')" class="bg-blue-600 hover:bg-blue-500 text-white font-black py-2 rounded-xl text-[11px] transition shadow">
             📲 إرسال الفاتورة للعميل
@@ -858,7 +812,6 @@ function renderOwnerOrders() {
   }).join('');
 }
 
-// تحديث قيمة التوصيل للطلب من قبل المالك
 function updateDeliveryFee(docId, newFeeVal, subTotal) {
   const fee = parseFloat(newFeeVal) || 0;
   const grandTotal = subTotal + fee;
@@ -870,7 +823,6 @@ function updateDeliveryFee(docId, newFeeVal, subTotal) {
     order.tot = grandTotal;
   }
 
-  // تحديث العرض فوراً
   const totEl = document.getElementById(`tot-disp-${docId}`);
   if(totEl) totEl.innerText = `${grandTotal} ج.م`;
 
@@ -886,7 +838,6 @@ function updateDeliveryFee(docId, newFeeVal, subTotal) {
   }
 }
 
-// إرسال الفاتورة الرسمية المعتمدة للعميل عبر الواتساب (تشمل سعر التوصيل المعتمد)
 function sendInvoiceToCustomer(docId) {
   const order = incomingOrders.find(x => x.docId === docId);
   if(!order) return;
@@ -918,16 +869,15 @@ function sendInvoiceToCustomer(docId) {
   invMsg += `-----------------------------\n`;
   invMsg += `💵 إجمالي الأصناف: ${sub} ج.م\n`;
   if(order.type === 'دليفري') {
-    invMsg += `🛵 تكلفة التوصيل (حسب العنوان): ${fee} ج.م\n`;
+    invMsg += `🛵 مصاريف التوصيل: ${fee} ج.م\n`;
   }
   invMsg += `💰 *المطلوب سداده: ${grand} ج.م*\n`;
   invMsg += `-----------------------------\n`;
-  invMsg += `شكراً لاختيارك Smoke Shop! طلبك يتم تجهيزه الآن 🛵📦.`;
+  invMsg += `طلبك يتم تجهيزه الآن، شكراً لتعاملك معنا! 🛵📦`;
 
   window.open(`https://wa.me/${custPhone}?text=${encodeURIComponent(invMsg)}`, '_blank');
 }
 
-// 1. إرسال أمر التجهيز للمجهّز بدون أسعار وبدون بيانات عميل
 function dispatchPrepOrderToWorker(docId, workerName, workerPhone) {
   const order = incomingOrders.find(x => x.docId === docId);
   if(!order) return;
@@ -992,7 +942,6 @@ function clearAllOrders() {
   }
 }
 
-// عرض المنتجات في تبويب إدارة الأسعار للمالك
 function renderOwnerProducts() {
   const grid = document.getElementById('ownerProductsGrid');
   if(!grid) return;
@@ -1014,7 +963,6 @@ function renderOwnerProducts() {
   `).join('');
 }
 
-// نافذة تعديل الصنف
 function openProductEditModal(id) {
   editTargetId = id;
   const p = products.find(x => x.id === id);
@@ -1059,7 +1007,6 @@ function promptNewProduct() {
   renderOwnerProducts();
 }
 
-// تحديث أسعار الواتس بالنص
 function processPriceImport() {
   let text = document.getElementById('wpImportText').value;
   if(!text.trim()) return alert('الصق المنشور أولاً!');
@@ -1098,7 +1045,6 @@ function processPriceImport() {
   }
 }
 
-// نافذة تعديل الصور
 function openImageModal(id) {
   imageTargetId = id;
   document.getElementById('imageUploadModal').classList.remove('hidden');
@@ -1138,7 +1084,6 @@ function handleImageFile(e) {
   reader.readAsDataURL(file);
 }
 
-// إعدادات المالك
 function populateSettingsFields() {
   document.getElementById('settingShopPhone').value = shopPhone;
   document.getElementById('settingPin').value = ownerPin;
