@@ -10,11 +10,12 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
 *{font-family:'Cairo',sans-serif;-webkit-tap-highlight-color:transparent}
 body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 .hide-sb::-webkit-scrollbar{display:none}
 
-/* إخفاء عناصر المالك كلياً عن العميل افتراضياً وضمان عدم التداخل */
+/* إخفاء عناصر المالك كلياً عن العميل افتراضياً */
 .owner-only { display: none !important; }
 body.is-owner-mode .owner-only { display: flex !important; }
 body.is-owner-mode div.owner-only { display: block !important; }
@@ -27,7 +28,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
 <body class="bg-[#0b0f19] text-slate-100 min-h-screen">
 
 <!-- شريط المالك العلوي -->
-<div id="ownerBar" class="owner-only bg-amber-500 text-slate-950 px-3 py-1.5 text-xs font-bold flex justify-between items-center sticky top-0 z-50 shadow-md">
+<div id="ownerBar" class="owner-only bg-amber-500 text-slate-950 px-3 py-1.5 text-xs font-bold justify-between items-center sticky top-0 z-50 shadow-md">
   <span>🛡️ لوحة تحكم المالك نشطة (متصل بالسحابة ☁️)</span>
   <div class="flex items-center gap-2">
     <button onclick="openSetModal()" class="bg-slate-900 text-amber-400 px-2 py-0.5 rounded text-[10px]">⚙️ الإعدادات وطاقم العمل</button>
@@ -40,7 +41,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
   <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
     <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoClick()">
       <div class="w-9 h-9 rounded-full overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center font-bold text-amber-400 text-xs">
-        <img id="hLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" onerror="this.src='https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png'" class="w-full h-full object-cover">
+        <img id="hLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" class="w-full h-full object-cover">
       </div>
       <div>
         <h1 class="font-black text-sm tracking-wider text-amber-400">SMOKE SHOP</h1>
@@ -98,7 +99,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
       </div>
       <div id="delBox" class="hidden pt-2 space-y-1.5">
         <div class="flex items-center gap-2">
-          <span class="text-[11px] text-slate-400">سعر التوصيل (يدوي):</span>
+          <span class="text-[11px] text-slate-400">سعر التوصيل:</span>
           <input type="number" id="delFee" oninput="updTot()" value="20" class="w-16 bg-slate-900 border border-slate-700 text-amber-400 font-bold rounded py-0.5 px-1 text-center text-xs">
           <span class="text-xs">ج.م</span>
         </div>
@@ -123,15 +124,15 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <div id="myOrdList" class="space-y-3"></div>
   </div>
 
-  <!-- 4. تحديث الأسعار (للمالك فقط - قسم منفصل ومستقل تماماً) -->
+  <!-- 4. تحديث الأسعار (للمالك) -->
   <div id="sec-upd" class="owner-only app-section space-y-3">
     <h2 class="font-bold text-sm text-slate-200">📋 تحديث الأسعار من منشور الواتس</h2>
     <p class="text-[11px] text-slate-400">الصق نص المنشور اليومي:</p>
-    <textarea id="wpText" rows="6" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم نص كيلو ١٢٠0" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-amber-300 font-mono"></textarea>
+    <textarea id="wpText" rows="6" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم نص كيلو ١٢٠٠" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-amber-300 font-mono"></textarea>
     <button onclick="parseWp()" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs">⚡ تحديث الأسعار الآن</button>
   </div>
 
-  <!-- 5. الطلبات الواردة والتجهيز (للمالك فقط - قسم منفصل ومستقل تماماً) -->
+  <!-- 5. الطلبات الواردة والتجهيز (للمالك) -->
   <div id="sec-ord" class="owner-only app-section space-y-3">
     <div class="flex justify-between items-center">
       <h2 class="font-bold text-sm text-slate-200">📋 الطلبات الواردة والتجهيز</h2>
@@ -146,7 +147,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
   <div class="flex justify-around items-center text-[10px]">
     <button onclick="switchTab('cat')" id="nb-cat" class="flex flex-col items-center gap-1 text-amber-400">🛍️ المنتجات</button>
     <button onclick="switchTab('cart')" id="nb-cart" class="flex flex-col items-center gap-1 text-slate-400">🛒 الفاتورة</button>
-    <button onclick="switchTab(isOwn ? 'ord' : 'track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 <span id="trackLabel">تتبع طلباتي</span></button>
+    <button onclick="switchTab('track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 <span id="trackLabel">تتبع طلباتي</span></button>
     <button onclick="switchTab('upd')" id="nb-upd" class="owner-only flex flex-col items-center gap-1 text-slate-400">⚡ تحديث الأسعار</button>
   </div>
 </nav>
@@ -177,7 +178,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
       <input type="password" id="stPin" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white">
     </div>
     <div>
-      <label class="block text-[11px] text-slate-400 mb-1">أسماء طاقم التجهيز (مفصولة بفاصلة ,):</label>
+      <label class="block text-[11px] text-slate-400 mb-1">أسماء طاقم التجهيز (مفصولة بفاصلة):</label>
       <textarea id="stStaff" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-amber-300" placeholder="محمد علي, مصطفى"></textarea>
     </div>
     <div class="flex gap-2 pt-2">
@@ -193,11 +194,11 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <h3 class="font-bold text-sm text-amber-400">تغيير صورة المنتج</h3>
     <div class="grid grid-cols-2 gap-2">
       <label class="p-3 bg-slate-800 rounded-xl cursor-pointer hover:bg-slate-700 text-xs flex flex-col items-center gap-1">
-        <span>📷 التقاط بالكاميرا</span>
+        <span>📷 الكاميرا</span>
         <input type="file" accept="image/*" capture="environment" onchange="uploadImg(event)" class="hidden">
       </label>
       <label class="p-3 bg-slate-800 rounded-xl cursor-pointer hover:bg-slate-700 text-xs flex flex-col items-center gap-1">
-        <span>🖼️ اختيار من المعرض</span>
+        <span>🖼️ المعرض</span>
         <input type="file" accept="image/*" onchange="uploadImg(event)" class="hidden">
       </label>
     </div>
@@ -216,8 +217,13 @@ const firebaseConfig = {
   measurementId: "G-R420RTFBFV"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+let db = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+} catch(e) {
+  console.warn("Firebase Init Notice:", e);
+}
 
 const LOGO = "https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png";
 
@@ -287,15 +293,19 @@ document.addEventListener("DOMContentLoaded", function() {
   if(localStorage.getItem('sp_saved_phone')) document.getElementById('cPhone').value = localStorage.getItem('sp_saved_phone');
   if(localStorage.getItem('sp_saved_addr')) document.getElementById('custAddr').value = localStorage.getItem('sp_saved_addr');
 
-  try {
-    db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
-      ords = [];
-      snapshot.forEach((doc) => {
-        ords.push({ docId: doc.id, ...doc.data() });
+  if (db) {
+    try {
+      db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+        ords = [];
+        snapshot.forEach((doc) => {
+          ords.push({ docId: doc.id, ...doc.data() });
+        });
+        if (isOwn) renderO();
+      }, (err) => {
+        console.warn("Firestore error (تأكد من فتح قواعد الحماية rules):", err);
       });
-      if (isOwn) renderO();
-    });
-  } catch(e) { console.error(e); }
+    } catch(e) { console.error(e); }
+  }
 
   const urlParams = new URLSearchParams(window.location.search);
   if(urlParams.get('mode') === 'admin') {
@@ -313,22 +323,18 @@ function handleLogoClick() {
   }
 }
 
-// دالة التبديل الآمن والمضمون بين الأقسام
 function switchTab(t) {
   if(!isOwn && (t === 'upd' || t === 'ord')) return;
 
-  // إزالة التنشيط عن كل الأقسام
   document.querySelectorAll('.app-section').forEach(el => {
     el.classList.remove('active-section');
   });
 
-  // إزالة تلون أزرار القائمة السفلية
-  ['cat','cart','track','upd','ord'].forEach(x => {
+  ['cat','cart','track','upd'].forEach(x => {
     const nb = document.getElementById('nb-' + x);
     if(nb) nb.classList.replace('text-amber-400','text-slate-400');
   });
   
-  // تحديد القسم المستهدف بدقة
   const targetId = (isOwn && t === 'track') ? 'ord' : t;
   const targetSec = document.getElementById('sec-' + targetId);
   if(targetSec) {
@@ -350,10 +356,9 @@ function promptOwner() {
   if (inputPin === pin) {
     isOwn = true;
     document.body.classList.add('is-owner-mode');
-    document.getElementById('ownerBar').classList.remove('hidden');
     document.getElementById('trackLabel').innerText = 'الطلبات الواردة';
     renderP();
-    switchTab('ord');
+    switchTab('track');
   } else if (inputPin !== null) { 
     alert('PIN غير صحيح!'); 
   }
@@ -362,7 +367,6 @@ function promptOwner() {
 function exitOwner() {
   isOwn = false;
   document.body.classList.remove('is-owner-mode');
-  document.getElementById('ownerBar').classList.add('hidden');
   document.getElementById('trackLabel').innerText = 'تتبع طلباتي';
   renderP();
   switchTab('cat');
@@ -370,7 +374,7 @@ function exitOwner() {
 
 function renderCats() {
   document.getElementById('cats').innerHTML = CATS.map(c => `
-    <button onclick="curCat='${c.id}';renderP()" class="px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition ${curCat===c.id?'bg-amber-500 text-slate-950 font-bold':'bg-slate-900 text-slate-300 border border-slate-800'}">${c.n}</button>
+    <button onclick="curCat='${c.id}';renderP();renderCats()" class="px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition ${curCat===c.id?'bg-amber-500 text-slate-950 font-bold':'bg-slate-900 text-slate-300 border border-slate-800'}">${c.n}</button>
   `).join('');
 }
 
@@ -388,7 +392,7 @@ function renderP() {
         <div>
           <h3 class="font-bold text-xs text-white mb-1 truncate">${p.name}</h3>
           <div class="flex justify-between items-center text-[11px] mb-2">
-            <span onclick="${isOwn ? `openEdit(${p.id})` : ''}" class="text-amber-400 font-bold">${isOwn ? p.p + ' ج.م ✏️' : p.p + ' ج.م'}</span>
+            <span onclick="${isOwn ? `openEdit(${p.id})` : ''}" class="text-amber-400 font-bold cursor-pointer">${isOwn ? p.p + ' ج.م ✏️' : p.p + ' ج.م'}</span>
             <span class="text-slate-400">${p.u||''}</span>
           </div>
           ${qty===0 ? `
@@ -408,6 +412,7 @@ function renderP() {
 
 function addC(id) {
   const p = prods.find(x => x.id === id);
+  if (!p) return;
   cart[id] = { id: p.id, name: p.name, p: p.p, q: 1 };
   svCart();
 }
@@ -420,6 +425,7 @@ function modC(id, d) {
 }
 
 function clrCart() { cart = {}; svCart(); }
+
 function svCart() {
   localStorage.setItem('sp_c', JSON.stringify(cart));
   updCart();
@@ -490,7 +496,7 @@ function sendOrder() {
   const ordData = {
     id: Math.floor(1000 + Math.random() * 9000),
     time: new Date().toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit'}),
-    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    timestamp: firebase.firestore.FieldValue.serverTimestamp ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
     name, ph, type: isD ? 'دليفري' : 'استلام', addr, fee, tot: sub + fee,
     status: 'pending',
     staff: 'غير محدد',
@@ -501,9 +507,11 @@ function sendOrder() {
   myOrders.unshift(ordData);
   localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
 
-  try {
-    db.collection("orders").add(ordData);
-  } catch(e) { console.error("Cloud Error:", e); }
+  if (db) {
+    try {
+      db.collection("orders").add(ordData);
+    } catch(e) { console.error("Cloud Error:", e); }
+  }
 
   let msgShop = `🧾 *طلب جديد - Smoke Shop*\n#️⃣ رقم الطلب: ${ordData.id}\n👤 العميل: ${name} (${ph})\n📍 الاستلام: ${ordData.type}\n`;
   if (isD) msgShop += `🏠 العنوان: ${addr}\n🛵 التوصيل: ${fee} ج.م\n`;
@@ -517,7 +525,7 @@ function sendOrder() {
   clrCart();
   switchTab('track');
 
-  window.location.href = `https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`;
+  window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(msgShop)}`, '_blank');
 }
 
 function renderMyOrders() {
@@ -543,7 +551,7 @@ function renderMyOrders() {
           ${stBadge}
         </div>
         <div class="bg-slate-950 p-2 rounded border border-slate-800 text-[11px] text-slate-300">
-          ${o.items.map(i=>`${i.q}×${i.name}`).join(' ، ')}
+          ${(o.items||[]).map(i=>`${i.q}×${i.name}`).join(' ، ')}
         </div>
       </div>
     `;
@@ -577,7 +585,7 @@ function renderO() {
           <span class="bg-slate-800 px-2 py-0.5 rounded text-amber-300">${stBadge}</span>
         </div>
         <div class="bg-slate-950 p-2 rounded border border-slate-800 text-[11px] text-slate-300">
-          ${o.items.map(i=>`${i.q}×${i.name}`).join(' ، ')}
+          ${(o.items||[]).map(i=>`${i.q}×${i.name}`).join(' ، ')}
         </div>
         <div class="flex items-center gap-2 pt-1 border-t border-slate-800">
           <span class="text-[11px] text-slate-400">القائم بالتجهيز:</span>
@@ -587,8 +595,8 @@ function renderO() {
           </select>
         </div>
         <div class="grid grid-cols-2 gap-2 pt-1">
-          <button onclick="notifySupervisor('${o.docId}', ${o.id})" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 تم التجهيز وإشعار المشرف</button>
-          <button onclick="updateOrderStatus('${o.docId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلام والفاتورة</button>
+          <button onclick="notifySupervisor('${o.docId}', ${o.id})" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-1.5 rounded text-[11px]">📦 إشعار تم التجهيز</button>
+          <button onclick="updateOrderStatus('${o.docId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 rounded text-[11px]">🧾 تأكيد الاستلام</button>
         </div>
       </div>
     `;
@@ -596,7 +604,7 @@ function renderO() {
 }
 
 function updateOrderStaff(docId, staffName) {
-  if (docId) {
+  if (db && docId) {
     db.collection("orders").doc(docId).update({ staff: staffName });
   }
 }
@@ -608,23 +616,25 @@ function notifySupervisor(docId, orderId) {
     return alert('الرجاء اختيار اسم القائم بالتجهيز أولاً!');
   }
   
-  db.collection("orders").doc(docId).update({ status: 'ready' }).then(() => {
+  const updatePromise = (db && docId) ? db.collection("orders").doc(docId).update({ status: 'ready' }) : Promise.resolve();
+  
+  updatePromise.then(() => {
     let supMsg = `🚨 *تنبيه تجهيز طلب* 🚨\nقام المسؤول (*${o.staff}*) بالانتهاء من تجهيز الطلب رقم (#${orderId}) للعميل: ${o.name} 📦.\nيرجى إرسال الإشعار للعميل.`;
     let dstShop = phone.trim();
     if (dstShop.startsWith('01')) dstShop = '2' + dstShop;
     
-    window.location.href = `https://wa.me/${dstShop}?text=${encodeURIComponent(supMsg)}`;
+    window.open(`https://wa.me/${dstShop}?text=${encodeURIComponent(supMsg)}`, '_blank');
   });
 }
 
 function updateOrderStatus(docId, newStatus) {
-  if (docId) {
+  if (db && docId) {
     db.collection("orders").doc(docId).update({ status: newStatus });
   }
 }
 
 function clrOrd() {
-  if (confirm('مسح جميع الطلبات من السحابة؟')) {
+  if (confirm('مسح جميع الطلبات من السحابة؟') && db) {
     ords.forEach(o => {
       if (o.docId) db.collection("orders").doc(o.docId).delete();
     });
@@ -674,6 +684,7 @@ function openEdit(id) {
   if (!isOwn) return;
   editId = id;
   const p = prods.find(x => x.id === id);
+  if (!p) return;
   document.getElementById('pmTitle').innerText = 'تعديل: ' + p.name;
   document.getElementById('pmName').value = p.name;
   document.getElementById('pmPrice').value = p.p;
