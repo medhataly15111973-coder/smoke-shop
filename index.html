@@ -100,7 +100,6 @@ body.owner-mode nav.owner-nav { display: flex !important; }
         </div>
       </div>
 
-      <!-- إدخال العنوان فقط في حالة الدليفري بدون إظهار أي مصاريف للعميل -->
       <div id="deliveryBox" class="hidden space-y-1.5 pt-2 border-t border-slate-800">
         <label class="block text-[10px] text-slate-400">عنوان التوصيل بالتفصيل *</label>
         <input type="text" id="custAddress" placeholder="المنطقة، اسم الشارع، رقم العمارة والدور..." class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
@@ -117,7 +116,6 @@ body.owner-mode nav.owner-nav { display: flex !important; }
         </div>
       </div>
 
-      <!-- الإجمالي المعروض للعميل هو الأصناف فقط -->
       <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 pt-2">
         <div class="flex justify-between items-center text-sm font-black">
           <span class="text-white">إجمالي الفاتورة:</span>
@@ -186,13 +184,31 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     </button>
   </section>
 
-  <!-- 7. إعدادات المتجر وطاقم العمل -->
+  <!-- 7. إعدادات المتجر وطاقم العمل واللوجو -->
   <section id="tab-owner-settings" class="tab-content owner-view space-y-3">
     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
       <h2 class="font-bold text-sm text-slate-200">⚙️ إعدادات المتجر وطاقم التجهيز</h2>
     </div>
     
     <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl space-y-3 text-xs">
+      
+      <!-- قسم تعديل وتغيير اللوجو من المعرض -->
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2.5">
+        <label class="block text-[11px] font-bold text-amber-400">شعار المتجر (اللوجو):</label>
+        <div class="flex items-center gap-3">
+          <div class="w-14 h-14 rounded-2xl overflow-hidden border-2 border-amber-500/50 bg-white flex items-center justify-center p-1 shadow">
+            <img id="settingsLogoPreview" src="logo.jpg" onerror="this.onerror=null;this.src='https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png'" class="w-full h-full object-contain">
+          </div>
+          <div class="flex flex-col gap-1.5 flex-1">
+            <label class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2 px-3 rounded-xl text-center cursor-pointer transition text-xs flex items-center justify-center gap-1.5 shadow">
+              <span>🖼️ اختيار لوجو من المعرض</span>
+              <input type="file" accept="image/*" onchange="uploadStoreLogo(event)" class="hidden">
+            </label>
+            <p class="text-[10px] text-slate-400 text-center">يمكنك اختيار صورة من الهاتف وسيتم تحديثها فوراً</p>
+          </div>
+        </div>
+      </div>
+
       <div>
         <label class="block text-[11px] font-bold text-amber-400 mb-1">رقم هاتف المشرف / واتساب المتجر:</label>
         <input type="text" id="settingShopPhone" class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
@@ -262,7 +278,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   </div>
 </div>
 
-<!-- نافذة تغيير الصورة -->
+<!-- نافذة تغيير صورة الصنف -->
 <div id="imageUploadModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-xs space-y-3 text-center shadow-2xl">
     <h3 class="font-bold text-sm text-amber-400">تغيير صورة الصنف</h3>
@@ -300,8 +316,9 @@ try {
   console.warn("Firebase Notice:", e);
 }
 
-// اللوجو الملون المحدث كافتراضي
-const DEFAULT_LOGO = "logo.jpg";
+// قراءة اللوجو من الذاكرة المحلية إذا قام المالك بتعديله سابقاً
+let customLogo = localStorage.getItem('sp_custom_logo') || "logo.jpg";
+const DEFAULT_LOGO = customLogo;
 
 const INITIAL_PRODUCTS = [
   {id:1,name:"كيلوباترا",c:"local",p:485,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M2_009_1.JPG"},
@@ -372,8 +389,16 @@ let logoClickCount = 0;
 let logoTimer = null;
 
 document.addEventListener("DOMContentLoaded", function() {
+  applyStoreLogo(DEFAULT_LOGO);
   initApp();
 });
+
+function applyStoreLogo(url) {
+  const hLogo = document.getElementById('storeLogo');
+  const prevLogo = document.getElementById('settingsLogoPreview');
+  if(hLogo) hLogo.src = url;
+  if(prevLogo) prevLogo.src = url;
+}
 
 function initApp() {
   renderCategories();
@@ -1041,6 +1066,34 @@ function processPriceImport() {
   }
 }
 
+// دالة رفع وتعديل لوجو المتجر من المعرض وحفظه
+function uploadStoreLogo(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const max = 300;
+      let w = img.width, h = img.height;
+      if (w > h && w > max) { h = (h * max) / w; w = max; }
+      else if (h > max) { w = (w * max) / h; h = max; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+      const base64Logo = canvas.toDataURL('image/jpeg', 0.85);
+      localStorage.setItem('sp_custom_logo', base64Logo);
+      applyStoreLogo(base64Logo);
+      alert('تم تحديث لوجو المتجر بنجاح!');
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// نافذة تعديل صور الأصناف
 function openImageModal(id) {
   imageTargetId = id;
   document.getElementById('imageUploadModal').classList.remove('hidden');
