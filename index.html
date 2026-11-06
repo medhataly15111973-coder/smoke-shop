@@ -15,7 +15,7 @@
 body{background:#0b0f19;color:#f8fafc;padding-bottom:80px}
 .hide-sb::-webkit-scrollbar{display:none}
 
-/* إخفاء عناصر المالك كلياً عن العميل افتراضياً */
+/* إخفاء عناصر المالك كلياً عن العميل افتراضياً مهما كانت كلاسات Tailwind */
 .owner-only { display: none !important; }
 body.is-owner-mode .owner-only { display: flex !important; }
 body.is-owner-mode div.owner-only { display: block !important; }
@@ -124,7 +124,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <div id="myOrdList" class="space-y-3"></div>
   </div>
 
-  <!-- 4. تحديث الأسعار (للمالك) -->
+  <!-- 4. تحديث الأسعار (للمالك فقط) -->
   <div id="sec-upd" class="owner-only app-section space-y-3">
     <h2 class="font-bold text-sm text-slate-200">📋 تحديث الأسعار من منشور الواتس</h2>
     <p class="text-[11px] text-slate-400">الصق نص المنشور اليومي:</p>
@@ -132,7 +132,7 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <button onclick="parseWp()" class="w-full bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold py-2 rounded-xl text-xs">⚡ تحديث الأسعار الآن</button>
   </div>
 
-  <!-- 5. الطلبات الواردة والتجهيز (للمالك) -->
+  <!-- 5. الطلبات الواردة والتجهيز (للمالك فقط) -->
   <div id="sec-ord" class="owner-only app-section space-y-3">
     <div class="flex justify-between items-center">
       <h2 class="font-bold text-sm text-slate-200">📋 الطلبات الواردة والتجهيز</h2>
@@ -148,7 +148,8 @@ body.is-owner-mode div.owner-only { display: block !important; }
     <button onclick="switchTab('cat')" id="nb-cat" class="flex flex-col items-center gap-1 text-amber-400">🛍️ المنتجات</button>
     <button onclick="switchTab('cart')" id="nb-cart" class="flex flex-col items-center gap-1 text-slate-400">🛒 الفاتورة</button>
     <button onclick="switchTab('track')" id="nb-track" class="flex flex-col items-center gap-1 text-slate-400">📦 <span id="trackLabel">تتبع طلباتي</span></button>
-    <button onclick="switchTab('upd')" id="nb-upd" class="owner-only flex flex-col items-center gap-1 text-slate-400">⚡ تحديث الأسعار</button>
+    <!-- تم ضبط الفئات هنا بحيث لا يطغى كلاس flex على إخفاء المالك -->
+    <button onclick="switchTab('upd')" id="nb-upd" class="owner-only flex-col items-center gap-1 text-slate-400">⚡ تحديث الأسعار</button>
   </div>
 </nav>
 
@@ -302,7 +303,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
         if (isOwn) renderO();
       }, (err) => {
-        console.warn("Firestore error (تأكد من فتح قواعد الحماية rules):", err);
+        console.warn("Firestore error:", err);
       });
     } catch(e) { console.error(e); }
   }
