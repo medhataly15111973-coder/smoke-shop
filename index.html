@@ -108,12 +108,8 @@ body.owner-mode nav.owner-nav { display: flex !important; }
       </div>
 
       <div id="deliveryBox" class="hidden space-y-2 pt-2 border-t border-slate-800">
-        <div class="flex items-center justify-between bg-slate-950 p-2 rounded-xl border border-slate-800">
-          <span class="text-slate-400">سعر خدمة التوصيل:</span>
-          <div class="flex items-center gap-1">
-            <input type="number" id="delFeeInput" oninput="calculateTotals()" value="20" class="w-16 bg-slate-900 border border-slate-700 text-amber-400 font-bold rounded py-1 px-1.5 text-center text-xs">
-            <span>ج.م</span>
-          </div>
+        <div class="bg-amber-950/30 border border-amber-800/40 p-2 rounded-xl text-[11px] text-amber-300">
+          ℹ️ سيتم تحديد تكلفة التوصيل الدليفري بواسطة إدارة المحل حسب مسافة وعنوان التوصيل.
         </div>
         <input type="text" id="custAddress" placeholder="أدخل العنوان بالتفصيل والعلامة المميزة..." class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
       </div>
@@ -132,15 +128,15 @@ body.owner-mode nav.owner-nav { display: flex !important; }
       <!-- ملخص الحساب -->
       <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5 pt-2">
         <div class="flex justify-between text-slate-400">
-          <span>إجمالي المنتجات:</span>
+          <span>إجمالي الأصناف:</span>
           <span id="subTotalTxt" class="font-bold text-white">0 ج.م</span>
         </div>
         <div class="flex justify-between text-slate-400" id="deliveryRow" style="display:none">
           <span>خدمة التوصيل:</span>
-          <span id="delTotalTxt" class="font-bold text-white">0 ج.م</span>
+          <span class="text-amber-400 font-bold">يحددها المحل حسب المسافة</span>
         </div>
         <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-800 font-black">
-          <span class="text-white">الإجمالي المطلوب:</span>
+          <span class="text-white">إجمالي الفاتورة المبدئي:</span>
           <span id="grandTotalTxt" class="text-amber-400 text-base">0 ج.م</span>
         </div>
       </div>
@@ -168,7 +164,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
       <div>
         <h2 class="font-black text-sm text-amber-400">📋 متابعة وتجهيز الطلبات</h2>
-        <p class="text-[10px] text-slate-400">إسناد الطلبات لمسؤولي التجهيز ومتابعة التنفيذ</p>
+        <p class="text-[10px] text-slate-400">تحديد سعر الدليفري وإسناد التجهيز</p>
       </div>
       <button onclick="clearAllOrders()" class="text-[11px] text-red-400 hover:underline">مسح الكل</button>
     </div>
@@ -468,17 +464,14 @@ function exitOwnerMode() {
 
 // التبديل بين التبويبات بسلاسة
 function switchTab(tabId) {
-  // حماية تبويبات الإدارة
   if(!isOwner && tabId.startsWith('owner-')) {
     tabId = 'products';
   }
 
-  // إخفاء كل التبويبات وتفعيل التبويب المحدد
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   const target = document.getElementById('tab-' + tabId);
   if(target) target.classList.add('active');
 
-  // تحديث ألوان أزرار الشريط السفلي
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.remove('text-amber-400', 'font-bold');
     btn.classList.add('text-slate-400');
@@ -625,15 +618,11 @@ function toggleDeliveryFee() {
 
 function calculateTotals() {
   const subTotal = Object.values(cart).reduce((s, i) => s + (i.p * i.q), 0);
-  const isDel = document.querySelector('input[name="delOpt"]:checked')?.value === 'del';
-  const fee = isDel ? (parseFloat(document.getElementById('delFeeInput').value) || 0) : 0;
-  
   document.getElementById('subTotalTxt').innerText = subTotal + ' ج.م';
-  document.getElementById('delTotalTxt').innerText = fee + ' ج.م';
-  document.getElementById('grandTotalTxt').innerText = (subTotal + fee) + ' ج.م';
+  document.getElementById('grandTotalTxt').innerText = subTotal + ' ج.م';
 }
 
-// تأكيد وإرسال طلب العميل عبر واتساب
+// تأكيد وإرسال طلب العميل عبر واتساب (بدون تحديد سعر توصيل مسبق من العميل)
 function submitOrderViaWhatsapp() {
   const items = Object.values(cart);
   if(!items.length) {
@@ -650,10 +639,8 @@ function submitOrderViaWhatsapp() {
   }
 
   const isDel = document.querySelector('input[name="delOpt"]:checked').value === 'del';
-  const fee = isDel ? (parseFloat(document.getElementById('delFeeInput').value) || 0) : 0;
   const address = isDel ? (document.getElementById('custAddress').value.trim() || 'بدون عنوان مفصل') : 'استلام من المحل';
   const subTotal = items.reduce((s, i) => s + (i.p * i.q), 0);
-  const grandTotal = subTotal + fee;
 
   // حفظ بيانات العميل لتسهيل الطلبات القادمة
   localStorage.setItem('sp_cname', name);
@@ -668,8 +655,9 @@ function submitOrderViaWhatsapp() {
     ph: phone,
     type: isDel ? 'دليفري' : 'استلام',
     addr: address,
-    fee,
-    tot: grandTotal,
+    fee: 0, // يحددها المالك لاحقاً
+    subTot: subTotal,
+    tot: subTotal,
     status: 'pending',
     staff: [],
     items
@@ -692,7 +680,7 @@ function submitOrderViaWhatsapp() {
   msg += `📍 نوع الاستلام: ${orderPayload.type}\n`;
   if(isDel) {
     msg += `🏠 العنوان: ${address}\n`;
-    msg += `🛵 رسوم التوصيل: ${fee} ج.م\n`;
+    msg += `🛵 التوصيل: (سيتم احتساب التكلفة وإبلاغك بها مع الفاتورة)\n`;
   }
   msg += `-----------------------------\n`;
   msg += `📦 الأصناف المطلوبة:\n`;
@@ -700,7 +688,7 @@ function submitOrderViaWhatsapp() {
     msg += `${idx + 1}. ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`;
   });
   msg += `-----------------------------\n`;
-  msg += `💵 إجمالي الفاتورة: *${grandTotal} ج.م*`;
+  msg += `💵 إجمالي الأصناف: *${subTotal} ج.م*`;
 
   let dest = shopPhone.trim();
   if(dest.startsWith('01')) dest = '2' + dest;
@@ -730,7 +718,7 @@ function renderCustomerOrders() {
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2 text-xs">
         <div class="flex justify-between items-center font-bold">
           <span class="text-amber-400">طلب #${o.id}</span>
-          <span class="text-white">${o.tot} ج.م</span>
+          <span class="text-white">${o.tot} ج.م ${o.fee > 0 ? `(شامل توصيل ${o.fee} ج.م)` : ''}</span>
         </div>
         <div class="flex justify-between items-center text-[11px] text-slate-400">
           <span>${o.type} (${o.time})</span>
@@ -760,7 +748,7 @@ function setOrderFilter(filter) {
   renderOwnerOrders();
 }
 
-// عرض الطلبات للمالك بنظام خط الإنتاج (Pipeline)
+// عرض الطلبات للمالك مع تحكم تكلفة التوصيل
 function renderOwnerOrders() {
   const container = document.getElementById('incomingOrdersList');
   if(!container) return;
@@ -782,7 +770,6 @@ function renderOwnerOrders() {
     if(o.status === 'ready') statusLabel = '<span class="text-blue-400 font-bold">تم التجهيز 📦</span>';
     if(o.status === 'completed') statusLabel = '<span class="text-emerald-400 font-bold">مكتمل ومسدد ✅</span>';
 
-    // مربعات اختيار طاقم العمل + زر إرسال أمر التجهيز الفردي
     const staffUi = staffList.length ? staffList.map(member => {
       const isAssigned = assigned.includes(member.name);
       return `
@@ -800,6 +787,10 @@ function renderOwnerOrders() {
       `;
     }).join('') : '<p class="text-[11px] text-slate-500">سجل أسماء الطاقم أولاً من تبويب "الإعدادات".</p>';
 
+    const sub = o.subTot || (o.items || []).reduce((s, i) => s + (i.p * i.q), 0);
+    const fee = o.fee || 0;
+    const grand = sub + fee;
+
     return `
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2.5 text-xs shadow-md">
         <!-- ترويسة الطلب -->
@@ -812,21 +803,34 @@ function renderOwnerOrders() {
             <p class="text-[10px] text-slate-400 mt-0.5">📞 ${o.ph || 'بدون هاتف'} | ${o.type} (${o.time})</p>
           </div>
           <div class="text-left">
-            <span class="text-white font-black text-sm">${o.tot} ج.م</span>
+            <span class="text-white font-black text-sm" id="tot-disp-${o.docId}">${grand} ج.م</span>
             <div class="text-[10px] mt-0.5">${statusLabel}</div>
           </div>
         </div>
 
-        <!-- العنوان إن وُجد -->
+        <!-- العنوان وحساب الدليفري بواسطة المالك -->
         ${o.type === 'دليفري' ? `
-          <div class="bg-slate-950 p-2 rounded-xl text-[11px] text-slate-400">
-            📍 <span class="text-slate-200">${o.addr}</span>
+          <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
+            <div class="text-[11px] text-slate-300">
+              📍 <span class="text-amber-400 font-bold">العنوان:</span> ${o.addr}
+            </div>
+            <div class="flex items-center justify-between pt-1 border-t border-slate-800/80">
+              <span class="text-slate-400 font-bold">قيمة التوصيل (حسب المسافة):</span>
+              <div class="flex items-center gap-1.5">
+                <input type="number" value="${fee}" id="fee-inp-${o.docId}" onchange="updateDeliveryFee('${o.docId}', this.value, ${sub})" class="w-16 bg-slate-900 border border-slate-700 text-amber-400 font-bold rounded py-0.5 px-1.5 text-center text-xs">
+                <span>ج.م</span>
+              </div>
+            </div>
           </div>
         ` : ''}
 
         <!-- الأصناف -->
         <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 space-y-1">
-          ${(o.items || []).map(i => `<div class="flex justify-between"><span>• ${i.name}</span><span class="text-amber-400 font-bold">${i.q} ق</span></div>`).join('')}
+          ${(o.items || []).map(i => `<div class="flex justify-between"><span>• ${i.name}</span><span class="text-amber-400 font-bold">${i.q} × ${i.p} ج.م</span></div>`).join('')}
+          <div class="pt-1 border-t border-slate-800 flex justify-between text-slate-400 text-[10px]">
+            <span>إجمالي الأصناف: ${sub} ج.م</span>
+            ${o.type === 'دليفري' ? `<span id="fee-disp-${o.docId}">+ توصيل: ${fee} ج.م</span>` : ''}
+          </div>
         </div>
 
         <!-- طاقم التجهيز -->
@@ -842,8 +846,8 @@ function renderOwnerOrders() {
 
         <!-- أزرار الإجراءات -->
         <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
-          <button onclick="notifyAdminReady('${o.docId}', ${o.id})" class="bg-amber-600 hover:bg-amber-500 text-slate-950 font-black py-2 rounded-xl text-[11px] transition shadow">
-            📦 إشعار الجاهزية للواتس
+          <button onclick="sendInvoiceToCustomer('${o.docId}')" class="bg-blue-600 hover:bg-blue-500 text-white font-black py-2 rounded-xl text-[11px] transition shadow">
+            📲 إرسال الفاتورة للعميل
           </button>
           <button onclick="changeOrderStatus('${o.docId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2 rounded-xl text-[11px] transition shadow">
             ✅ تم الاستلام والتسديد
@@ -852,6 +856,75 @@ function renderOwnerOrders() {
       </div>
     `;
   }).join('');
+}
+
+// تحديث قيمة التوصيل للطلب من قبل المالك
+function updateDeliveryFee(docId, newFeeVal, subTotal) {
+  const fee = parseFloat(newFeeVal) || 0;
+  const grandTotal = subTotal + fee;
+
+  const order = incomingOrders.find(x => x.docId === docId);
+  if(order) {
+    order.fee = fee;
+    order.subTot = subTotal;
+    order.tot = grandTotal;
+  }
+
+  // تحديث العرض فوراً
+  const totEl = document.getElementById(`tot-disp-${docId}`);
+  if(totEl) totEl.innerText = `${grandTotal} ج.م`;
+
+  const feeEl = document.getElementById(`fee-disp-${docId}`);
+  if(feeEl) feeEl.innerText = `+ توصيل: ${fee} ج.م`;
+
+  if(db && docId) {
+    db.collection("orders").doc(docId).update({
+      fee: fee,
+      subTot: subTotal,
+      tot: grandTotal
+    });
+  }
+}
+
+// إرسال الفاتورة الرسمية المعتمدة للعميل عبر الواتساب (تشمل سعر التوصيل المعتمد)
+function sendInvoiceToCustomer(docId) {
+  const order = incomingOrders.find(x => x.docId === docId);
+  if(!order) return;
+
+  let custPhone = order.ph ? order.ph.trim() : '';
+  if(!custPhone) {
+    alert('رقم هاتف العميل غير متوفر!');
+    return;
+  }
+
+  if(custPhone.startsWith('01')) custPhone = '2' + custPhone;
+
+  const sub = order.subTot || (order.items || []).reduce((s, i) => s + (i.p * i.q), 0);
+  const fee = order.fee || 0;
+  const grand = order.tot || (sub + fee);
+
+  let invMsg = `🧾 *فاتورة طلبك - Smoke Shop*\n`;
+  invMsg += `🔢 رقم الطلب: #${order.id}\n`;
+  invMsg += `👤 العميل: ${order.name}\n`;
+  invMsg += `📍 طريقة الاستلام: ${order.type}\n`;
+  if(order.type === 'دليفري') {
+    invMsg += `🏠 العنوان: ${order.addr}\n`;
+  }
+  invMsg += `-----------------------------\n`;
+  invMsg += `📦 الأصناف:\n`;
+  (order.items || []).forEach((item, idx) => {
+    invMsg += `${idx + 1}. ${item.q} × ${item.name} = ${item.p * item.q} ج.م\n`;
+  });
+  invMsg += `-----------------------------\n`;
+  invMsg += `💵 إجمالي الأصناف: ${sub} ج.م\n`;
+  if(order.type === 'دليفري') {
+    invMsg += `🛵 تكلفة التوصيل (حسب العنوان): ${fee} ج.م\n`;
+  }
+  invMsg += `💰 *المطلوب سداده: ${grand} ج.م*\n`;
+  invMsg += `-----------------------------\n`;
+  invMsg += `شكراً لاختيارك Smoke Shop! طلبك يتم تجهيزه الآن 🛵📦.`;
+
+  window.open(`https://wa.me/${custPhone}?text=${encodeURIComponent(invMsg)}`, '_blank');
 }
 
 // 1. إرسال أمر التجهيز للمجهّز بدون أسعار وبدون بيانات عميل
@@ -885,36 +958,6 @@ function dispatchPrepOrderToWorker(docId, workerName, workerPhone) {
   prepText += `https://wa.me/${shopDst}?text=${readyReply}`;
 
   window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(prepText)}`, '_blank');
-}
-
-// 2. إشعار المشرف بجاهزية الطلب
-function notifyAdminReady(docId, orderId) {
-  const order = incomingOrders.find(x => x.docId === docId);
-  if(!order) return;
-
-  let assigned = Array.isArray(order.staff) ? order.staff : [];
-  if(!assigned.length) {
-    alert('برجاء اختيار المجهّز أولاً من القائمة!');
-    return;
-  }
-
-  const staffNames = assigned.join(' + ');
-  if(db && docId) {
-    db.collection("orders").doc(docId).update({ status: 'ready' });
-  }
-
-  let alertMsg = `🚨 *تنبيه جاهزية طلب للعميل* 🚨\n`;
-  alertMsg += `تم التجهيز بواسطة: (*${staffNames}*)\n`;
-  alertMsg += `طلب رقم: (#${orderId})\n`;
-  alertMsg += `العميل: ${order.name} (${order.ph || 'بدون هاتف'})\n`;
-  alertMsg += `الاستلام: ${order.type} | ${order.addr}\n`;
-  alertMsg += `المطلوب تحصيله: *${order.tot} ج.م* 💵\n`;
-  alertMsg += `-----------------------------\n`;
-  alertMsg += `الطلب جاهز للتسليم أو خروج الدليفري.`;
-
-  let shopDst = shopPhone.trim();
-  if(shopDst.startsWith('01')) shopDst = '2' + shopDst;
-  window.open(`https://wa.me/${shopDst}?text=${encodeURIComponent(alertMsg)}`, '_blank');
 }
 
 function toggleStaffOnOrder(docId, staffName, isChecked) {
