@@ -314,8 +314,8 @@ const INITIAL_PRODUCTS = [
   {id:8,name:"ميريت",c:"for",p:1115,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M1_010_2.JPG"},
   {id:9,name:"مارلبورو كرافتد",c:"for",p:785,u:"خرطوشة"},
   {id:10,name:"ونستون",c:"for",p:705,u:"خرطوشة",i:"https://smokdubai.com/wp-content/uploads/2025/11/Winston-Red-Classic-cigarettes.jpg"},
-  {id:11,name:"تارجت شركه",c:"oth",p:485,u:"خرطوشة"},
-  {id:12,name:"تايم شركه",c:"oth",p:570,u:"خرطوشة"},
+  {id:11,name:"تارجت شركه",c:"for",p:485,u:"خرطوشة"},
+  {id:12,name:"تايم شركه",c:"for",p:570,u:"خرطوشة"},
   {id:13,name:"دوف ايفولف",c:"for",p:610,u:"خرطوشة"},
   {id:14,name:"جولد كوست",c:"oth",p:480,u:"خرطوشة"},
   {id:15,name:"دوف",c:"for",p:1020,u:"خرطوشة"},
@@ -381,15 +381,12 @@ async function initApp() {
   renderProducts();
   updateCartBadge();
   
-  // استرجاع بيانات العميل المحفوظة لتسهيل التجربة
   if(localStorage.getItem('sp_cname')) document.getElementById('custName').value = localStorage.getItem('sp_cname');
   if(localStorage.getItem('sp_cphone')) document.getElementById('custPhone').value = localStorage.getItem('sp_cphone');
   if(localStorage.getItem('sp_caddr')) document.getElementById('custAddress').value = localStorage.getItem('sp_caddr');
 
-  // جلب المنتجات المحدثة من السحابة لضمان دقة الأسعار لدى العملاء
   await loadProductsFromCloud();
 
-  // استماع لحظي للطلبات من فايربيس
   if(db) {
     try {
       db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
@@ -401,7 +398,6 @@ async function initApp() {
     } catch(err) { console.error(err); }
   }
 
-  // دعم رابط الدخول المباشر (?admin=1)
   const params = new URLSearchParams(window.location.search);
   if(params.get('admin') === '1') {
     requestOwnerAuth();
@@ -432,7 +428,7 @@ async function saveProductsToCloud() {
     const batch = db.batch();
     products.forEach(p => {
       const ref = db.collection("products").doc(String(p.id));
-      batch.set(ref, p);
+      batch.set(ref, p, { merge: true });
     });
     await batch.commit();
   } catch(e) {
@@ -939,9 +935,10 @@ async function processPriceImport() {
 
   localStorage.setItem('sp_p', JSON.stringify(products));
   await saveProductsToCloud();
+  
   renderProducts();
   renderOwnerProducts();
-  alert(`تم تحديث أسعار ${updatedCount} صنفاً ومزامنتها بنجاح!`);
+  alert(`تم تحديث ومزامنة أسعار ${updatedCount} صنفاً سحابياً بنجاح للجميع!`);
 }
 
 function populateSettingsFields() {
