@@ -43,13 +43,13 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
   <div class="max-w-md mx-auto px-4 py-2.5 flex justify-between items-center">
     <!-- النقر السري 4 مرات على اللوجو يفتح نافذة إدخال PIN المالك -->
-    <div class="flex items-center gap-2.5 cursor-pointer select-none" onclick="handleLogoClick()">
-      <div class="w-10 h-10 rounded-2xl overflow-hidden border-2 border-amber-500/40 bg-white flex items-center justify-center p-0.5 shadow-md shadow-amber-500/10">
-        <img id="storeLogo" src="logo.jpg" onerror="this.onerror=null;this.src='https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png'" class="w-full h-full object-contain rounded-xl">
+    <div class="flex items-center gap-2 cursor-pointer select-none" onclick="handleLogoClick()">
+      <div class="w-9 h-9 rounded-xl overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center p-0.5 shadow-sm">
+        <img id="storeLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" class="w-full h-full object-cover rounded-lg">
       </div>
       <div>
         <h1 class="font-black text-sm tracking-wide text-amber-400 leading-none">SMOKE SHOP</h1>
-        <p class="text-[10px] text-slate-400 mt-1 font-semibold">قائمة الأسعار والطلبات الفورية</p>
+        <p class="text-[10px] text-slate-400 mt-0.5">قائمة الأسعار والطلبات الفورية</p>
       </div>
     </div>
     
@@ -100,6 +100,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
         </div>
       </div>
 
+      <!-- إدخال العنوان فقط في حالة الدليفري بدون إظهار أي مصاريف للعميل -->
       <div id="deliveryBox" class="hidden space-y-1.5 pt-2 border-t border-slate-800">
         <label class="block text-[10px] text-slate-400">عنوان التوصيل بالتفصيل *</label>
         <input type="text" id="custAddress" placeholder="المنطقة، اسم الشارع، رقم العمارة والدور..." class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
@@ -116,6 +117,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
         </div>
       </div>
 
+      <!-- الإجمالي المعروض للعميل هو الأصناف فقط -->
       <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 pt-2">
         <div class="flex justify-between items-center text-sm font-black">
           <span class="text-white">إجمالي الفاتورة:</span>
@@ -150,6 +152,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
       <button onclick="clearAllOrders()" class="text-[11px] text-red-400 hover:underline">مسح الكل</button>
     </div>
 
+    <!-- أزرار الفلترة -->
     <div class="flex gap-1.5 overflow-x-auto pb-1 hide-sb text-xs" id="orderFilterPills">
       <button onclick="setOrderFilter('all')" class="ord-filter-btn px-2.5 py-1 rounded-lg font-bold bg-amber-500 text-slate-950" data-filter="all">الكل</button>
       <button onclick="setOrderFilter('pending')" class="ord-filter-btn px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800" data-filter="pending">قيد الانتظار ⏳</button>
@@ -184,31 +187,13 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     </button>
   </section>
 
-  <!-- 7. إعدادات المتجر وطاقم العمل واللوجو -->
+  <!-- 7. إعدادات المتجر وطاقم العمل -->
   <section id="tab-owner-settings" class="tab-content owner-view space-y-3">
     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
       <h2 class="font-bold text-sm text-slate-200">⚙️ إعدادات المتجر وطاقم التجهيز</h2>
     </div>
     
     <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl space-y-3 text-xs">
-      
-      <!-- قسم تعديل وتغيير اللوجو من المعرض -->
-      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2.5">
-        <label class="block text-[11px] font-bold text-amber-400">شعار المتجر (اللوجو):</label>
-        <div class="flex items-center gap-3">
-          <div class="w-14 h-14 rounded-2xl overflow-hidden border-2 border-amber-500/50 bg-white flex items-center justify-center p-1 shadow">
-            <img id="settingsLogoPreview" src="logo.jpg" onerror="this.onerror=null;this.src='https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png'" class="w-full h-full object-contain">
-          </div>
-          <div class="flex flex-col gap-1.5 flex-1">
-            <label class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2 px-3 rounded-xl text-center cursor-pointer transition text-xs flex items-center justify-center gap-1.5 shadow">
-              <span>🖼️ اختيار لوجو من المعرض</span>
-              <input type="file" accept="image/*" onchange="uploadStoreLogo(event)" class="hidden">
-            </label>
-            <p class="text-[10px] text-slate-400 text-center">يمكنك اختيار صورة من الهاتف وسيتم تحديثها فوراً</p>
-          </div>
-        </div>
-      </div>
-
       <div>
         <label class="block text-[11px] font-bold text-amber-400 mb-1">رقم هاتف المشرف / واتساب المتجر:</label>
         <input type="text" id="settingShopPhone" class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
@@ -278,7 +263,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   </div>
 </div>
 
-<!-- نافذة تغيير صورة الصنف -->
+<!-- نافذة تغيير الصورة -->
 <div id="imageUploadModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-xs space-y-3 text-center shadow-2xl">
     <h3 class="font-bold text-sm text-amber-400">تغيير صورة الصنف</h3>
@@ -297,7 +282,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 </div>
 
 <script>
-// تهيئة Firebase
+// تهيئة السحابة (Firebase)
 const firebaseConfig = {
   apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
   authDomain: "smokeshop-40107.firebaseapp.com",
@@ -316,9 +301,7 @@ try {
   console.warn("Firebase Notice:", e);
 }
 
-// قراءة اللوجو من الذاكرة المحلية إذا قام المالك بتعديله سابقاً
-let customLogo = localStorage.getItem('sp_custom_logo') || "logo.jpg";
-const DEFAULT_LOGO = customLogo;
+const DEFAULT_LOGO = "https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png";
 
 const INITIAL_PRODUCTS = [
   {id:1,name:"كيلوباترا",c:"local",p:485,u:"خرطوشة",i:"https://tpackss.globaltobaccocontrol.org/sites/default/files/styles/500x500/public/pack_images/EGY_CAI_M2_009_1.JPG"},
@@ -371,10 +354,11 @@ const CATEGORIES = [
   {id:'acc', n:'ولاعات وبفرة'}
 ];
 
+// المتغيرات العامة للحالة
 let products = JSON.parse(localStorage.getItem('sp_p') || 'null') || INITIAL_PRODUCTS;
 if(!localStorage.getItem('sp_p')) localStorage.setItem('sp_p', JSON.stringify(INITIAL_PRODUCTS));
 
-let cart = JSON.parse(localStorage.getItem('sp_c')) || '{}';
+let cart = JSON.parse(localStorage.getItem('sp_c') || '{}');
 let shopPhone = localStorage.getItem('sp_ph') || '01221143854';
 let ownerPin = localStorage.getItem('sp_pin') || '1234';
 let staffList = JSON.parse(localStorage.getItem('sp_staff') || '[]');
@@ -389,26 +373,23 @@ let logoClickCount = 0;
 let logoTimer = null;
 
 document.addEventListener("DOMContentLoaded", function() {
-  applyStoreLogo(DEFAULT_LOGO);
   initApp();
 });
 
-function applyStoreLogo(url) {
-  const hLogo = document.getElementById('storeLogo');
-  const prevLogo = document.getElementById('settingsLogoPreview');
-  if(hLogo) hLogo.src = url;
-  if(prevLogo) prevLogo.src = url;
-}
-
-function initApp() {
+async function initApp() {
   renderCategories();
   renderProducts();
   updateCartBadge();
   
+  // استرجاع بيانات العميل المحفوظة لتسهيل التجربة
   if(localStorage.getItem('sp_cname')) document.getElementById('custName').value = localStorage.getItem('sp_cname');
   if(localStorage.getItem('sp_cphone')) document.getElementById('custPhone').value = localStorage.getItem('sp_cphone');
   if(localStorage.getItem('sp_caddr')) document.getElementById('custAddress').value = localStorage.getItem('sp_caddr');
 
+  // جلب المنتجات المحدثة من السحابة لضمان دقة الأسعار لدى العملاء
+  await loadProductsFromCloud();
+
+  // استماع لحظي للطلبات من فايربيس
   if(db) {
     try {
       db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
@@ -420,9 +401,42 @@ function initApp() {
     } catch(err) { console.error(err); }
   }
 
+  // دعم رابط الدخول المباشر (?admin=1)
   const params = new URLSearchParams(window.location.search);
   if(params.get('admin') === '1') {
     requestOwnerAuth();
+  }
+}
+
+async function loadProductsFromCloud() {
+  if (!db) return;
+  try {
+    const snapshot = await db.collection("products").get();
+    if (!snapshot.empty) {
+      products = [];
+      snapshot.forEach(doc => {
+        products.push({ id: doc.id, ...doc.data() });
+      });
+      localStorage.setItem('sp_p', JSON.stringify(products));
+      renderProducts();
+      if(isOwner) renderOwnerProducts();
+    }
+  } catch (e) {
+    console.warn("استخدام الأسعار المحلية المتوفرة:", e);
+  }
+}
+
+async function saveProductsToCloud() {
+  if (!db) return;
+  try {
+    const batch = db.batch();
+    products.forEach(p => {
+      const ref = db.collection("products").doc(String(p.id));
+      batch.set(ref, p);
+    });
+    await batch.commit();
+  } catch(e) {
+    console.error("خطأ في مزامنة الأسعار سحابياً:", e);
   }
 }
 
@@ -539,7 +553,7 @@ function renderProducts() {
 }
 
 function addToCart(id) {
-  const p = products.find(x => x.id === id);
+  const p = products.find(x => x.id == id);
   if(!p) return;
   cart[id] = { id: p.id, name: p.name, p: p.p, q: 1 };
   persistCart();
@@ -684,299 +698,131 @@ function submitOrderViaWhatsapp() {
 
 function renderCustomerOrders() {
   const container = document.getElementById('customerOrdersList');
-  if(!container) return;
-  const myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
+  let localOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
 
-  if(!myOrders.length) {
-    container.innerHTML = '<div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500 text-xs">لا توجد طلبات سابقة مسجلة على هذا الجهاز.</div>';
+  if(incomingOrders.length > 0) {
+    localOrders = localOrders.map(localOrd => {
+      const match = incomingOrders.find(o => o.id === localOrd.id);
+      return match ? { ...localOrd, status: match.status } : localOrd;
+    });
+  }
+
+  if(!localOrders.length) {
+    container.innerHTML = '<div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500 text-xs">لم تقم بإجراء أي طلبات بعد 📦</div>';
     return;
   }
 
-  container.innerHTML = myOrders.map(o => {
-    let badge = '<span class="bg-amber-900/40 text-amber-300 border border-amber-700/50 px-2 py-0.5 rounded text-[10px]">قيد الانتظار ⏳</span>';
-    if(o.status === 'ready') badge = '<span class="bg-blue-900/40 text-blue-300 border border-blue-700/50 px-2 py-0.5 rounded text-[10px] font-bold">تم التجهيز 📦</span>';
-    if(o.status === 'completed') badge = '<span class="bg-emerald-900/40 text-emerald-300 border border-emerald-700/50 px-2 py-0.5 rounded text-[10px]">تم التسليم ✅</span>';
-
-    return `
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2 text-xs">
-        <div class="flex justify-between items-center font-bold">
-          <span class="text-amber-400">طلب #${o.id}</span>
-          <span class="text-white">${o.tot} ج.م</span>
+  container.innerHTML = localOrders.map(o => `
+    <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2 text-xs shadow-md">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <div>
+          <span class="font-black text-amber-400">طلب #${o.id}</span>
+          <span class="text-[10px] text-slate-400 mr-2">(${o.time})</span>
         </div>
-        <div class="flex justify-between items-center text-[11px] text-slate-400">
-          <span>${o.type} (${o.time})</span>
-          ${badge}
-        </div>
-        <div class="bg-slate-950 p-2 rounded-xl border border-slate-800/80 text-[11px] text-slate-300">
-          ${(o.items || []).map(i => `${i.q} × ${i.name}`).join(' ، ')}
-        </div>
+        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${o.status === 'pending' ? 'bg-amber-500/20 text-amber-400' : o.status === 'ready' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}">
+          ${o.status === 'pending' ? 'قيد التجهيز ⏳' : o.status === 'ready' ? 'تم التجهيز وفي الطريق 🛵' : 'تم الاستلام ✅'}
+        </span>
       </div>
-    `;
-  }).join('');
+
+      <div class="bg-slate-950 p-2 rounded-xl space-y-1 text-[11px]">
+        ${o.items.map(i => `<div class="flex justify-between text-slate-300"><span>${i.q} × ${i.name}</span><span class="text-amber-400">${i.p * i.q} ج.م</span></div>`).join('')}
+      </div>
+
+      <div class="flex justify-between items-center pt-1 text-[11px] font-bold">
+        <span class="text-slate-400">طريقة الاستلام: <span class="text-white">${o.type}</span></span>
+        <span class="text-slate-200">الإجمالي: <span class="text-amber-400 text-sm font-black">${o.tot} ج.م</span></span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ==================== وظائف لوحة التحكم (المالك) ====================
+
+function renderOwnerOrders() {
+  const container = document.getElementById('incomingOrdersList');
+  const filtered = incomingOrders.filter(o => activeOrderFilter === 'all' || o.status === activeOrderFilter);
+
+  if(!filtered.length) {
+    container.innerHTML = '<div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500 text-xs">لا توجد طلبات مطابقة لهذا الفلتر 📋</div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(o => `
+    <div class="bg-slate-900 border border-slate-800 p-3 rounded-2xl space-y-2 text-xs shadow-md">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+        <div>
+          <span class="font-black text-amber-400">طلب #${o.id}</span>
+          <span class="text-[10px] text-slate-400 mr-2">(${o.time})</span>
+        </div>
+        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${o.status === 'pending' ? 'bg-amber-500/20 text-amber-400' : o.status === 'ready' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}">
+          ${o.status === 'pending' ? 'قيد الانتظار ⏳' : o.status === 'ready' ? 'تم التجهيز 📦' : 'مكتمل ✅'}
+        </span>
+      </div>
+
+      <div>
+        <p class="font-bold text-white">👤 ${o.name} - <a href="tel:${o.ph}" class="text-amber-400 underline font-mono">${o.ph}</a></p>
+        <p class="text-[11px] text-slate-300">📍 نوع الاستلام: <span class="text-amber-300 font-bold">${o.type}</span> ${o.type === 'دليفري' ? `- العنوان: ${o.addr}` : ''}</p>
+      </div>
+
+      <div class="bg-slate-950 p-2 rounded-xl space-y-1 text-[11px]">
+        ${o.items.map(i => `<div class="flex justify-between text-slate-300"><span>${i.q} × ${i.name}</span><span class="text-amber-400">${i.p * i.q} ج.م</span></div>`).join('')}
+      </div>
+
+      <div class="flex justify-between items-center pt-1 text-[11px] font-bold">
+        <span class="text-slate-300">إجمالي الأصناف: <span class="text-amber-400">${o.subTot} ج.م</span></span>
+      </div>
+
+      <div class="flex gap-1.5 pt-2 border-t border-slate-800">
+        <button onclick="updateOrderStatus('${o.docId}', 'pending')" class="flex-1 py-1.5 rounded-lg bg-slate-800 text-amber-400 hover:bg-slate-700 text-[10px] font-bold">انتظار ⏳</button>
+        <button onclick="updateOrderStatus('${o.docId}', 'ready')" class="flex-1 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500 text-[10px] font-bold">جاهز 📦</button>
+        <button onclick="updateOrderStatus('${o.docId}', 'completed')" class="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 text-[10px] font-bold">مكتمل ✅</button>
+      </div>
+    </div>
+  `).join('');
 }
 
 function setOrderFilter(filter) {
   activeOrderFilter = filter;
   document.querySelectorAll('.ord-filter-btn').forEach(btn => {
     if(btn.dataset.filter === filter) {
-      btn.classList.add('bg-amber-500', 'text-slate-950', 'font-bold');
-      btn.classList.remove('bg-slate-900', 'text-slate-300', 'border');
+      btn.className = "ord-filter-btn px-2.5 py-1 rounded-lg font-bold bg-amber-500 text-slate-950";
     } else {
-      btn.classList.remove('bg-amber-500', 'text-slate-950', 'font-bold');
-      btn.classList.add('bg-slate-900', 'text-slate-300', 'border');
+      btn.className = "ord-filter-btn px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800";
     }
   });
   renderOwnerOrders();
 }
 
-function renderOwnerOrders() {
-  const container = document.getElementById('incomingOrdersList');
-  if(!container) return;
-
-  let list = incomingOrders;
-  if(activeOrderFilter !== 'all') {
-    list = list.filter(o => o.status === activeOrderFilter);
-  }
-
-  if(!list.length) {
-    container.innerHTML = '<div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500 text-xs">لا توجد طلبات واردة ضمن هذا الفلتر.</div>';
-    return;
-  }
-
-  container.innerHTML = list.map(o => {
-    let assigned = Array.isArray(o.staff) ? o.staff : (o.staff && o.staff !== 'غير محدد' ? [o.staff] : []);
-
-    let statusLabel = '<span class="text-amber-400 font-bold">قيد الانتظار ⏳</span>';
-    if(o.status === 'ready') statusLabel = '<span class="text-blue-400 font-bold">تم التجهيز 📦</span>';
-    if(o.status === 'completed') statusLabel = '<span class="text-emerald-400 font-bold">مكتمل ومسدد ✅</span>';
-
-    const staffUi = staffList.length ? staffList.map(member => {
-      const isAssigned = assigned.includes(member.name);
-      return `
-        <div class="flex items-center justify-between bg-slate-900 border border-slate-700/80 px-2.5 py-1.5 rounded-xl text-xs">
-          <label class="flex items-center gap-1.5 cursor-pointer">
-            <input type="checkbox" value="${member.name}" ${isAssigned ? 'checked' : ''} onchange="toggleStaffOnOrder('${o.docId}', '${member.name}', this.checked)" class="accent-amber-500 rounded">
-            <span class="${isAssigned ? 'text-amber-300 font-bold' : 'text-slate-300'}">${member.name}</span>
-          </label>
-          ${isAssigned ? `
-            <button onclick="dispatchPrepOrderToWorker('${o.docId}', '${member.name}', '${member.phone}')" class="bg-blue-600 hover:bg-blue-500 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition">
-              📲 إرسال أمر التجهيز (كميات فقط)
-            </button>
-          ` : ''}
-        </div>
-      `;
-    }).join('') : '<p class="text-[11px] text-slate-500">سجل أسماء الطاقم أولاً من تبويب "الإعدادات".</p>';
-
-    const sub = o.subTot || (o.items || []).reduce((s, i) => s + (i.p * i.q), 0);
-    const fee = o.fee || 0;
-    const grand = sub + fee;
-
-    return `
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3 space-y-2.5 text-xs shadow-md">
-        <div class="flex justify-between items-start border-b border-slate-800 pb-2">
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="text-amber-400 font-black text-sm">#${o.id}</span>
-              <span class="text-white font-bold">${o.name}</span>
-            </div>
-            <p class="text-[10px] text-slate-400 mt-0.5">📞 ${o.ph || 'بدون هاتف'} | ${o.type} (${o.time})</p>
-          </div>
-          <div class="text-left">
-            <span class="text-white font-black text-sm" id="tot-disp-${o.docId}">${grand} ج.م</span>
-            <div class="text-[10px] mt-0.5">${statusLabel}</div>
-          </div>
-        </div>
-
-        ${o.type === 'دليفري' ? `
-          <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-2">
-            <div class="text-[11px] text-slate-300">
-              📍 <span class="text-amber-400 font-bold">العنوان:</span> ${o.addr}
-            </div>
-            <div class="flex items-center justify-between pt-1 border-t border-slate-800/80">
-              <span class="text-slate-400 font-bold">قيمة التوصيل (يحددها المالك):</span>
-              <div class="flex items-center gap-1.5">
-                <input type="number" value="${fee}" id="fee-inp-${o.docId}" onchange="updateDeliveryFee('${o.docId}', this.value, ${sub})" class="w-16 bg-slate-900 border border-slate-700 text-amber-400 font-bold rounded py-0.5 px-1.5 text-center text-xs">
-                <span>ج.م</span>
-              </div>
-            </div>
-          </div>
-        ` : ''}
-
-        <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 space-y-1">
-          ${(o.items || []).map(i => `<div class="flex justify-between"><span>• ${i.name}</span><span class="text-amber-400 font-bold">${i.q} × ${i.p} ج.م</span></div>`).join('')}
-          <div class="pt-1 border-t border-slate-800 flex justify-between text-slate-400 text-[10px]">
-            <span>إجمالي الأصناف: ${sub} ج.م</span>
-            ${o.type === 'دليفري' ? `<span id="fee-disp-${o.docId}">+ توصيل: ${fee} ج.م</span>` : ''}
-          </div>
-        </div>
-
-        <div class="space-y-1.5 pt-1">
-          <div class="flex justify-between items-center text-[10px]">
-            <span class="text-slate-400 font-bold">القائم بالتجهيز:</span>
-            <span class="text-amber-400">${assigned.length ? assigned.join(' + ') : 'غير محدد'}</span>
-          </div>
-          <div class="space-y-1">
-            ${staffUi}
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
-          <button onclick="sendInvoiceToCustomer('${o.docId}')" class="bg-blue-600 hover:bg-blue-500 text-white font-black py-2 rounded-xl text-[11px] transition shadow">
-            📲 إرسال الفاتورة للعميل
-          </button>
-          <button onclick="changeOrderStatus('${o.docId}', 'completed')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2 rounded-xl text-[11px] transition shadow">
-            ✅ تم الاستلام والتسديد
-          </button>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function updateDeliveryFee(docId, newFeeVal, subTotal) {
-  const fee = parseFloat(newFeeVal) || 0;
-  const grandTotal = subTotal + fee;
-
-  const order = incomingOrders.find(x => x.docId === docId);
-  if(order) {
-    order.fee = fee;
-    order.subTot = subTotal;
-    order.tot = grandTotal;
-  }
-
-  const totEl = document.getElementById(`tot-disp-${docId}`);
-  if(totEl) totEl.innerText = `${grandTotal} ج.م`;
-
-  const feeEl = document.getElementById(`fee-disp-${docId}`);
-  if(feeEl) feeEl.innerText = `+ توصيل: ${fee} ج.م`;
-
+async function updateOrderStatus(docId, newStatus) {
   if(db && docId) {
-    db.collection("orders").doc(docId).update({
-      fee: fee,
-      subTot: subTotal,
-      tot: grandTotal
-    });
-  }
-}
-
-function sendInvoiceToCustomer(docId) {
-  const order = incomingOrders.find(x => x.docId === docId);
-  if(!order) return;
-
-  let custPhone = order.ph ? order.ph.trim() : '';
-  if(!custPhone) {
-    alert('رقم هاتف العميل غير متوفر!');
-    return;
-  }
-
-  if(custPhone.startsWith('01')) custPhone = '2' + custPhone;
-
-  const sub = order.subTot || (order.items || []).reduce((s, i) => s + (i.p * i.q), 0);
-  const fee = order.fee || 0;
-  const grand = order.tot || (sub + fee);
-
-  let invMsg = `🧾 *فاتورة طلبك - Smoke Shop*\n`;
-  invMsg += `🔢 رقم الطلب: #${order.id}\n`;
-  invMsg += `👤 العميل: ${order.name}\n`;
-  invMsg += `📍 طريقة الاستلام: ${order.type}\n`;
-  if(order.type === 'دليفري') {
-    invMsg += `🏠 العنوان: ${order.addr}\n`;
-  }
-  invMsg += `-----------------------------\n`;
-  invMsg += `📦 الأصناف:\n`;
-  (order.items || []).forEach((item, idx) => {
-    invMsg += `${idx + 1}. ${item.q} × ${item.name} = ${item.p * item.q} ج.م\n`;
-  });
-  invMsg += `-----------------------------\n`;
-  invMsg += `💵 إجمالي الأصناف: ${sub} ج.م\n`;
-  if(order.type === 'دليفري') {
-    invMsg += `🛵 مصاريف التوصيل: ${fee} ج.م\n`;
-  }
-  invMsg += `💰 *المطلوب سداده: ${grand} ج.م*\n`;
-  invMsg += `-----------------------------\n`;
-  invMsg += `طلبك يتم تجهيزه الآن، شكراً لتعاملك معنا! 🛵📦`;
-
-  window.open(`https://wa.me/${custPhone}?text=${encodeURIComponent(invMsg)}`, '_blank');
-}
-
-function dispatchPrepOrderToWorker(docId, workerName, workerPhone) {
-  const order = incomingOrders.find(x => x.docId === docId);
-  if(!order) return;
-
-  let targetPhone = workerPhone ? workerPhone.trim() : '';
-  if(!targetPhone) {
-    targetPhone = prompt(`أدخل رقم واتساب (${workerName}):`, '');
-    if(!targetPhone) return;
-  }
-  if(targetPhone.startsWith('01')) targetPhone = '2' + targetPhone;
-
-  let prepText = `📋 *أمر تجهيز بضاعة - Smoke Shop*\n`;
-  prepText += `🔢 طلب رقم: #${order.id}\n`;
-  prepText += `👤 المجهّز: ${workerName}\n`;
-  prepText += `⏰ التوقيت: ${order.time}\n`;
-  prepText += `-----------------------------\n`;
-  prepText += `📦 الأصناف والكميات المطلوبة:\n`;
-  order.items.forEach((item, idx) => {
-    prepText += `${idx + 1}. [ ${item.q} ] × ${item.name}\n`;
-  });
-  prepText += `-----------------------------\n`;
-  prepText += `⚠️ يرجى التأكد من مطابقة الأصناف.\n`;
-  prepText += `✅ عند الانتهاء، اضغط الرابط لإشعار الإدارة فوراً:\n`;
-
-  let shopDst = shopPhone.trim();
-  if(shopDst.startsWith('01')) shopDst = '2' + shopDst;
-  const readyReply = encodeURIComponent(`✅ تم الانتهاء من تجهيز الطلب رقم (#${order.id}) بواسطة: ${workerName} 📦`);
-  prepText += `https://wa.me/${shopDst}?text=${readyReply}`;
-
-  window.open(`https://wa.me/${targetPhone}?text=${encodeURIComponent(prepText)}`, '_blank');
-}
-
-function toggleStaffOnOrder(docId, staffName, isChecked) {
-  const order = incomingOrders.find(x => x.docId === docId);
-  if(!order) return;
-
-  let current = Array.isArray(order.staff) ? [...order.staff] : [];
-  if(isChecked) {
-    if(!current.includes(staffName)) current.push(staffName);
-  } else {
-    current = current.filter(s => s !== staffName);
-  }
-
-  order.staff = current;
-  if(db && docId) {
-    db.collection("orders").doc(docId).update({ staff: current });
-  }
-  renderOwnerOrders();
-}
-
-function changeOrderStatus(docId, status) {
-  if(db && docId) {
-    db.collection("orders").doc(docId).update({ status });
+    try {
+      await db.collection("orders").doc(docId).update({ status: newStatus });
+    } catch(e) {
+      console.error("خطأ في التحديث:", e);
+      alert('حدث خطأ أثناء تحديث حالة الطلب في قاعدة البيانات');
+    }
   }
 }
 
 function clearAllOrders() {
-  if(confirm('هل أنت متأكد من مسح جميع الطلبات من السحابة؟') && db) {
-    incomingOrders.forEach(o => {
-      if(o.docId) db.collection("orders").doc(o.docId).delete();
-    });
+  if(confirm('هل أنت متأكد من مسح كافة الطلبات من اللوحة؟')) {
+    incomingOrders = [];
+    renderOwnerOrders();
   }
 }
 
 function renderOwnerProducts() {
   const grid = document.getElementById('ownerProductsGrid');
-  if(!grid) return;
-
   grid.innerHTML = products.map(p => `
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-col justify-between shadow-sm relative">
-      <button onclick="openImageModal(${p.id})" class="absolute top-2 left-2 bg-slate-800/90 hover:bg-amber-500 hover:text-slate-950 p-1.5 rounded-lg text-xs transition">📷</button>
-      <div class="w-full h-20 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
+      <div class="w-full h-20 bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/85 relative group">
         <img src="${p.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-cover">
+        <button onclick="openImageModal(${p.id})" class="absolute inset-0 bg-black/70 flex items-center justify-center text-amber-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold">📷 تغيير الصورة</button>
       </div>
       <div>
-        <h4 class="font-bold text-xs text-white truncate">${p.name}</h4>
-        <div class="flex justify-between items-center mt-1">
-          <span onclick="openProductEditModal(${p.id})" class="text-amber-400 font-black text-xs cursor-pointer hover:underline">${p.p} ج.م ✏️</span>
+        <h3 class="font-bold text-xs text-white truncate mb-1">${p.name}</h3>
+        <div class="flex justify-between items-center text-[11px] mb-2">
+          <span onclick="promptEditProduct(${p.id})" class="text-amber-400 font-black cursor-pointer hover:underline">${p.p} ج.م ✏️</span>
           <span class="text-slate-400 text-[10px]">${p.u || ''}</span>
         </div>
       </div>
@@ -984,11 +830,10 @@ function renderOwnerProducts() {
   `).join('');
 }
 
-function openProductEditModal(id) {
-  editTargetId = id;
-  const p = products.find(x => x.id === id);
+function promptEditProduct(id) {
+  const p = products.find(x => x.id == id);
   if(!p) return;
-  document.getElementById('editModalTitle').innerText = 'تعديل: ' + p.name;
+  editTargetId = id;
   document.getElementById('editProdName').value = p.name;
   document.getElementById('editProdPrice').value = p.p;
   document.getElementById('productEditModal').classList.remove('hidden');
@@ -996,104 +841,45 @@ function openProductEditModal(id) {
 
 function closeProductEditModal() {
   document.getElementById('productEditModal').classList.add('hidden');
+  editTargetId = null;
 }
 
-function saveProductModalEdit() {
-  const p = products.find(x => x.id === editTargetId);
+async function saveProductModalEdit() {
+  if(!editTargetId) return;
+  const newName = document.getElementById('editProdName').value.trim();
+  const newPrice = parseFloat(document.getElementById('editProdPrice').value);
+  
+  if(!newName || isNaN(newPrice)) {
+    alert('من فضلك أدخل بيانات صحيحة.');
+    return;
+  }
+
+  const p = products.find(x => x.id == editTargetId);
   if(p) {
-    p.name = document.getElementById('editProdName').value.trim() || p.name;
-    p.p = parseFloat(document.getElementById('editProdPrice').value) || p.p;
+    p.name = newName;
+    p.p = newPrice;
     localStorage.setItem('sp_p', JSON.stringify(products));
+    await saveProductsToCloud();
     renderProducts();
     renderOwnerProducts();
+    closeProductEditModal();
   }
-  closeProductEditModal();
 }
 
-function promptNewProduct() {
-  const name = prompt('اسم الصنف الجديد:');
+async function promptNewProduct() {
+  const name = prompt('أدخل اسم الصنف الجديد:');
   if(!name) return;
-  const price = parseFloat(prompt('السعر:')) || 0;
-  const newProd = {
-    id: Date.now(),
-    name,
-    c: 'oth',
-    p: price,
-    u: 'علبة',
-    i: DEFAULT_LOGO
-  };
-  products.unshift(newProd);
+  const price = parseFloat(prompt('أدخل السعر (ج.م):', '0'));
+  if(isNaN(price)) return;
+
+  const newId = products.length ? Math.max(...products.map(x => Number(x.id) || 0)) + 1 : 1;
+  products.unshift({ id: newId, name, c: 'oth', p: price, u: 'خرطوشة' });
   localStorage.setItem('sp_p', JSON.stringify(products));
+  await saveProductsToCloud();
   renderProducts();
   renderOwnerProducts();
 }
 
-function processPriceImport() {
-  let text = document.getElementById('wpImportText').value;
-  if(!text.trim()) return alert('الصق المنشور أولاً!');
-
-  const arNums = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
-  arNums.forEach((n, idx) => { text = text.replaceAll(n, idx); });
-
-  let updatedCount = 0;
-  text.split('\n').forEach(line => {
-    let clean = line.trim();
-    if(!clean) return;
-
-    const numMatch = clean.match(/\d+/);
-    if(numMatch) {
-      const priceVal = parseFloat(numMatch[0]);
-      const namePart = clean.replace(numMatch[0], '').replace(/(ج\.م|جنيه|ج|خرطوشة|علبة|[•\-*#_])/g, '').trim().toLowerCase();
-
-      if(namePart.length > 0) {
-        const item = products.find(x => namePart.includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(namePart));
-        if(item && !isNaN(priceVal)) {
-          item.p = priceVal;
-          updatedCount++;
-        }
-      }
-    }
-  });
-
-  if(updatedCount > 0) {
-    localStorage.setItem('sp_p', JSON.stringify(products));
-    renderProducts();
-    renderOwnerProducts();
-    alert(`تم تحديث ${updatedCount} صنفاً بنجاح!`);
-    switchTab('owner-products');
-  } else {
-    alert('لم يتم التعرف على أية أسعار.');
-  }
-}
-
-// دالة رفع وتعديل لوجو المتجر من المعرض وحفظه
-function uploadStoreLogo(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(evt) {
-    const img = new Image();
-    img.onload = function() {
-      const canvas = document.createElement('canvas');
-      const max = 300;
-      let w = img.width, h = img.height;
-      if (w > h && w > max) { h = (h * max) / w; w = max; }
-      else if (h > max) { w = (w * max) / h; h = max; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-
-      const base64Logo = canvas.toDataURL('image/jpeg', 0.85);
-      localStorage.setItem('sp_custom_logo', base64Logo);
-      applyStoreLogo(base64Logo);
-      alert('تم تحديث لوجو المتجر بنجاح!');
-    };
-    img.src = evt.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-// نافذة تعديل صور الأصناف
 function openImageModal(id) {
   imageTargetId = id;
   document.getElementById('imageUploadModal').classList.remove('hidden');
@@ -1101,64 +887,87 @@ function openImageModal(id) {
 
 function closeImageModal() {
   document.getElementById('imageUploadModal').classList.add('hidden');
+  imageTargetId = null;
 }
 
-function handleImageFile(e) {
-  const file = e.target.files[0];
+function handleImageFile(event) {
+  const file = event.target.files[0];
   if(!file || !imageTargetId) return;
 
   const reader = new FileReader();
-  reader.onload = function(evt) {
-    const img = new Image();
-    img.onload = function() {
-      const canvas = document.createElement('canvas');
-      const max = 350;
-      let w = img.width, h = img.height;
-      if(w > h && w > max) { h = (h * max) / w; w = max; }
-      else if(h > max) { w = (w * max) / h; h = max; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-
-      const target = products.find(x => x.id === imageTargetId);
-      if(target) {
-        target.i = canvas.toDataURL('image/jpeg', 0.7);
-        localStorage.setItem('sp_p', JSON.stringify(products));
-        renderProducts();
-        renderOwnerProducts();
-      }
-      closeImageModal();
-    };
-    img.src = evt.target.result;
+  reader.onload = async function(e) {
+    const base64Img = e.target.result;
+    const p = products.find(x => x.id == imageTargetId);
+    if(p) {
+      p.i = base64Img;
+      localStorage.setItem('sp_p', JSON.stringify(products));
+      await saveProductsToCloud();
+      renderProducts();
+      renderOwnerProducts();
+    }
+    closeImageModal();
   };
   reader.readAsDataURL(file);
+}
+
+async function processPriceImport() {
+  const text = document.getElementById('wpImportText').value.trim();
+  if(!text) {
+    alert('الرجاء لصق نص الأسعار أولاً.');
+    return;
+  }
+
+  const lines = text.split('\n');
+  let updatedCount = 0;
+
+  lines.forEach(line => {
+    const parts = line.trim().split(/\s+/);
+    if(parts.length >= 2) {
+      const priceStr = parts.pop();
+      const nameStr = parts.join(' ');
+      const price = parseFloat(priceStr);
+
+      if(!isNaN(price)) {
+        const p = products.find(x => x.name.toLowerCase().includes(nameStr.toLowerCase()) || nameStr.toLowerCase().includes(x.name.toLowerCase()));
+        if(p) {
+          p.p = price;
+          updatedCount++;
+        }
+      }
+    }
+  });
+
+  localStorage.setItem('sp_p', JSON.stringify(products));
+  await saveProductsToCloud();
+  renderProducts();
+  renderOwnerProducts();
+  alert(`تم تحديث أسعار ${updatedCount} صنفاً ومزامنتها بنجاح!`);
 }
 
 function populateSettingsFields() {
   document.getElementById('settingShopPhone').value = shopPhone;
   document.getElementById('settingPin').value = ownerPin;
-  document.getElementById('settingStaffText').value = staffList.map(s => s.phone ? `${s.name}: ${s.phone}` : s.name).join('\n');
+  document.getElementById('settingStaffText').value = staffList.map(s => `${s.name}: ${s.phone}`).join('\n');
 }
 
 function saveOwnerSettings() {
   shopPhone = document.getElementById('settingShopPhone').value.trim() || shopPhone;
   ownerPin = document.getElementById('settingPin').value.trim() || ownerPin;
-
-  const rawStaff = document.getElementById('settingStaffText').value.trim();
-  if(rawStaff) {
-    staffList = rawStaff.split('\n').map(l => l.trim()).filter(l => l.length > 0).map(line => {
-      const parts = line.split(/[:：]/);
-      return parts.length > 1 ? { name: parts[0].trim(), phone: parts[1].trim() } : { name: line.trim(), phone: '' };
-    });
-  } else {
-    staffList = [];
-  }
+  
+  const staffRaw = document.getElementById('settingStaffText').value.trim();
+  staffList = staffRaw.split('\n').map(line => {
+    const parts = line.split(':');
+    if(parts.length >= 2) {
+      return { name: parts[0].trim(), phone: parts[1].trim() };
+    }
+    return null;
+  }).filter(Boolean);
 
   localStorage.setItem('sp_ph', shopPhone);
   localStorage.setItem('sp_pin', ownerPin);
   localStorage.setItem('sp_staff', JSON.stringify(staffList));
 
-  alert(`تم حفظ الإعدادات بنجاح! (${staffList.length} مجهّز مسجل)`);
-  renderOwnerOrders();
+  alert('تم حفظ كافة إعدادات المتجر وطاقم العمل بنجاح!');
 }
 </script>
 </body>
