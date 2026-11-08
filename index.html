@@ -168,7 +168,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
       <div>
         <h2 class="font-bold text-sm text-slate-200">🏷️ الأصناف وقائمة الأسعار</h2>
-        <p class="text-[10px] text-slate-400">اضغط على السعر للتعديل السريع</p>
+        <p class="text-[10px] text-slate-400">اضغط على السعر أو الصنف للتعديل</p>
       </div>
       <button onclick="promptNewProduct()" class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-lg text-xs">+ صنف جديد</button>
     </div>
@@ -244,17 +244,27 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   </button>
 </nav>
 
-<!-- نافذة تعديل المنتج -->
+<!-- نافذة تعديل المنتج (مع اختيار القسم) -->
 <div id="productEditModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-xs space-y-3 shadow-2xl">
     <h3 id="editModalTitle" class="font-bold text-sm text-amber-400">تعديل المنتج</h3>
     <div>
       <label class="block text-[10px] text-slate-400 mb-1">اسم الصنف:</label>
-      <input type="text" id="editProdName" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white">
+      <input type="text" id="editProdName" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-amber-500">
+    </div>
+    <div>
+      <label class="block text-[10px] text-slate-400 mb-1">القسم والتصنيف:</label>
+      <select id="editProdCat" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-amber-500">
+        <option value="local">سجائر محلي</option>
+        <option value="for">سجائر أجنبي</option>
+        <option value="oth">متنوع وبحري</option>
+        <option value="mol">معسل وتوباكو</option>
+        <option value="acc">ولاعات وبفرة</option>
+      </select>
     </div>
     <div>
       <label class="block text-[10px] text-slate-400 mb-1">السعر (ج.م):</label>
-      <input type="number" id="editProdPrice" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-amber-400 font-bold">
+      <input type="number" id="editProdPrice" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-amber-400 font-bold focus:outline-none focus:border-amber-500">
     </div>
     <div class="flex gap-2 pt-2">
       <button onclick="saveProductModalEdit()" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl text-xs font-bold transition">حفظ التعديل</button>
@@ -357,6 +367,13 @@ const CATEGORIES = [
 // المتغيرات العامة للحالة
 let products = JSON.parse(localStorage.getItem('sp_p') || 'null') || INITIAL_PRODUCTS;
 if(!localStorage.getItem('sp_p')) localStorage.setItem('sp_p', JSON.stringify(INITIAL_PRODUCTS));
+
+// تصحيح فوري لحالة جولد كوست إذا كانت مخزنة قديماً بشكل خاطئ في كاش المتصفح
+const gcItem = products.find(p => p.id === 14 || p.name === "جولد كوست");
+if(gcItem && gcItem.c !== 'for') {
+  gcItem.c = 'for';
+  localStorage.setItem('sp_p', JSON.stringify(products));
+}
 
 let cart = JSON.parse(localStorage.getItem('sp_c') || '{}');
 let shopPhone = localStorage.getItem('sp_ph') || '01221143854';
@@ -838,6 +855,7 @@ function promptEditProduct(id) {
   editTargetId = id;
   document.getElementById('editProdName').value = p.name;
   document.getElementById('editProdPrice').value = p.p;
+  document.getElementById('editProdCat').value = p.c || 'oth';
   document.getElementById('productEditModal').classList.remove('hidden');
 }
 
@@ -850,6 +868,7 @@ async function saveProductModalEdit() {
   if(!editTargetId) return;
   const newName = document.getElementById('editProdName').value.trim();
   const newPrice = parseFloat(document.getElementById('editProdPrice').value);
+  const newCat = document.getElementById('editProdCat').value;
   
   if(!newName || isNaN(newPrice)) {
     alert('من فضلك أدخل بيانات صحيحة.');
@@ -860,6 +879,7 @@ async function saveProductModalEdit() {
   if(p) {
     p.name = newName;
     p.p = newPrice;
+    p.c = newCat;
     localStorage.setItem('sp_p', JSON.stringify(products));
     await saveProductsToCloud();
     renderProducts();
