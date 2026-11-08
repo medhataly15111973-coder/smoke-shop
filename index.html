@@ -179,11 +179,11 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   <section id="tab-owner-update" class="tab-content owner-view space-y-3">
     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1">
       <h2 class="font-bold text-sm text-amber-400">⚡ تحديث الأسعار الذكي</h2>
-      <p class="text-[11px] text-slate-400">الصق رسالة الأسعار اليومية لتحديثها تلقائياً:</p>
+      <p class="text-[11px] text-slate-400">الصق رسالة الأسعار اليومية لتحديثها تلقائياً (يقبل الأرقام العربية والإنجليزية):</p>
     </div>
     <textarea id="wpImportText" rows="6" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم نص كيلو ١٢٠٠" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-500"></textarea>
     <button onclick="processPriceImport()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition shadow-md">
-      ⚡ تحديث أسعار المنتجات الآن
+      ⚡ تحديث أسعار المنتجات ومزامنتها الآن
     </button>
   </section>
 
@@ -317,7 +317,7 @@ const INITIAL_PRODUCTS = [
   {id:11,name:"تارجت شركه",c:"for",p:485,u:"خرطوشة"},
   {id:12,name:"تايم شركه",c:"for",p:570,u:"خرطوشة"},
   {id:13,name:"دوف ايفولف",c:"for",p:610,u:"خرطوشة"},
-  {id:14,name:"جولد كوست",c:"oth",p:480,u:"خرطوشة"},
+  {id:14,name:"جولد كوست",c:"for",p:480,u:"خرطوشة"},
   {id:15,name:"دوف",c:"for",p:1020,u:"خرطوشة"},
   {id:16,name:"كنتاكى",c:"oth",p:220,u:"خرطوشة"},
   {id:17,name:"ال ان",c:"oth",p:220,u:"خرطوشة"},
@@ -376,7 +376,7 @@ document.addEventListener("DOMContentLoaded", function() {
   initApp();
 });
 
-async function initApp() {
+function initApp() {
   renderCategories();
   renderProducts();
   updateCartBadge();
@@ -385,40 +385,46 @@ async function initApp() {
   if(localStorage.getItem('sp_cphone')) document.getElementById('custPhone').value = localStorage.getItem('sp_cphone');
   if(localStorage.getItem('sp_caddr')) document.getElementById('custAddress').value = localStorage.getItem('sp_caddr');
 
-  await loadProductsFromCloud();
-
+  // استماع ومزامنة حية للمنتجات والأسعار لحظة بلحظة للجميع
   if(db) {
+    db.collection("products").onSnapshot((snapshot) => {
+      if (!snapshot.empty) {
+        const cloudProducts = [];
+        snapshot.forEach(doc => cloudProducts.push({ id: doc.id, ...doc.data() }));
+        
+        cloudProducts.forEach(cp => {
+          const existing = products.find(p => String(p.id) === String(cp.id));
+          if(existing) {
+            existing.p = Number(cp.p);
+            if(cp.name) existing.name = cp.name;
+            if(cp.i) existing.i = cp.i;
+            if(cp.u) existing.u = cp.u;
+            if(cp.c) existing.c = cp.c;
+          } else {
+            products.push({ ...cp, p: Number(cp.p) });
+          }
+        });
+
+        localStorage.setItem('sp_p', JSON.stringify(products));
+        renderProducts();
+        if(isOwner) renderOwnerProducts();
+      }
+    }, (err) => console.warn("ملاحظة مزامنة المنتجات:", err));
+
+    // استماع ومزامنة حية للطلبات
     try {
       db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
         incomingOrders = [];
         snapshot.forEach(doc => incomingOrders.push({ docId: doc.id, ...doc.data() }));
         if(isOwner) renderOwnerOrders();
         renderCustomerOrders();
-      }, (e) => console.warn("Firestore Read Notice:", e));
+      }, (e) => console.warn("ملاحظة قراءة الطلبات:", e));
     } catch(err) { console.error(err); }
   }
 
   const params = new URLSearchParams(window.location.search);
   if(params.get('admin') === '1') {
     requestOwnerAuth();
-  }
-}
-
-async function loadProductsFromCloud() {
-  if (!db) return;
-  try {
-    const snapshot = await db.collection("products").get();
-    if (!snapshot.empty) {
-      products = [];
-      snapshot.forEach(doc => {
-        products.push({ id: doc.id, ...doc.data() });
-      });
-      localStorage.setItem('sp_p', JSON.stringify(products));
-      renderProducts();
-      if(isOwner) renderOwnerProducts();
-    }
-  } catch (e) {
-    console.warn("استخدام الأسعار المحلية المتوفرة:", e);
   }
 }
 
@@ -906,6 +912,28 @@ function handleImageFile(event) {
   reader.readAsDataURL(file);
 }
 
+// دالة مساعدة لتحويل الأرقام العربية/المشرقية إلى أرقام إنجليزية
+function parseArabicNumber(str) {
+  if (!str) return NaN;
+  const arabicNumerals = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g];
+  for (let i = 0; i < 10; i++) {
+    str = str.replace(arabicNumerals[i], i);
+  }
+  const cleanStr = str.replace(/[^\d.]/g, '');
+  return parseFloat(cleanStr);
+}
+
+// دالة مساعدة لتوحيد الحروف العربية (إزالة التشكيل والهمزات)
+function normalizeArabic(text) {
+  return text
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u064B-\u065F]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
 async function processPriceImport() {
   const text = document.getElementById('wpImportText').value.trim();
   if(!text) {
@@ -917,14 +945,24 @@ async function processPriceImport() {
   let updatedCount = 0;
 
   lines.forEach(line => {
-    const parts = line.trim().split(/\s+/);
-    if(parts.length >= 2) {
-      const priceStr = parts.pop();
-      const nameStr = parts.join(' ');
-      const price = parseFloat(priceStr);
+    const trimmed = line.trim();
+    if (!trimmed) return;
 
-      if(!isNaN(price)) {
-        const p = products.find(x => x.name.toLowerCase().includes(nameStr.toLowerCase()) || nameStr.toLowerCase().includes(x.name.toLowerCase()));
+    const parts = trimmed.split(/\s+/);
+    if(parts.length >= 2) {
+      const priceRaw = parts.pop();
+      const nameRaw = parts.join(' ');
+      const price = parseArabicNumber(priceRaw);
+
+      if(!isNaN(price) && price > 0) {
+        const cleanSearchName = normalizeArabic(nameRaw);
+        
+        // البحث عن أقرب تطابق للاسم
+        const p = products.find(x => {
+          const cleanProdName = normalizeArabic(x.name);
+          return cleanProdName.includes(cleanSearchName) || cleanSearchName.includes(cleanProdName);
+        });
+
         if(p) {
           p.p = price;
           updatedCount++;
@@ -933,12 +971,17 @@ async function processPriceImport() {
     }
   });
 
+  if (updatedCount === 0) {
+    alert('لم يتم التعرف على أي أصناف! تأكد من أن كل سطر يحتوي على اسم الصنف وبجواره السعر.');
+    return;
+  }
+
   localStorage.setItem('sp_p', JSON.stringify(products));
   await saveProductsToCloud();
   
   renderProducts();
   renderOwnerProducts();
-  alert(`تم تحديث ومزامنة أسعار ${updatedCount} صنفاً سحابياً بنجاح للجميع!`);
+  alert(`✅ تم تحديث ومزامنة أسعار ${updatedCount} صنفاً بنجاح ومشاركتها مع جميع الزبائن!`);
 }
 
 function populateSettingsFields() {
