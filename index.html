@@ -42,7 +42,6 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 <!-- الهيدر الرئيسي -->
 <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
   <div class="max-w-md mx-auto px-4 py-2.5 flex justify-between items-center">
-    <!-- النقر السري 4 مرات على اللوجو يفتح نافذة إدخال PIN المالك -->
     <div class="flex items-center gap-2 cursor-pointer select-none" onclick="handleLogoClick()">
       <div class="w-9 h-9 rounded-xl overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center p-0.5 shadow-sm">
         <img id="storeLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" class="w-full h-full object-cover rounded-lg">
@@ -100,7 +99,6 @@ body.owner-mode nav.owner-nav { display: flex !important; }
         </div>
       </div>
 
-      <!-- إدخال العنوان فقط في حالة الدليفري بدون إظهار أي مصاريف للعميل -->
       <div id="deliveryBox" class="hidden space-y-1.5 pt-2 border-t border-slate-800">
         <label class="block text-[10px] text-slate-400">عنوان التوصيل بالتفصيل *</label>
         <input type="text" id="custAddress" placeholder="المنطقة، اسم الشارع، رقم العمارة والدور..." class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
@@ -117,7 +115,6 @@ body.owner-mode nav.owner-nav { display: flex !important; }
         </div>
       </div>
 
-      <!-- الإجمالي المعروض للعميل هو الأصناف فقط -->
       <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 pt-2">
         <div class="flex justify-between items-center text-sm font-black">
           <span class="text-white">إجمالي الفاتورة:</span>
@@ -147,9 +144,11 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
       <div>
         <h2 class="font-black text-sm text-amber-400">📋 متابعة وتجهيز الطلبات</h2>
-        <p class="text-[10px] text-slate-400">تحديد مصاريف الدليفري وإرسال الفاتورة الرسمية</p>
+        <p class="text-[10px] text-slate-400">إدارة الحالات ومسح الأرشيف المكتمل</p>
       </div>
-      <button onclick="clearAllOrders()" class="text-[11px] text-red-400 hover:underline">مسح الكل</button>
+      <button onclick="clearCompletedOrders()" class="bg-red-950/60 text-red-400 hover:bg-red-900 border border-red-800/60 px-2 py-1 rounded-lg text-[10px] font-bold transition">
+        🗑️ مسح المكتمل فقط
+      </button>
     </div>
 
     <!-- أزرار الفلترة -->
@@ -168,7 +167,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
       <div>
         <h2 class="font-bold text-sm text-slate-200">🏷️ الأصناف وقائمة الأسعار</h2>
-        <p class="text-[10px] text-slate-400">اضغط على السعر أو الصنف للتعديل</p>
+        <p class="text-[10px] text-slate-400">اضغط على السعر أو الصنف للتعديل أو الحذف</p>
       </div>
       <button onclick="promptNewProduct()" class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-lg text-xs">+ صنف جديد</button>
     </div>
@@ -244,10 +243,15 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   </button>
 </nav>
 
-<!-- نافذة تعديل المنتج (مع اختيار القسم) -->
+<!-- نافذة تعديل المنتج (مع زر الحذف) -->
 <div id="productEditModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-xs space-y-3 shadow-2xl">
-    <h3 id="editModalTitle" class="font-bold text-sm text-amber-400">تعديل المنتج</h3>
+    <div class="flex justify-between items-center">
+      <h3 id="editModalTitle" class="font-bold text-sm text-amber-400">تعديل المنتج</h3>
+      <button onclick="deleteCurrentProduct()" class="text-red-400 hover:text-red-300 text-xs font-bold bg-red-950/40 border border-red-800/50 px-2 py-0.5 rounded-lg flex items-center gap-1">
+        🗑️ حذف الصنف
+      </button>
+    </div>
     <div>
       <label class="block text-[10px] text-slate-400 mb-1">اسم الصنف:</label>
       <input type="text" id="editProdName" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white focus:outline-none focus:border-amber-500">
@@ -292,7 +296,6 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 </div>
 
 <script>
-// تهيئة السحابة (Firebase)
 const firebaseConfig = {
   apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
   authDomain: "smokeshop-40107.firebaseapp.com",
@@ -364,11 +367,9 @@ const CATEGORIES = [
   {id:'acc', n:'ولاعات وبفرة'}
 ];
 
-// المتغيرات العامة للحالة
 let products = JSON.parse(localStorage.getItem('sp_p') || 'null') || INITIAL_PRODUCTS;
 if(!localStorage.getItem('sp_p')) localStorage.setItem('sp_p', JSON.stringify(INITIAL_PRODUCTS));
 
-// تصحيح فوري لحالة جولد كوست إذا كانت مخزنة قديماً بشكل خاطئ في كاش المتصفح
 const gcItem = products.find(p => p.id === 14 || p.name === "جولد كوست");
 if(gcItem && gcItem.c !== 'for') {
   gcItem.c = 'for';
@@ -388,6 +389,34 @@ let imageTargetId = null;
 let incomingOrders = [];
 let logoClickCount = 0;
 let logoTimer = null;
+let isInitialOrdersLoad = true;
+
+// تشغيل نغمة تنبيه صوتية للطلبات بدون ملفات خارجية
+function playOrderNotificationSound() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+
+    const playTone = (freq, start, duration) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    };
+
+    playTone(587.33, 0.0, 0.15); // D5
+    playTone(880.00, 0.18, 0.25); // A5
+  } catch(e) {
+    console.log("Audio notification notice:", e);
+  }
+}
 
 document.addEventListener("DOMContentLoaded", function() {
   initApp();
@@ -402,7 +431,6 @@ function initApp() {
   if(localStorage.getItem('sp_cphone')) document.getElementById('custPhone').value = localStorage.getItem('sp_cphone');
   if(localStorage.getItem('sp_caddr')) document.getElementById('custAddress').value = localStorage.getItem('sp_caddr');
 
-  // استماع ومزامنة حية للمنتجات والأسعار لحظة بلحظة للجميع
   if(db) {
     db.collection("products").onSnapshot((snapshot) => {
       if (!snapshot.empty) {
@@ -428,12 +456,28 @@ function initApp() {
       }
     }, (err) => console.warn("ملاحظة مزامنة المنتجات:", err));
 
-    // استماع ومزامنة حية للطلبات
     try {
       db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
+        let hasNewOrder = false;
+
+        if(!isInitialOrdersLoad) {
+          snapshot.docChanges().forEach(change => {
+            if(change.type === "added") {
+              hasNewOrder = true;
+            }
+          });
+        }
+        isInitialOrdersLoad = false;
+
         incomingOrders = [];
         snapshot.forEach(doc => incomingOrders.push({ docId: doc.id, ...doc.data() }));
-        if(isOwner) renderOwnerOrders();
+        
+        if(isOwner) {
+          renderOwnerOrders();
+          if(hasNewOrder) {
+            playOrderNotificationSound();
+          }
+        }
         renderCustomerOrders();
       }, (e) => console.warn("ملاحظة قراءة الطلبات:", e));
     } catch(err) { console.error(err); }
@@ -823,11 +867,35 @@ async function updateOrderStatus(docId, newStatus) {
   }
 }
 
-function clearAllOrders() {
-  if(confirm('هل أنت متأكد من مسح كافة الطلبات من اللوحة؟')) {
-    incomingOrders = [];
-    renderOwnerOrders();
+// مسح الطلبات المكتملة فقط
+async function clearCompletedOrders() {
+  const completedOrders = incomingOrders.filter(o => o.status === 'completed');
+  if (!completedOrders.length) {
+    alert('لا توجد أي طلبات مكتملة حالياً لمسحها.');
+    return;
   }
+
+  if(!confirm(`هل أنت متأكد من مسح كافة الطلبات المكتملة (${completedOrders.length} طلب)؟`)) {
+    return;
+  }
+
+  if(db) {
+    try {
+      const batch = db.batch();
+      completedOrders.forEach(o => {
+        if(o.docId) {
+          batch.delete(db.collection("orders").doc(o.docId));
+        }
+      });
+      await batch.commit();
+    } catch(err) {
+      console.error("خطأ أثناء مسح الطلبات المكتملة سحابياً:", err);
+    }
+  }
+
+  incomingOrders = incomingOrders.filter(o => o.status !== 'completed');
+  renderOwnerOrders();
+  alert('تم مسح الطلبات المكتملة بنجاح!');
 }
 
 function renderOwnerProducts() {
@@ -862,6 +930,40 @@ function promptEditProduct(id) {
 function closeProductEditModal() {
   document.getElementById('productEditModal').classList.add('hidden');
   editTargetId = null;
+}
+
+// دالة حذف الصنف الحالي
+async function deleteCurrentProduct() {
+  if(!editTargetId) return;
+  const p = products.find(x => x.id == editTargetId);
+  if(!p) return;
+
+  if(!confirm(`هل أنت متأكد من حذف الصنف (${p.name}) نهائياً من المتجر؟`)) {
+    return;
+  }
+
+  const removedId = editTargetId;
+  products = products.filter(x => x.id != removedId);
+  localStorage.setItem('sp_p', JSON.stringify(products));
+
+  if (db) {
+    try {
+      await db.collection("products").doc(String(removedId)).delete();
+    } catch(err) {
+      console.error("خطأ أثناء حذف الصنف سحابياً:", err);
+    }
+  }
+
+  // إذا كان الصنف مضافاً في سلة المشتريات يُحذف منها أيضاً
+  if(cart[removedId]) {
+    delete cart[removedId];
+    persistCart();
+  }
+
+  closeProductEditModal();
+  renderProducts();
+  renderOwnerProducts();
+  alert('تم حذف الصنف بنجاح!');
 }
 
 async function saveProductModalEdit() {
@@ -917,22 +1019,34 @@ function handleImageFile(event) {
   if(!file || !imageTargetId) return;
 
   const reader = new FileReader();
-  reader.onload = async function(e) {
-    const base64Img = e.target.result;
-    const p = products.find(x => x.id == imageTargetId);
-    if(p) {
-      p.i = base64Img;
-      localStorage.setItem('sp_p', JSON.stringify(products));
-      await saveProductsToCloud();
-      renderProducts();
-      renderOwnerProducts();
-    }
-    closeImageModal();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = async function() {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 400;
+      const scaleSize = MAX_WIDTH / img.width;
+      canvas.width = MAX_WIDTH;
+      canvas.height = img.height * scaleSize;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+      const p = products.find(x => x.id == imageTargetId);
+      if(p) {
+        p.i = compressedBase64;
+        localStorage.setItem('sp_p', JSON.stringify(products));
+        await saveProductsToCloud();
+        renderProducts();
+        renderOwnerProducts();
+      }
+      closeImageModal();
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
 
-// دالة مساعدة لتحويل الأرقام العربية/المشرقية إلى أرقام إنجليزية
 function parseArabicNumber(str) {
   if (!str) return NaN;
   const arabicNumerals = [/٠/g, /١/g, /٢/g, /٣/g, /٤/g, /٥/g, /٦/g, /٧/g, /٨/g, /٩/g];
@@ -943,7 +1057,6 @@ function parseArabicNumber(str) {
   return parseFloat(cleanStr);
 }
 
-// دالة مساعدة لتوحيد الحروف العربية (إزالة التشكيل والهمزات)
 function normalizeArabic(text) {
   return text
     .replace(/[أإآ]/g, 'ا')
@@ -977,7 +1090,6 @@ async function processPriceImport() {
       if(!isNaN(price) && price > 0) {
         const cleanSearchName = normalizeArabic(nameRaw);
         
-        // البحث عن أقرب تطابق للاسم
         const p = products.find(x => {
           const cleanProdName = normalizeArabic(x.name);
           return cleanProdName.includes(cleanSearchName) || cleanSearchName.includes(cleanProdName);
