@@ -103,7 +103,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   <!-- 1. المتجر والمنتجات -->
   <section id="tab-products" class="tab-content active space-y-3">
     
-    <!-- بانر مفاجأة عرض اليوم التشويقي (يظهر فقط عند تفعيل عرض من الإدارة) -->
+    <!-- بانر مفاجأة عرض اليوم التشويقي -->
     <div id="dailyOfferBanner" onclick="openDailyOfferShow()" class="hidden cursor-pointer relative overflow-hidden shimmer-overlay bg-gradient-to-l from-amber-600/25 via-slate-900 to-amber-500/20 border-2 border-amber-500/70 rounded-2xl p-3 shadow-lg shadow-amber-950/30 active:scale-[0.98] transition">
       <div class="flex items-center justify-between gap-2.5 relative z-10">
         <div class="flex items-center gap-3">
@@ -218,12 +218,26 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     <div id="incomingOrdersList" class="space-y-3"></div>
   </section>
 
-  <!-- 5. تعديل الأصناف والأسعار يدوياً -->
+  <!-- 5. إدارة الأقسام والأصناف والأسعار -->
   <section id="tab-owner-products" class="tab-content owner-view space-y-3">
+    
+    <!-- إدارة الأقسام (إضافة وتعديل وحذف) -->
+    <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-2.5">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="font-bold text-sm text-amber-400">📂 إدارة أقسام المتجر</h2>
+          <p class="text-[10px] text-slate-400">أضف قسماً جديداً أو اضغط ✏️ لتعديل اسم القسم</p>
+        </div>
+        <button onclick="promptAddCategory()" class="bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-400 font-black px-2.5 py-1 rounded-lg text-xs transition">+ قسم جديد</button>
+      </div>
+      <div id="ownerCategoriesList" class="flex flex-wrap gap-1.5"></div>
+    </div>
+
+    <!-- إدارة الأصناف -->
     <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
       <div>
         <h2 class="font-bold text-sm text-slate-200">🏷️ الأصناف وقائمة الأسعار</h2>
-        <p class="text-[10px] text-slate-400">اضغط على السعر للتعديل السريع</p>
+        <p class="text-[10px] text-slate-400">اضغط على السعر لتعديل الصنف أو قسمه</p>
       </div>
       <button onclick="promptNewProduct()" class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-lg text-xs">+ صنف جديد</button>
     </div>
@@ -352,21 +366,17 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 <!-- نافذة عرض اليوم التشويقية (Show Modal للعميل) -->
 <div id="dailyOfferShowModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
   <div class="offer-reveal-anim relative bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-2 border-amber-500/80 rounded-3xl p-5 w-full max-w-xs text-center shadow-2xl shadow-amber-500/20 space-y-3.5 overflow-hidden">
-    <!-- زر إغلاق -->
     <button onclick="closeDailyOfferShow()" class="absolute top-3 left-3 w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white text-xs flex items-center justify-center">✕</button>
 
-    <!-- شارة العرض -->
     <div class="inline-flex items-center gap-1.5 bg-amber-500 text-slate-950 font-black text-[11px] px-3 py-1 rounded-full shadow-md">
       <span>🎉</span><span>مفاجأة عرض اليوم الحصري</span><span>🎉</span>
     </div>
 
-    <!-- صورة المنتج المربعة 1:1 -->
     <div class="relative mx-auto w-44 aspect-square rounded-2xl bg-[#090d16] border border-amber-500/40 p-1 shadow-inner flex items-center justify-center overflow-hidden">
       <img id="showOfferImg" src="" class="w-full h-full object-contain rounded-xl">
       <span id="showOfferDiscountBadge" class="hidden absolute top-2 right-2 bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow"></span>
     </div>
 
-    <!-- تفاصيل المنتج والسعر -->
     <div class="space-y-1">
       <h3 id="showOfferName" class="font-black text-base text-white"></h3>
       <p id="showOfferTagline" class="text-[11px] text-amber-300 font-semibold"></p>
@@ -377,12 +387,10 @@ body.owner-mode nav.owner-nav { display: flex !important; }
       </div>
     </div>
 
-    <!-- عبارة التحفيز -->
     <div class="bg-red-500/15 border border-red-500/40 rounded-xl py-2 px-3">
       <p class="text-xs font-black text-red-400 animate-pulse">⏳ اطلب الآن قبل العرض ما يخلص!</p>
     </div>
 
-    <!-- أزرار الإجراء -->
     <div class="space-y-2 pt-1">
       <button onclick="claimDailyOfferToCart()" class="w-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black py-3 rounded-2xl text-xs shadow-lg shadow-amber-500/25 transition active:scale-95">
         🛒 اغتنم العرض وأضف للسلة فوراً
@@ -394,7 +402,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   </div>
 </div>
 
-<!-- نافذة تعديل المنتج -->
+<!-- نافذة تعديل/إضافة المنتج (شاملة اختيار القسم) -->
 <div id="productEditModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-slate-900 border border-slate-700 rounded-2xl p-4 w-full max-w-xs space-y-3 shadow-2xl">
     <h3 id="editModalTitle" class="font-bold text-sm text-amber-400">تعديل المنتج</h3>
@@ -403,11 +411,21 @@ body.owner-mode nav.owner-nav { display: flex !important; }
       <input type="text" id="editProdName" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white">
     </div>
     <div>
-      <label class="block text-[10px] text-slate-400 mb-1">السعر (ج.م):</label>
-      <input type="number" id="editProdPrice" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-amber-400 font-bold">
+      <label class="block text-[10px] text-slate-400 mb-1">القسم:</label>
+      <select id="editProdCat" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white"></select>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="block text-[10px] text-slate-400 mb-1">السعر (ج.م):</label>
+        <input type="number" id="editProdPrice" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-amber-400 font-bold">
+      </div>
+      <div>
+        <label class="block text-[10px] text-slate-400 mb-1">الوحدة:</label>
+        <input type="text" id="editProdUnit" placeholder="خرطوشة / علبة" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white">
+      </div>
     </div>
     <div class="flex gap-2 pt-2">
-      <button onclick="saveProductModalEdit()" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl text-xs font-bold transition">حفظ التعديل</button>
+      <button onclick="saveProductModalEdit()" class="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-xl text-xs font-bold transition">حفظ</button>
       <button onclick="closeProductEditModal()" class="w-1/2 bg-slate-800 text-slate-300 py-2 rounded-xl text-xs">إلغاء</button>
     </div>
   </div>
@@ -495,7 +513,7 @@ const INITIAL_PRODUCTS = [
   {id:39,name:"برج ٥0",c:"mol",p:950,u:"علبة"}
 ];
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   {id:'all', n:'الكل'},
   {id:'local', n:'سجائر محلي'},
   {id:'for', n:'سجائر أجنبي'},
@@ -505,6 +523,9 @@ const CATEGORIES = [
 ];
 
 // المتغيرات العامة للحالة
+let categories = JSON.parse(localStorage.getItem('sp_cats') || 'null') || DEFAULT_CATEGORIES;
+if(!localStorage.getItem('sp_cats')) localStorage.setItem('sp_cats', JSON.stringify(DEFAULT_CATEGORIES));
+
 let products = JSON.parse(localStorage.getItem('sp_p') || 'null') || INITIAL_PRODUCTS;
 if(!localStorage.getItem('sp_p')) localStorage.setItem('sp_p', JSON.stringify(INITIAL_PRODUCTS));
 
@@ -518,6 +539,7 @@ let isOwner = false;
 let currentCat = 'all';
 let activeOrderFilter = 'all';
 let editTargetId = null;
+let isCreatingProduct = false;
 let imageTargetId = null;
 let incomingOrders = [];
 let logoClickCount = 0;
@@ -549,18 +571,38 @@ async function initApp() {
         renderCustomerOrders();
       }, (e) => console.warn("Firestore Read Notice:", e));
 
-      // مراقبة عرض اليوم لحظياً من السحابة
-      db.collection("settings").doc("daily_offer").onSnapshot((doc) => {
-        if (doc.exists) {
-          dailyOffer = doc.data();
-          localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
-        } else {
-          dailyOffer = null;
-          localStorage.removeItem('sp_daily_offer');
+      // مراقبة المنتجات والأقسام وعرض اليوم لحظياً من السحابة
+      db.collection("products").onSnapshot((snapshot) => {
+        if (!snapshot.empty) {
+          const loadedProds = [];
+          snapshot.forEach(doc => {
+            if (doc.id === "_daily_offer_config_") {
+              dailyOffer = doc.data();
+              localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
+            } else if (doc.id === "_categories_config_") {
+              const data = doc.data();
+              if (data && Array.isArray(data.list) && data.list.length > 0) {
+                categories = data.list;
+                localStorage.setItem('sp_cats', JSON.stringify(categories));
+              }
+            } else {
+              loadedProds.push({ id: doc.id, ...doc.data() });
+            }
+          });
+          if (loadedProds.length > 0) {
+            products = loadedProds;
+            localStorage.setItem('sp_p', JSON.stringify(products));
+          }
+          renderCategories();
+          renderProducts();
+          updateDailyOfferUI();
+          if (isOwner) {
+            renderOwnerCategories();
+            renderOwnerProducts();
+            populateOfferAdminForm();
+          }
         }
-        updateDailyOfferUI();
-        if(isOwner) populateOfferAdminForm();
-      }, (e) => console.warn("Offer Sync Notice:", e));
+      }, (e) => console.warn("Realtime Sync Notice:", e));
     } catch(err) { console.error(err); }
   }
 
@@ -575,14 +617,33 @@ async function loadProductsFromCloud() {
   try {
     const snapshot = await db.collection("products").get();
     if (!snapshot.empty) {
-      products = [];
+      const loadedProds = [];
       snapshot.forEach(doc => {
-        products.push({ id: doc.id, ...doc.data() });
+        if (doc.id === "_daily_offer_config_") {
+          dailyOffer = doc.data();
+          localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
+        } else if (doc.id === "_categories_config_") {
+          const data = doc.data();
+          if (data && Array.isArray(data.list) && data.list.length > 0) {
+            categories = data.list;
+            localStorage.setItem('sp_cats', JSON.stringify(categories));
+          }
+        } else {
+          loadedProds.push({ id: doc.id, ...doc.data() });
+        }
       });
-      localStorage.setItem('sp_p', JSON.stringify(products));
+      if (loadedProds.length > 0) {
+        products = loadedProds;
+        localStorage.setItem('sp_p', JSON.stringify(products));
+      }
+      renderCategories();
       renderProducts();
-      if(isOwner) renderOwnerProducts();
       updateDailyOfferUI();
+      if(isOwner) {
+        renderOwnerCategories();
+        renderOwnerProducts();
+        populateOfferAdminForm();
+      }
     }
   } catch (e) {
     console.warn("استخدام الأسعار المحلية المتوفرة:", e);
@@ -601,6 +662,105 @@ async function saveProductsToCloud() {
   } catch(e) {
     console.error("خطأ في مزامنة الأسعار سحابياً:", e);
   }
+}
+
+async function saveCategoriesToCloud() {
+  localStorage.setItem('sp_cats', JSON.stringify(categories));
+  if (!db) return;
+  try {
+    await db.collection("products").doc("_categories_config_").set({
+      list: categories,
+      updatedAt: new Date().toISOString()
+    });
+  } catch(e) {
+    console.error("خطأ في مزامنة الأقسام سحابياً:", e);
+  }
+}
+
+// ==================== إدارة الأقسام (إضافة وتعديل وحذف) ====================
+
+function renderOwnerCategories() {
+  const container = document.getElementById('ownerCategoriesList');
+  if (!container) return;
+
+  container.innerHTML = categories.map(c => {
+    const isAll = c.id === 'all';
+    const count = isAll ? products.length : products.filter(p => p.c === c.id).length;
+    return `
+      <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-2.5 py-1.5 rounded-xl text-xs">
+        <span class="font-bold text-slate-200">${c.n}</span>
+        <span class="text-[10px] text-slate-500">(${count})</span>
+        <button onclick="promptEditCategory('${c.id}')" class="text-amber-400 hover:text-amber-300 mr-1 text-[11px]" title="تعديل اسم القسم">✏️</button>
+        ${!isAll ? `<button onclick="deleteCategory('${c.id}')" class="text-red-400 hover:text-red-300 text-[11px]" title="حذف القسم">🗑️</button>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+async function promptAddCategory() {
+  const name = prompt('أدخل اسم القسم الجديد (مثال: فيب وسحبات، شيشة إلكترونية...):');
+  if (!name || !name.trim()) return;
+
+  const cleanName = name.trim();
+  if (categories.some(c => c.n === cleanName)) {
+    alert('هذا القسم موجود بالفعل!');
+    return;
+  }
+
+  const newCatId = 'cat_' + Date.now();
+  categories.push({ id: newCatId, n: cleanName });
+
+  await saveCategoriesToCloud();
+  renderCategories();
+  renderOwnerCategories();
+  alert(`تم إضافة قسم "${cleanName}" بنجاح!`);
+}
+
+async function promptEditCategory(catId) {
+  const cat = categories.find(c => c.id === catId);
+  if (!cat) return;
+
+  const newName = prompt('تعديل اسم القسم:', cat.n);
+  if (!newName || !newName.trim() || newName.trim() === cat.n) return;
+
+  cat.n = newName.trim();
+  await saveCategoriesToCloud();
+  renderCategories();
+  renderOwnerCategories();
+}
+
+async function deleteCategory(catId) {
+  if (catId === 'all') return;
+  const cat = categories.find(c => c.id === catId);
+  if (!cat) return;
+
+  if (!confirm(`هل أنت متأكد من حذف قسم "${cat.n}"؟ (سيتم نقل أصنافه لأول قسم متاح ولن تُحذف الأصناف)`)) {
+    return;
+  }
+
+  categories = categories.filter(c => c.id !== catId);
+  const fallbackCat = categories.find(c => c.id !== 'all')?.id || 'oth';
+
+  let moved = false;
+  products.forEach(p => {
+    if (p.c === catId) {
+      p.c = fallbackCat;
+      moved = true;
+    }
+  });
+
+  if (currentCat === catId) currentCat = 'all';
+
+  await saveCategoriesToCloud();
+  if (moved) {
+    localStorage.setItem('sp_p', JSON.stringify(products));
+    await saveProductsToCloud();
+  }
+
+  renderCategories();
+  renderProducts();
+  renderOwnerCategories();
+  renderOwnerProducts();
 }
 
 // ==================== وظائف عرض اليوم (للعميل والمالك) ====================
@@ -744,7 +904,7 @@ async function saveDailyOffer() {
   localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
   if (db) {
     try {
-      await db.collection("settings").doc("daily_offer").set(dailyOffer);
+      await db.collection("products").doc("_daily_offer_config_").set(dailyOffer);
     } catch (e) {
       console.error("خطأ في حفظ العرض سحابياً:", e);
     }
@@ -760,7 +920,7 @@ async function disableDailyOffer() {
   localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
   if (db) {
     try {
-      await db.collection("settings").doc("daily_offer").set(dailyOffer);
+      await db.collection("products").doc("_daily_offer_config_").set(dailyOffer);
     } catch (e) {
       console.error("خطأ في إيقاف العرض سحابياً:", e);
     }
@@ -792,6 +952,7 @@ function requestOwnerAuth() {
     isOwner = true;
     document.body.classList.add('owner-mode');
     switchTab('owner-orders');
+    renderOwnerCategories();
     renderOwnerProducts();
     renderOwnerOrders();
   } else if(input !== null) {
@@ -828,7 +989,10 @@ function switchTab(tabId) {
   if(tabId === 'cart') renderCartItems();
   if(tabId === 'track') renderCustomerOrders();
   if(tabId === 'owner-orders') renderOwnerOrders();
-  if(tabId === 'owner-products') renderOwnerProducts();
+  if(tabId === 'owner-products') {
+    renderOwnerCategories();
+    renderOwnerProducts();
+  }
   if(tabId === 'owner-offer') populateOfferAdminForm();
   if(tabId === 'owner-settings') populateSettingsFields();
 
@@ -837,7 +1001,8 @@ function switchTab(tabId) {
 
 function renderCategories() {
   const container = document.getElementById('catsBar');
-  container.innerHTML = CATEGORIES.map(c => `
+  if (!container) return;
+  container.innerHTML = categories.map(c => `
     <button onclick="setCategory('${c.id}')" class="px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition ${currentCat === c.id ? 'bg-amber-500 text-slate-950 font-black shadow-md' : 'bg-slate-900 text-slate-300 border border-slate-800'}">
       ${c.n}
     </button>
@@ -1153,71 +1318,99 @@ function clearAllOrders() {
 
 function renderOwnerProducts() {
   const grid = document.getElementById('ownerProductsGrid');
-  grid.innerHTML = products.map(p => `
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
-      <div class="w-full aspect-square bg-[#090d16] rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/85 relative group">
-        <img src="${p.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-contain">
-        <button onclick="openImageModal(${p.id})" class="absolute inset-0 bg-black/70 flex items-center justify-center text-amber-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold">📷 تغيير الصورة</button>
-      </div>
-      <div>
-        <h3 class="font-bold text-xs text-white truncate mb-1">${p.name}</h3>
-        <div class="flex justify-between items-center text-[11px] mb-2">
-          <span onclick="promptEditProduct(${p.id})" class="text-amber-400 font-black cursor-pointer hover:underline">${p.p} ج.م ✏️</span>
-          <span class="text-slate-400 text-[10px]">${p.u || ''}</span>
+  grid.innerHTML = products.map(p => {
+    const catObj = categories.find(c => c.id === p.c);
+    const catLabel = catObj ? catObj.n : 'عام';
+    return `
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
+        <div class="w-full aspect-square bg-[#090d16] rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/85 relative group">
+          <img src="${p.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-contain">
+          <span class="absolute top-1.5 right-1.5 bg-slate-950/85 border border-slate-700 text-slate-300 text-[9px] px-1.5 py-0.5 rounded-md">${catLabel}</span>
+          <button onclick="openImageModal(${p.id})" class="absolute inset-0 bg-black/70 flex items-center justify-center text-amber-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold">📷 تغيير الصورة</button>
+        </div>
+        <div>
+          <h3 class="font-bold text-xs text-white truncate mb-1">${p.name}</h3>
+          <div class="flex justify-between items-center text-[11px] mb-1">
+            <span onclick="promptEditProduct(${p.id})" class="text-amber-400 font-black cursor-pointer hover:underline">${p.p} ج.م ✏️</span>
+            <span class="text-slate-400 text-[10px]">${p.u || ''}</span>
+          </div>
         </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+}
+
+function populateModalCategories(selectedCatId) {
+  const select = document.getElementById('editProdCat');
+  const selectableCats = categories.filter(c => c.id !== 'all');
+  select.innerHTML = selectableCats.map(c => `<option value="${c.id}">${c.n}</option>`).join('');
+  if (selectedCatId && selectableCats.some(c => c.id === selectedCatId)) {
+    select.value = selectedCatId;
+  } else if (selectableCats.length > 0) {
+    select.value = selectableCats[0].id;
+  }
 }
 
 function promptEditProduct(id) {
   const p = products.find(x => x.id == id);
   if(!p) return;
+  isCreatingProduct = false;
   editTargetId = id;
+  document.getElementById('editModalTitle').innerText = 'تعديل المنتج';
   document.getElementById('editProdName').value = p.name;
   document.getElementById('editProdPrice').value = p.p;
+  document.getElementById('editProdUnit').value = p.u || '';
+  populateModalCategories(p.c);
+  document.getElementById('productEditModal').classList.remove('hidden');
+}
+
+function promptNewProduct() {
+  isCreatingProduct = true;
+  editTargetId = null;
+  document.getElementById('editModalTitle').innerText = '+ إضافة صنف جديد';
+  document.getElementById('editProdName').value = '';
+  document.getElementById('editProdPrice').value = '';
+  document.getElementById('editProdUnit').value = 'خرطوشة';
+  populateModalCategories();
   document.getElementById('productEditModal').classList.remove('hidden');
 }
 
 function closeProductEditModal() {
   document.getElementById('productEditModal').classList.add('hidden');
   editTargetId = null;
+  isCreatingProduct = false;
 }
 
 async function saveProductModalEdit() {
-  if(!editTargetId) return;
   const newName = document.getElementById('editProdName').value.trim();
   const newPrice = parseFloat(document.getElementById('editProdPrice').value);
+  const newCat = document.getElementById('editProdCat').value;
+  const newUnit = document.getElementById('editProdUnit').value.trim() || 'خرطوشة';
   
   if(!newName || isNaN(newPrice)) {
-    alert('من فضلك أدخل بيانات صحيحة.');
+    alert('من فضلك أدخل اسم الصنف والسعر بشكل صحيح.');
     return;
   }
 
-  const p = products.find(x => x.id == editTargetId);
-  if(p) {
-    p.name = newName;
-    p.p = newPrice;
-    localStorage.setItem('sp_p', JSON.stringify(products));
-    await saveProductsToCloud();
-    renderProducts();
-    renderOwnerProducts();
-    closeProductEditModal();
+  if (isCreatingProduct) {
+    const newId = products.length ? Math.max(...products.map(x => Number(x.id) || 0)) + 1 : 1;
+    products.unshift({ id: newId, name: newName, c: newCat, p: newPrice, u: newUnit });
+  } else if (editTargetId) {
+    const p = products.find(x => x.id == editTargetId);
+    if(p) {
+      p.name = newName;
+      p.p = newPrice;
+      p.c = newCat;
+      p.u = newUnit;
+    }
   }
-}
 
-async function promptNewProduct() {
-  const name = prompt('أدخل اسم الصنف الجديد:');
-  if(!name) return;
-  const price = parseFloat(prompt('أدخل السعر (ج.م):', '0'));
-  if(isNaN(price)) return;
-
-  const newId = products.length ? Math.max(...products.map(x => Number(x.id) || 0)) + 1 : 1;
-  products.unshift({ id: newId, name, c: 'oth', p: price, u: 'خرطوشة' });
   localStorage.setItem('sp_p', JSON.stringify(products));
   await saveProductsToCloud();
   renderProducts();
   renderOwnerProducts();
+  renderOwnerCategories();
+  closeProductEditModal();
 }
 
 function openImageModal(id) {
