@@ -57,6 +57,24 @@ body.owner-mode nav.owner-nav { display: flex !important; }
   background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.18), transparent);
   animation: shimmerSweep 2.6s infinite;
 }
+
+/* حركة التتابع لرسالة نفذت الكمية / اضغط للإعلام عبر واتساب */
+@keyframes stockMsgFlipA {
+  0%, 42% { opacity: 1; transform: translateY(0) scale(1); }
+  48%, 94% { opacity: 0; transform: translateY(-6px) scale(0.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes stockMsgFlipB {
+  0%, 44% { opacity: 0; transform: translateY(6px) scale(0.95); }
+  50%, 92% { opacity: 1; transform: translateY(0) scale(1); }
+  98%, 100% { opacity: 0; transform: translateY(-6px) scale(0.95); }
+}
+.stock-seq-1 {
+  animation: stockMsgFlipA 4.2s infinite ease-in-out;
+}
+.stock-seq-2 {
+  animation: stockMsgFlipB 4.2s infinite ease-in-out;
+}
 </style>
 </head>
 <body class="bg-[#090d16] text-slate-100 min-h-screen">
@@ -260,7 +278,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     <div class="flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-800">
       <div>
         <h2 class="font-bold text-sm text-slate-200">🏷️ الأصناف وقائمة الأسعار</h2>
-        <p class="text-[10px] text-slate-400">اضغط على السعر للتعديل أو زر التوفر لإيقاف صنف نفذ</p>
+        <p class="text-[10px] text-slate-400">اضغط على السعر للتعديل أو زر التوفر لإيقاف/إتاحة الصنف</p>
       </div>
       <button onclick="promptNewProduct()" class="bg-amber-500 text-slate-950 font-black px-2.5 py-1 rounded-lg text-xs shrink-0">+ صنف جديد</button>
     </div>
@@ -386,6 +404,68 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     <span class="text-base">⚙️</span><span>الإعدادات</span>
   </button>
 </nav>
+
+<!-- نافذة طلب إشعار التوفر عبر واتساب (للعميل عند نفاد الكمية) -->
+<div id="stockNotifyModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="offer-reveal-anim bg-slate-900 border-2 border-amber-500/70 rounded-3xl p-5 w-full max-w-xs space-y-3.5 shadow-2xl">
+    <div class="flex justify-between items-center">
+      <div class="flex items-center gap-1.5">
+        <span class="text-lg">🔔</span>
+        <h3 class="font-black text-sm text-amber-400">تنبيه التوفر على واتساب</h3>
+      </div>
+      <button onclick="closeStockNotifyModal()" class="w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white text-xs flex items-center justify-center">✕</button>
+    </div>
+
+    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-2.5 flex items-center gap-2.5">
+      <img id="notifyProdImg" src="" class="w-12 h-12 rounded-xl object-contain bg-[#090d16] border border-slate-800">
+      <div>
+        <p id="notifyProdName" class="font-bold text-xs text-white"></p>
+        <p class="text-[10px] text-amber-300 mt-0.5">سنرسل لك رسالة واتساب فور وصول الكمية الجديدة!</p>
+      </div>
+    </div>
+
+    <div class="space-y-2.5 text-xs">
+      <div>
+        <label class="block text-[10px] text-slate-400 mb-1">الاسم الكريم *</label>
+        <input type="text" id="notifyCustName" placeholder="اكتب اسمك..." class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
+      </div>
+      <div>
+        <label class="block text-[10px] text-slate-400 mb-1">رقم الواتساب للإشعار *</label>
+        <input type="tel" id="notifyCustPhone" placeholder="01xxxxxxxxx" class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
+      </div>
+    </div>
+
+    <div class="space-y-2 pt-1">
+      <button onclick="submitStockNotifyRequest(false)" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition shadow-md">
+        🔔 تسجيل رقمي للإشعار الفوري
+      </button>
+      <button onclick="submitStockNotifyRequest(true)" class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/50 text-emerald-300 font-bold py-2 rounded-xl text-[11px] transition">
+        📲 تسجيل + تأكيد عبر واتساب المحل
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- نافذة إرسال إشعارات واتساب للعملاء المنتظرين عند إعادة إتاحة الصنف (للمالك) -->
+<div id="ownerRestockAlertModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-slate-900 border-2 border-emerald-500/70 rounded-3xl p-4 w-full max-w-xs space-y-3 shadow-2xl">
+    <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+      <div>
+        <h3 class="font-black text-sm text-emerald-400">🎉 الصنف متاح الآن!</h3>
+        <p id="restockModalSubtitle" class="text-[10px] text-slate-300 mt-0.5"></p>
+      </div>
+      <button onclick="closeOwnerRestockModal()" class="w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white text-xs flex items-center justify-center">✕</button>
+    </div>
+
+    <p class="text-[11px] text-amber-300 font-bold">العملاء الذين طلبوا إعلامهم على واتساب:</p>
+    <div id="restockWaitersList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+
+    <div class="flex gap-2 pt-2 border-t border-slate-800">
+      <button onclick="clearRestockWaiters()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-xl text-[11px] font-bold">مسح القائمة وإغلاق</button>
+      <button onclick="closeOwnerRestockModal()" class="px-4 bg-emerald-600 text-white py-2 rounded-xl text-[11px] font-bold">تم</button>
+    </div>
+  </div>
+</div>
 
 <!-- نافذة عرض اليوم التشويقية (Show Modal للعميل) -->
 <div id="dailyOfferShowModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -653,7 +733,10 @@ let shopPhone = localStorage.getItem('sp_ph') || '01221143854';
 let ownerPin = localStorage.getItem('sp_pin') || '1234';
 let staffList = JSON.parse(localStorage.getItem('sp_staff') || '[]');
 let dailyOffer = JSON.parse(localStorage.getItem('sp_daily_offer') || 'null');
+let stockWaitlist = JSON.parse(localStorage.getItem('sp_waitlist') || '{}'); // { prodId: [{name, phone, time}] }
 
+let notifyTargetProductId = null;
+let restockActiveProductId = null;
 let customerGpsLink = '';
 let isOwner = false;
 let currentCat = 'all';
@@ -708,7 +791,7 @@ async function initApp() {
         renderCustomerOrders();
       }, (e) => console.warn("Firestore Read Notice:", e));
 
-      // مراقبة المنتجات والأقسام وعرض اليوم لحظياً من السحابة
+      // مراقبة المنتجات والأقسام وعرض اليوم وقائمة انتظار التوفر لحظياً
       db.collection("products").onSnapshot((snapshot) => {
         if (!snapshot.empty) {
           const loadedProds = [];
@@ -722,6 +805,10 @@ async function initApp() {
                 categories = data.list;
                 localStorage.setItem('sp_cats', JSON.stringify(categories));
               }
+            } else if (doc.id === "_stock_waitlist_config_") {
+              const data = doc.data();
+              stockWaitlist = (data && data.list) ? data.list : {};
+              localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
             } else {
               loadedProds.push({ id: doc.id, ...doc.data() });
             }
@@ -807,6 +894,10 @@ async function loadProductsFromCloud() {
             categories = data.list;
             localStorage.setItem('sp_cats', JSON.stringify(categories));
           }
+        } else if (doc.id === "_stock_waitlist_config_") {
+          const data = doc.data();
+          stockWaitlist = (data && data.list) ? data.list : {};
+          localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
         } else {
           loadedProds.push({ id: doc.id, ...doc.data() });
         }
@@ -854,6 +945,150 @@ async function saveCategoriesToCloud() {
   } catch(e) {
     console.error("خطأ في مزامنة الأقسام سحابياً:", e);
   }
+}
+
+async function saveWaitlistToCloud() {
+  localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
+  if (!db) return;
+  try {
+    await db.collection("products").doc("_stock_waitlist_config_").set({
+      list: stockWaitlist,
+      updatedAt: new Date().toISOString()
+    });
+  } catch(e) {
+    console.error("خطأ في حفظ قائمة الإشعارات سحابياً:", e);
+  }
+}
+
+// ==================== إشعارات التوفر على الواتساب (للعميل والمالك) ====================
+
+function openStockNotifyModal(prodId) {
+  const p = products.find(x => String(x.id) === String(prodId));
+  if (!p) return;
+
+  notifyTargetProductId = String(p.id);
+  document.getElementById('notifyProdImg').src = p.i || DEFAULT_LOGO;
+  document.getElementById('notifyProdName').innerText = p.name;
+
+  // تعبئة تلقائية من بيانات العميل المحفوظة إن وجدت
+  document.getElementById('notifyCustName').value = localStorage.getItem('sp_cname') || '';
+  document.getElementById('notifyCustPhone').value = localStorage.getItem('sp_cphone') || '';
+
+  document.getElementById('stockNotifyModal').classList.remove('hidden');
+}
+
+function closeStockNotifyModal() {
+  document.getElementById('stockNotifyModal').classList.add('hidden');
+  notifyTargetProductId = null;
+}
+
+async function submitStockNotifyRequest(alsoSendWhatsappToShop) {
+  if (!notifyTargetProductId) return;
+  const p = products.find(x => String(x.id) === String(notifyTargetProductId));
+  if (!p) return;
+
+  const name = document.getElementById('notifyCustName').value.trim();
+  const phone = document.getElementById('notifyCustPhone').value.trim();
+
+  if (!name || !phone) {
+    alert('من فضلك أدخل اسمك ورقم الواتساب لنتمكن من إعلامك فور توفر الصنف.');
+    return;
+  }
+
+  localStorage.setItem('sp_cname', name);
+  localStorage.setItem('sp_cphone', phone);
+
+  if (!stockWaitlist[notifyTargetProductId]) {
+    stockWaitlist[notifyTargetProductId] = [];
+  }
+
+  // تجنب تكرار نفس الرقم لنفس المنتج
+  const existingIdx = stockWaitlist[notifyTargetProductId].findIndex(w => w.phone === phone);
+  const entry = {
+    name,
+    phone,
+    time: new Date().toLocaleDateString('ar-EG') + ' ' + new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+  };
+
+  if (existingIdx >= 0) {
+    stockWaitlist[notifyTargetProductId][existingIdx] = entry;
+  } else {
+    stockWaitlist[notifyTargetProductId].push(entry);
+  }
+
+  // حفظ علامة محلية أن هذا العميل اشترك في تنبيه هذا المنتج
+  const myNotifs = JSON.parse(localStorage.getItem('sp_my_notifs') || '[]');
+  if (!myNotifs.includes(notifyTargetProductId)) {
+    myNotifs.push(notifyTargetProductId);
+    localStorage.setItem('sp_my_notifs', JSON.stringify(myNotifs));
+  }
+
+  await saveWaitlistToCloud();
+  renderProducts();
+  closeStockNotifyModal();
+
+  if (alsoSendWhatsappToShop) {
+    let dest = shopPhone.trim();
+    if (dest.startsWith('01')) dest = '2' + dest;
+    const msg = `🔔 *طلب إشعار بتوفر صنف - Smoke Shop*\nمرحباً، برجاء إعلامي على هذا الرقم فور توفر الصنف التالي:\n📦 الصنف: *${p.name}*\n👤 الاسم: ${name}\n📱 الواتساب: ${phone}`;
+    window.open(`https://wa.me/${dest}?text=${encodeURIComponent(msg)}`, '_blank');
+  } else {
+    alert(`تم تسجيل طلبك بنجاح! 🔔\nسنرسل لك رسالة على واتساب (${phone}) فور توفر "${p.name}".`);
+  }
+}
+
+function openOwnerRestockModal(prodId) {
+  const pid = String(prodId);
+  const p = products.find(x => String(x.id) === pid);
+  const waiters = stockWaitlist[pid] || [];
+  if (!p || !waiters.length) return;
+
+  restockActiveProductId = pid;
+  document.getElementById('restockModalSubtitle').innerText = `الصنف: ${p.name} (${Math.round(p.p)} ج.م)`;
+
+  const listEl = document.getElementById('restockWaitersList');
+  listEl.innerHTML = waiters.map((w, idx) => `
+    <div class="bg-slate-950 border border-slate-800 p-2.5 rounded-xl flex justify-between items-center gap-2 text-xs">
+      <div>
+        <p class="font-bold text-white">${w.name}</p>
+        <p class="text-[10px] text-slate-400 font-mono">${w.phone}</p>
+      </div>
+      <button onclick="sendRestockWhatsappToCustomer('${pid}', ${idx})" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 py-1.5 rounded-lg text-[10px] shrink-0 transition">
+        📲 أرسل واتساب
+      </button>
+    </div>
+  `).join('');
+
+  document.getElementById('ownerRestockAlertModal').classList.remove('hidden');
+}
+
+function sendRestockWhatsappToCustomer(prodId, waiterIdx) {
+  const p = products.find(x => String(x.id) === String(prodId));
+  const waiters = stockWaitlist[String(prodId)] || [];
+  const w = waiters[waiterIdx];
+  if (!p || !w) return;
+
+  let dest = w.phone.trim();
+  if (dest.startsWith('01')) dest = '2' + dest;
+
+  const storeUrl = window.location.origin + window.location.pathname;
+  const msg = `🎉 *بشرى سارة من Smoke Shop!*\nأهلاً أ/ *${w.name}*، الصنف اللي طلبت إشعارك بيه توفر الآن في المتجر:\n\n📦 الصنف: *${p.name}*\n💰 السعر الحالي: *${Math.round(p.p)} ج.م*\n\n🛒 اطلبه الآن من خلال الرابط قبل نفاذ الكمية:\n${storeUrl}`;
+
+  window.open(`https://wa.me/${dest}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+async function clearRestockWaiters() {
+  if (restockActiveProductId && stockWaitlist[restockActiveProductId]) {
+    delete stockWaitlist[restockActiveProductId];
+    await saveWaitlistToCloud();
+    renderOwnerProducts();
+  }
+  closeOwnerRestockModal();
+}
+
+function closeOwnerRestockModal() {
+  document.getElementById('ownerRestockAlertModal').classList.add('hidden');
+  restockActiveProductId = null;
 }
 
 // ==================== إدارة الأقسام (إضافة وتعديل وحذف) ====================
@@ -1225,6 +1460,7 @@ function renderProducts() {
   const searchQ = (document.getElementById('srchInput')?.value || '').trim().toLowerCase();
   const filtered = products.filter(p => (currentCat === 'all' || p.c === currentCat) && p.name.toLowerCase().includes(searchQ));
   const grid = document.getElementById('productsGrid');
+  const myNotifs = JSON.parse(localStorage.getItem('sp_my_notifs') || '[]');
 
   if (!filtered.length) {
     grid.innerHTML = '<div class="col-span-2 text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-400 text-xs">لا توجد أصناف مطابقة للبحث في هذا القسم 🔍</div>';
@@ -1233,6 +1469,7 @@ function renderProducts() {
 
   grid.innerHTML = filtered.map(p => {
     const isOut = Boolean(p.outOfStock);
+    const isSubscribed = myNotifs.includes(String(p.id));
     const isTobacco = isTobaccoCategory(p.c);
     const activeWeightKey = isTobacco ? (selectedWeights[String(p.id)] || '1') : null;
     const activeWeightObj = isTobacco ? (TOBACCO_WEIGHT_OPTIONS.find(w => w.key === activeWeightKey) || TOBACCO_WEIGHT_OPTIONS[0]) : null;
@@ -1243,10 +1480,21 @@ function renderProducts() {
     const displayUnit = isTobacco ? activeWeightObj.label : (p.u || '');
 
     return `
-      <div class="bg-slate-900 border ${isOut ? 'border-red-900/50 opacity-75' : 'border-slate-800'} rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
-        <div class="w-full aspect-square bg-[#090d16] rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/80 relative">
-          <img src="${p.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-contain ${isOut ? 'grayscale opacity-50' : ''}">
-          ${isOut ? `<span class="absolute inset-0 bg-black/50 flex items-center justify-center"><span class="bg-red-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg shadow">نفذت الكمية</span></span>` : ''}
+      <div class="bg-slate-900 border ${isOut ? 'border-amber-500/40' : 'border-slate-800'} rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
+        <div onclick="${isOut ? `openStockNotifyModal(${p.id})` : ''}" class="w-full aspect-square bg-[#090d16] rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/80 relative ${isOut ? 'cursor-pointer' : ''}">
+          <img src="${p.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-contain ${isOut ? 'grayscale opacity-45' : ''}">
+          ${isOut ? `
+            <div class="absolute inset-0 bg-black/55 flex flex-col items-center justify-center p-1.5 text-center">
+              <div class="relative w-full h-8 flex items-center justify-center">
+                <span class="stock-seq-1 absolute bg-red-600 text-white text-[10px] font-black px-2.5 py-1 rounded-lg shadow whitespace-nowrap">
+                  ⛔ نفذت الكمية
+                </span>
+                <span class="stock-seq-2 absolute bg-amber-500 text-slate-950 text-[9px] font-black px-2 py-1 rounded-lg shadow whitespace-nowrap">
+                  🔔 اضغط للإعلام على واتس
+                </span>
+              </div>
+            </div>
+          ` : ''}
           ${!isOut && isTobacco ? `<span class="absolute top-1.5 right-1.5 bg-rose-500/20 border border-rose-500/40 text-rose-300 text-[9px] font-bold px-1.5 py-0.5 rounded-md">⚖️ تجزئة</span>` : ''}
         </div>
         <div>
@@ -1269,8 +1517,8 @@ function renderProducts() {
           </div>
 
           ${isOut ? `
-            <button disabled class="w-full bg-slate-950 border border-slate-800 text-slate-500 font-bold py-1.5 rounded-xl text-xs cursor-not-allowed">
-              غير متوفر حالياً
+            <button onclick="openStockNotifyModal(${p.id})" class="w-full ${isSubscribed ? 'bg-emerald-950/60 border-emerald-600/50 text-emerald-300' : 'bg-gradient-to-r from-amber-500/20 to-red-500/20 hover:from-amber-500/30 hover:to-red-500/30 border-amber-500/50 text-amber-300'} border font-black py-1.5 rounded-xl text-[10px] transition active:scale-95">
+              ${isSubscribed ? '✅ سيتم إعلامك على واتساب' : '🔔 أعلمني عند التوفر (واتساب)'}
             </button>
           ` : (inCartQty === 0 ? `
             <button onclick="addToCart(${p.id}, '${isTobacco ? activeWeightKey : ''}')" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold py-1.5 rounded-xl text-xs transition">
@@ -1681,6 +1929,7 @@ function renderOwnerProducts() {
   const grid = document.getElementById('ownerProductsGrid');
   grid.innerHTML = products.map(p => {
     const isOut = Boolean(p.outOfStock);
+    const waiters = stockWaitlist[String(p.id)] || [];
     const catObj = categories.find(c => c.id === p.c);
     const catLabel = catObj ? catObj.n : 'عام';
     const isTobacco = isTobaccoCategory(p.c);
@@ -1703,6 +1952,11 @@ function renderOwnerProducts() {
               <span>ربع: <b class="text-slate-200">${getTobaccoUnitPrice(p.p, '0.25')}</b></span>
             </div>
           ` : ''}
+          ${waiters.length > 0 ? `
+            <button onclick="openOwnerRestockModal(${p.id})" class="w-full mb-1.5 py-1 px-1.5 rounded-lg text-[9px] font-black bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 transition">
+              🔔 ${waiters.length} بانتظار التوفر
+            </button>
+          ` : ''}
           <!-- مفتاح التبديل السريع للتوفر -->
           <button onclick="toggleProductStock(${p.id})" class="w-full py-1 rounded-lg text-[10px] font-bold border transition ${isOut ? 'bg-red-950/70 border-red-700/60 text-red-300 hover:bg-red-900/70' : 'bg-emerald-950/50 border-emerald-700/40 text-emerald-300 hover:bg-emerald-900/50'}">
             ${isOut ? '⛔ نفذ (اضغط للإتاحة)' : '✅ متاح بالمخزن'}
@@ -1716,12 +1970,22 @@ function renderOwnerProducts() {
 async function toggleProductStock(id) {
   const p = products.find(x => x.id == id);
   if (!p) return;
-  p.outOfStock = !Boolean(p.outOfStock);
+  const wasOut = Boolean(p.outOfStock);
+  p.outOfStock = !wasOut;
+
   localStorage.setItem('sp_p', JSON.stringify(products));
   await saveProductsToCloud();
   renderProducts();
   renderOwnerProducts();
   updateDailyOfferUI();
+
+  // إذا تم إعادة إتاحة الصنف وكان هناك عملاء طلبوا إشعارهم، افتح نافذة إرسال الواتساب فوراً
+  if (wasOut && !p.outOfStock) {
+    const waiters = stockWaitlist[String(p.id)] || [];
+    if (waiters.length > 0) {
+      openOwnerRestockModal(p.id);
+    }
+  }
 }
 
 function populateModalCategories(selectedCatId) {
