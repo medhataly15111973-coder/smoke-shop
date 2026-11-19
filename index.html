@@ -75,9 +75,22 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 .stock-seq-2 {
   animation: stockMsgFlipB 4.2s infinite ease-in-out;
 }
+
+/* نبض أيقونة الصوت السينمائي */
+@keyframes soundWavePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); }
+}
+.sound-playing {
+  animation: soundWavePulse 1.2s infinite;
+  border-color: rgba(251, 191, 36, 0.8) !important;
+}
 </style>
 </head>
 <body class="bg-[#090d16] text-slate-100 min-h-screen">
+
+<!-- مشغل ملف صوتي اختياري في حال رفع ملف welcome.mp3 مستقبلاً -->
+<audio id="customWelcomeAudio" src="welcome.mp3" preload="none"></audio>
 
 <!-- شريط الإدارة العلوي (يظهر للمالك فقط) -->
 <div id="topOwnerBar" class="owner-view bg-gradient-to-r from-amber-600 to-amber-500 text-slate-950 px-3 py-2 text-xs font-black justify-between items-center sticky top-0 z-50 shadow-lg">
@@ -103,6 +116,10 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     </div>
     
     <div class="client-view flex items-center gap-2">
+      <!-- زر تشغيل/إيقاف الترحيب الصوتي السينمائي -->
+      <button id="welcomeSoundBtn" onclick="toggleCinematicWelcome(event)" class="p-2 bg-slate-800/90 border border-slate-700 rounded-xl text-xs hover:border-amber-500/50 transition" title="الترحيب الصوتي">
+        <span id="welcomeSoundIcon">🔊</span>
+      </button>
       <!-- أيقونة سريعة لعرض اليوم في الهيدر عند وجود عرض نشط -->
       <button id="headerOfferIcon" onclick="openDailyOfferShow()" class="hidden p-2 bg-amber-500/15 border border-amber-500/40 rounded-xl text-xs hover:bg-amber-500/25 transition" title="عرض اليوم">
         <span class="inline-block gift-wiggle">🎁</span>
@@ -733,7 +750,7 @@ let shopPhone = localStorage.getItem('sp_ph') || '01221143854';
 let ownerPin = localStorage.getItem('sp_pin') || '1234';
 let staffList = JSON.parse(localStorage.getItem('sp_staff') || '[]');
 let dailyOffer = JSON.parse(localStorage.getItem('sp_daily_offer') || 'null');
-let stockWaitlist = JSON.parse(localStorage.getItem('sp_waitlist') || '{}'); // { prodId: [{name, phone, time}] }
+let stockWaitlist = JSON.parse(localStorage.getItem('sp_waitlist') || '{}');
 
 let notifyTargetProductId = null;
 let restockActiveProductId = null;
@@ -750,9 +767,185 @@ let isInitialOrdersLoad = true;
 let logoClickCount = 0;
 let logoTimer = null;
 
+// حالة الصوت الترحيبي السينمائي
+let isWelcomePlaying = false;
+let hasPlayedAutoWelcome = sessionStorage.getItem('sp_welcome_played') === '1';
+
 document.addEventListener("DOMContentLoaded", function() {
   initApp();
+  setupCinematicAutoTrigger();
 });
+
+// ==================== الصوت الترحيبي السينمائي (إنجليزي + عربي) ====================
+
+function setupCinematicAutoTrigger() {
+  if (hasPlayedAutoWelcome) return;
+  const triggerOnce = () => {
+    if (hasPlayedAutoWelcome || isOwner) return;
+    hasPlayedAutoWelcome = true;
+    sessionStorage.setItem('sp_welcome_played', '1');
+    playCinematicWelcome();
+    document.removeEventListener('pointerdown', triggerOnce);
+    document.removeEventListener('keydown', triggerOnce);
+  };
+  document.addEventListener('pointerdown', triggerOnce, { passive: true });
+  document.addEventListener('keydown', triggerOnce, { passive: true });
+}
+
+function toggleCinematicWelcome(e) {
+  if (e) e.stopPropagation();
+  if (isWelcomePlaying) {
+    stopCinematicWelcome();
+  } else {
+    hasPlayedAutoWelcome = true;
+    sessionStorage.setItem('sp_welcome_played', '1');
+    playCinematicWelcome();
+  }
+}
+
+function setWelcomeSoundUI(playing) {
+  isWelcomePlaying = playing;
+  const btn = document.getElementById('welcomeSoundBtn');
+  const icon = document.getElementById('welcomeSoundIcon');
+  if (!btn || !icon) return;
+  if (playing) {
+    btn.classList.add('sound-playing');
+    icon.innerText = '🔉';
+  } else {
+    btn.classList.remove('sound-playing');
+    icon.innerText = '🔊';
+  }
+}
+
+function stopCinematicWelcome() {
+  try {
+    const customAudio = document.getElementById('customWelcomeAudio');
+    if (customAudio) {
+      customAudio.pause();
+      customAudio.currentTime = 0;
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  } catch (e) {}
+  setWelcomeSoundUI(false);
+}
+
+// توليد نغمة افتتاحية سينمائية عميقة عبر Web Audio API
+function playCinematicIntroSwell() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    // 1. نغمة باس سينمائية عميقة (Sub-Bass Swell)
+    const bassOsc = ctx.createOscillator();
+    const bassGain = ctx.createGain();
+    bassOsc.type = 'sine';
+    bassOsc.frequency.setValueAtTime(55, now);
+    bassOsc.frequency.exponentialRampToValueAtTime(82.41, now + 1.4); // E2
+
+    bassGain.gain.setValueAtTime(0.001, now);
+    bassGain.gain.exponentialRampToValueAtTime(0.22, now + 0.7);
+    bassGain.gain.exponentialRampToValueAtTime(0.001, now + 2.4);
+
+    bassOsc.connect(bassGain);
+    bassGain.connect(ctx.destination);
+    bassOsc.start(now);
+    bassOsc.stop(now + 2.4);
+
+    // 2. رنين ذهبي ناعم (Golden Shimmer Chord)
+    const notes = [329.63, 493.88, 659.25]; // E4, B4, E5
+    notes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + 0.25 + idx * 0.12);
+
+      gain.gain.setValueAtTime(0.001, now + 0.25 + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.045, now + 0.65 + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.0008, now + 2.5);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + 0.25 + idx * 0.12);
+      osc.stop(now + 2.5);
+    });
+  } catch (e) {
+    console.warn("Cinematic synth notice:", e);
+  }
+}
+
+function playCinematicWelcome() {
+  const customAudio = document.getElementById('customWelcomeAudio');
+
+  // محاولة تشغيل ملف welcome.mp3 المخصص إذا قام المالك برفعه مستقبلاً
+  if (customAudio && customAudio.src && !customAudio.error) {
+    customAudio.currentTime = 0;
+    const playPromise = customAudio.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        setWelcomeSoundUI(true);
+        customAudio.onended = () => setWelcomeSoundUI(false);
+      }).catch(() => {
+        runSynthesizedCinematicWelcome();
+      });
+      return;
+    }
+  }
+  runSynthesizedCinematicWelcome();
+}
+
+function runSynthesizedCinematicWelcome() {
+  setWelcomeSoundUI(true);
+  playCinematicIntroSwell();
+
+  if (!('speechSynthesis' in window)) {
+    setTimeout(() => setWelcomeSoundUI(false), 2500);
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+  const voices = window.speechSynthesis.getVoices();
+
+  // الجملة الأولى بالإنجليزية
+  const enUtter = new SpeechSynthesisUtterance("Welcome to Smoke Shop.");
+  enUtter.lang = 'en-US';
+  enUtter.rate = 0.92;
+  enUtter.pitch = 0.85; // نبرة أعمق وأكثر فخامة
+  const enVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Male') || v.name.includes('David') || v.name.includes('Daniel') || v.name.includes('Google'))) || voices.find(v => v.lang.startsWith('en'));
+  if (enVoice) enUtter.voice = enVoice;
+
+  // الجملة الثانية بالعربية
+  const arUtter = new SpeechSynthesisUtterance("أهلاً بك في سموك شوب... وجهتك الأولى لكل ما تحتاجه.");
+  arUtter.lang = 'ar-EG';
+  arUtter.rate = 0.96;
+  arUtter.pitch = 0.92;
+  const arVoice = voices.find(v => v.lang.startsWith('ar'));
+  if (arVoice) arUtter.voice = arVoice;
+
+  enUtter.onend = () => {
+    setTimeout(() => {
+      window.speechSynthesis.speak(arUtter);
+    }, 220);
+  };
+  enUtter.onerror = () => setWelcomeSoundUI(false);
+
+  arUtter.onend = () => setWelcomeSoundUI(false);
+  arUtter.onerror = () => setWelcomeSoundUI(false);
+
+  setTimeout(() => {
+    window.speechSynthesis.speak(enUtter);
+  }, 550);
+}
+
+// تحميل قائمة الأصوات مبكراً في المتصفح
+if ('speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
+
+// ==================== تهيئة التطبيق ====================
 
 async function initApp() {
   renderCategories();
@@ -970,7 +1163,6 @@ function openStockNotifyModal(prodId) {
   document.getElementById('notifyProdImg').src = p.i || DEFAULT_LOGO;
   document.getElementById('notifyProdName').innerText = p.name;
 
-  // تعبئة تلقائية من بيانات العميل المحفوظة إن وجدت
   document.getElementById('notifyCustName').value = localStorage.getItem('sp_cname') || '';
   document.getElementById('notifyCustPhone').value = localStorage.getItem('sp_cphone') || '';
 
@@ -1002,7 +1194,6 @@ async function submitStockNotifyRequest(alsoSendWhatsappToShop) {
     stockWaitlist[notifyTargetProductId] = [];
   }
 
-  // تجنب تكرار نفس الرقم لنفس المنتج
   const existingIdx = stockWaitlist[notifyTargetProductId].findIndex(w => w.phone === phone);
   const entry = {
     name,
@@ -1016,7 +1207,6 @@ async function submitStockNotifyRequest(alsoSendWhatsappToShop) {
     stockWaitlist[notifyTargetProductId].push(entry);
   }
 
-  // حفظ علامة محلية أن هذا العميل اشترك في تنبيه هذا المنتج
   const myNotifs = JSON.parse(localStorage.getItem('sp_my_notifs') || '[]');
   if (!myNotifs.includes(notifyTargetProductId)) {
     myNotifs.push(notifyTargetProductId);
@@ -1185,10 +1375,11 @@ async function deleteCategory(catId) {
 function updateDailyOfferUI() {
   const banner = document.getElementById('dailyOfferBanner');
   const headerIcon = document.getElementById('headerOfferIcon');
-  
+  if (!banner || !headerIcon) return;
+
   if (dailyOffer && dailyOffer.active && dailyOffer.productId) {
-    const prod = products.find(x => String(x.id) === String(dailyOffer.productId));
-    if (prod && !prod.outOfStock) {
+    const prod = products.find(x => String(x.id).trim() === String(dailyOffer.productId).trim());
+    if (prod) {
       banner.classList.remove('hidden');
       headerIcon.classList.remove('hidden');
       return;
@@ -1200,7 +1391,7 @@ function updateDailyOfferUI() {
 
 function openDailyOfferShow() {
   if (!dailyOffer || !dailyOffer.active) return;
-  const prod = products.find(x => String(x.id) === String(dailyOffer.productId));
+  const prod = products.find(x => String(x.id).trim() === String(dailyOffer.productId).trim());
   if (!prod) return;
 
   const offerPrice = Math.round(Number(dailyOffer.offerPrice));
@@ -1234,8 +1425,8 @@ function closeDailyOfferShow() {
 
 function claimDailyOfferToCart() {
   if (!dailyOffer || !dailyOffer.active) return;
-  const prod = products.find(x => String(x.id) === String(dailyOffer.productId));
-  if (!prod || prod.outOfStock) return;
+  const prod = products.find(x => String(x.id).trim() === String(dailyOffer.productId).trim());
+  if (!prod) return;
 
   const offerPrice = Math.round(Number(dailyOffer.offerPrice));
   const key = String(prod.id);
@@ -1367,6 +1558,7 @@ function requestOwnerAuth() {
   }
   const input = prompt('أدخل رمز PIN الخاص بإدارة المتجر:');
   if(input === ownerPin) {
+    stopCinematicWelcome();
     isOwner = true;
     document.body.classList.add('owner-mode');
     switchTab('owner-orders');
@@ -1501,7 +1693,6 @@ function renderProducts() {
           <h3 class="font-bold text-xs text-white truncate mb-1">${p.name}</h3>
           
           ${!isOut && isTobacco ? `
-            <!-- أزرار اختيار الوزن (كيلو / نص / ربع) لقسم تبغ وتوباكو فقط -->
             <div class="grid grid-cols-3 gap-1 mb-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
               ${TOBACCO_WEIGHT_OPTIONS.map(w => `
                 <button onclick="selectTobaccoWeight(${p.id}, '${w.key}')" class="py-1 rounded-lg text-[9px] font-black transition ${activeWeightKey === w.key ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'}">
@@ -1979,7 +2170,6 @@ async function toggleProductStock(id) {
   renderOwnerProducts();
   updateDailyOfferUI();
 
-  // إذا تم إعادة إتاحة الصنف وكان هناك عملاء طلبوا إشعارهم، افتح نافذة إرسال الواتساب فوراً
   if (wasOut && !p.outOfStock) {
     const waiters = stockWaitlist[String(p.id)] || [];
     if (waiters.length > 0) {
@@ -2131,7 +2321,6 @@ function compressImageToDataURL(file, maxSize = 500, quality = 0.82) {
         canvas.height = maxSize;
         const ctx = canvas.getContext('2d');
 
-        // خلفية داكنة موحدة تتطابق مع تصميم التطبيق
         ctx.fillStyle = '#090d16';
         ctx.fillRect(0, 0, maxSize, maxSize);
 
