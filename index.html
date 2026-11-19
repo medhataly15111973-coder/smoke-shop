@@ -425,7 +425,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
       <select id="editProdCat" onchange="onModalCatChange()" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-xs text-white"></select>
     </div>
     <div id="molWeightHint" class="hidden bg-rose-500/10 border border-rose-500/30 rounded-xl p-2 text-[10px] text-rose-300">
-      ⚖️ هذا القسم قابل للتجزئة: أدخل <b>سعر الكيلو</b>، وسيتم حساب سعر <b>النص (÷2)</b> و<b>الربع (÷4)</b> تلقائياً للعميل.
+      ⚖️ هذا القسم قابل للتجزئة: أدخل <b>سعر الكيلو</b>، وسيتم حساب سعر <b>النص (÷2)</b> و<b>الربع (÷4)</b> مقرباً بدون كسور تلقائياً.
     </div>
     <div class="grid grid-cols-2 gap-2">
       <div>
@@ -604,7 +604,7 @@ function getCategoryVisuals(cat, index) {
   };
 }
 
-// خيارات التجزئة لقسم تبغ وتوباكو فقط
+// خيارات التجزئة لقسم تبغ وتوباكو فقط (مقربة لأقرب عدد صحيح بدون كسور)
 const TOBACCO_WEIGHT_OPTIONS = [
   { key: '1', label: 'كيلو', divisor: 1 },
   { key: '0.5', label: 'نص كيلو', divisor: 2 },
@@ -619,7 +619,7 @@ function isTobaccoCategory(catId) {
 
 function getTobaccoUnitPrice(kiloPrice, weightKey) {
   const opt = TOBACCO_WEIGHT_OPTIONS.find(w => w.key === weightKey) || TOBACCO_WEIGHT_OPTIONS[0];
-  return Math.round((Number(kiloPrice) / opt.divisor) * 100) / 100;
+  return Math.round(Number(kiloPrice) / opt.divisor);
 }
 
 // المتغيرات العامة للحالة
@@ -890,8 +890,8 @@ function openDailyOfferShow() {
   const prod = products.find(x => String(x.id) === String(dailyOffer.productId));
   if (!prod) return;
 
-  const offerPrice = Number(dailyOffer.offerPrice);
-  const origPrice = Number(prod.p);
+  const offerPrice = Math.round(Number(dailyOffer.offerPrice));
+  const origPrice = Math.round(Number(prod.p));
 
   document.getElementById('showOfferImg').src = prod.i || DEFAULT_LOGO;
   document.getElementById('showOfferName').innerText = prod.name;
@@ -924,7 +924,7 @@ function claimDailyOfferToCart() {
   const prod = products.find(x => String(x.id) === String(dailyOffer.productId));
   if (!prod) return;
 
-  const offerPrice = Number(dailyOffer.offerPrice);
+  const offerPrice = Math.round(Number(dailyOffer.offerPrice));
   const key = String(prod.id);
 
   if (cart[key]) {
@@ -986,7 +986,7 @@ function onOfferProductChange() {
 
 async function saveDailyOffer() {
   const productId = document.getElementById('offerProductSelect').value;
-  const offerPrice = parseFloat(document.getElementById('offerSpecialPrice').value);
+  const offerPrice = Math.round(parseFloat(document.getElementById('offerSpecialPrice').value));
   const tagline = document.getElementById('offerTagline').value.trim();
 
   if (!productId) {
@@ -1159,7 +1159,7 @@ function renderProducts() {
     
     const cartKey = isTobacco ? `${p.id}_${activeWeightKey}` : String(p.id);
     const inCartQty = cart[cartKey] ? cart[cartKey].q : 0;
-    const displayPrice = isTobacco ? getTobaccoUnitPrice(p.p, activeWeightKey) : p.p;
+    const displayPrice = isTobacco ? getTobaccoUnitPrice(p.p, activeWeightKey) : Math.round(Number(p.p));
     const displayUnit = isTobacco ? activeWeightObj.label : (p.u || '');
 
     return `
@@ -1225,7 +1225,7 @@ function addToCart(id, weightKey = '') {
   } else {
     const cartKey = String(p.id);
     const hasActiveOffer = dailyOffer && dailyOffer.active && String(dailyOffer.productId) === String(id);
-    const priceToUse = hasActiveOffer ? Number(dailyOffer.offerPrice) : p.p;
+    const priceToUse = hasActiveOffer ? Math.round(Number(dailyOffer.offerPrice)) : Math.round(Number(p.p));
     const nameToUse = hasActiveOffer ? `${p.name} (عرض اليوم 🎁)` : p.name;
 
     cart[cartKey] = { key: cartKey, id: p.id, name: nameToUse, p: priceToUse, q: 1 };
@@ -1282,7 +1282,7 @@ function renderCartItems() {
     <div class="flex justify-between items-center bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-xs">
       <div>
         <p class="font-bold text-white text-[12px]">${item.name}</p>
-        <span class="text-[10px] text-amber-400">${item.p} ج.م × ${item.q} = ${item.p * item.q} ج.م</span>
+        <span class="text-[10px] text-amber-400">${Math.round(item.p)} ج.م × ${item.q} = ${Math.round(item.p * item.q)} ج.م</span>
       </div>
       <div class="flex items-center gap-2">
         <button onclick="changeCartQty('${key}', -1)" class="w-6 h-6 bg-slate-800 text-amber-400 rounded font-black">-</button>
@@ -1301,7 +1301,7 @@ function toggleDeliveryBox() {
 }
 
 function calculateTotals() {
-  const subTotal = Object.values(cart).reduce((s, i) => s + (i.p * i.q), 0);
+  const subTotal = Math.round(Object.values(cart).reduce((s, i) => s + (i.p * i.q), 0));
   document.getElementById('grandTotalTxt').innerText = subTotal + ' ج.م';
 }
 
@@ -1322,7 +1322,7 @@ function submitOrderViaWhatsapp() {
 
   const isDel = document.querySelector('input[name="delOpt"]:checked').value === 'del';
   const address = isDel ? (document.getElementById('custAddress').value.trim() || 'بدون عنوان مفصل') : 'استلام من المحل';
-  const subTotal = items.reduce((s, i) => s + (i.p * i.q), 0);
+  const subTotal = Math.round(items.reduce((s, i) => s + (i.p * i.q), 0));
 
   localStorage.setItem('sp_cname', name);
   localStorage.setItem('sp_cphone', phone);
@@ -1362,7 +1362,7 @@ function submitOrderViaWhatsapp() {
   msg += `-----------------------------\n`;
   msg += `📦 الأصناف المطلوبة:\n`;
   items.forEach((i, idx) => {
-    msg += `${idx + 1}. ${i.q} × ${i.name} = ${i.p * i.q} ج.م\n`;
+    msg += `${idx + 1}. ${i.q} × ${i.name} = ${Math.round(i.p * i.q)} ج.م\n`;
   });
   msg += `-----------------------------\n`;
   msg += `💵 إجمالي الفاتورة: *${subTotal} ج.م*`;
@@ -1404,12 +1404,12 @@ function renderCustomerOrders() {
       </div>
 
       <div class="bg-slate-950 p-2 rounded-xl space-y-1 text-[11px]">
-        ${o.items.map(i => `<div class="flex justify-between text-slate-300"><span>${i.q} × ${i.name}</span><span class="text-amber-400">${i.p * i.q} ج.م</span></div>`).join('')}
+        ${o.items.map(i => `<div class="flex justify-between text-slate-300"><span>${i.q} × ${i.name}</span><span class="text-amber-400">${Math.round(i.p * i.q)} ج.م</span></div>`).join('')}
       </div>
 
       <div class="flex justify-between items-center pt-1 text-[11px] font-bold">
         <span class="text-slate-400">طريقة الاستلام: <span class="text-white">${o.type}</span></span>
-        <span class="text-slate-200">الإجمالي: <span class="text-amber-400 text-sm font-black">${o.tot} ج.م</span></span>
+        <span class="text-slate-200">الإجمالي: <span class="text-amber-400 text-sm font-black">${Math.round(o.tot)} ج.م</span></span>
       </div>
     </div>
   `).join('');
@@ -1444,11 +1444,11 @@ function renderOwnerOrders() {
       </div>
 
       <div class="bg-slate-950 p-2 rounded-xl space-y-1 text-[11px]">
-        ${o.items.map(i => `<div class="flex justify-between text-slate-300"><span>${i.q} × ${i.name}</span><span class="text-amber-400">${i.p * i.q} ج.م</span></div>`).join('')}
+        ${o.items.map(i => `<div class="flex justify-between text-slate-300"><span>${i.q} × ${i.name}</span><span class="text-amber-400">${Math.round(i.p * i.q)} ج.م</span></div>`).join('')}
       </div>
 
       <div class="flex justify-between items-center pt-1 text-[11px] font-bold">
-        <span class="text-slate-300">إجمالي الأصناف: <span class="text-amber-400">${o.subTot} ج.م</span></span>
+        <span class="text-slate-300">إجمالي الأصناف: <span class="text-amber-400">${Math.round(o.subTot)} ج.م</span></span>
       </div>
 
       <div class="flex gap-1.5 pt-2 border-t border-slate-800">
@@ -1506,7 +1506,7 @@ function renderOwnerProducts() {
         <div>
           <h3 class="font-bold text-xs text-white truncate mb-1">${p.name}</h3>
           <div class="flex justify-between items-center text-[11px] mb-1">
-            <span onclick="promptEditProduct(${p.id})" class="text-amber-400 font-black cursor-pointer hover:underline">${p.p} ج.م ✏️</span>
+            <span onclick="promptEditProduct(${p.id})" class="text-amber-400 font-black cursor-pointer hover:underline">${Math.round(p.p)} ج.م ✏️</span>
             <span class="text-slate-400 text-[10px]">${isTobacco ? 'كيلو' : (p.u || '')}</span>
           </div>
           ${isTobacco ? `
@@ -1582,7 +1582,7 @@ function closeProductEditModal() {
 
 async function saveProductModalEdit() {
   const newName = document.getElementById('editProdName').value.trim();
-  const newPrice = parseFloat(document.getElementById('editProdPrice').value);
+  const newPrice = Math.round(parseFloat(document.getElementById('editProdPrice').value));
   const newCat = document.getElementById('editProdCat').value;
   const isTobacco = isTobaccoCategory(newCat);
   const newUnit = isTobacco ? 'كيلو' : (document.getElementById('editProdUnit').value.trim() || 'خرطوشة');
@@ -1659,7 +1659,7 @@ async function processPriceImport() {
     if(parts.length >= 2) {
       const priceStr = parts.pop();
       const nameStr = parts.join(' ');
-      const price = parseFloat(priceStr);
+      const price = Math.round(parseFloat(priceStr));
 
       if(!isNaN(price)) {
         const p = products.find(x => x.name.toLowerCase().includes(nameStr.toLowerCase()) || nameStr.toLowerCase().includes(x.name.toLowerCase()));
