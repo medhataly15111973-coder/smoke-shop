@@ -28,7 +28,7 @@ body.owner-mode nav.client-nav { display: none !important; }
 body.owner-mode nav.owner-nav { display: flex !important; }
 body.owner-mode #floatingOfferBtn { display: none !important; }
 
-/* حركات تشويقية لعرض اليوم والزر العائم المتحرك */
+/* حركات تشويقية لعرض اليوم */
 @keyframes floatGift {
   0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
   25% { transform: translateY(-4px) rotate(-6deg) scale(1.08); }
@@ -36,26 +36,6 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
 }
 .gift-wiggle {
   animation: floatGift 1.8s ease-in-out infinite;
-}
-
-@keyframes floatingFabMotion {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg) scale(1);
-    box-shadow: 0 12px 28px rgba(245, 158, 11, 0.32), 0 0 0 0 rgba(251, 191, 36, 0.45);
-  }
-  25% {
-    transform: translateY(-6px) rotate(-2deg) scale(1.02);
-  }
-  50% {
-    transform: translateY(-2px) rotate(0deg) scale(1.03);
-    box-shadow: 0 16px 34px rgba(245, 158, 11, 0.45), 0 0 0 8px rgba(251, 191, 36, 0);
-  }
-  75% {
-    transform: translateY(-6px) rotate(2deg) scale(1.02);
-  }
-}
-.floating-fab-anim {
-  animation: floatingFabMotion 2.8s ease-in-out infinite;
 }
 
 @keyframes popReveal {
@@ -77,6 +57,22 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
   top: 0; left: 0; right: 0; bottom: 0;
   background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.25), transparent);
   animation: shimmerSweep 2.4s infinite;
+}
+
+/* حركة الزر العائم العشوائي لعرض اليوم */
+@keyframes floatingOfferGlow {
+  0%, 100% { box-shadow: 0 8px 25px rgba(245, 158, 11, 0.45), 0 0 0 0 rgba(251, 191, 36, 0.4); }
+  50% { box-shadow: 0 12px 30px rgba(245, 158, 11, 0.65), 0 0 0 8px rgba(251, 191, 36, 0); }
+}
+.floating-offer-pill {
+  position: fixed;
+  z-index: 45;
+  transition: top 2.6s cubic-bezier(0.34, 1.35, 0.64, 1), left 2.6s cubic-bezier(0.34, 1.35, 0.64, 1), transform 0.2s ease;
+  animation: floatingOfferGlow 2.2s infinite ease-in-out;
+  touch-action: manipulation;
+}
+.floating-offer-pill:active {
+  transform: scale(0.92);
 }
 
 /* حركة التتابع لرسالة نفذت الكمية / اضغط للإعلام عبر واتساب */
@@ -142,8 +138,9 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
         <span id="welcomeSoundIcon">🔊</span>
       </button>
       <!-- أيقونة سريعة لعرض اليوم في الهيدر عند وجود عرض نشط -->
-      <button id="headerOfferIcon" onclick="openDailyOfferShow()" class="hidden p-2 bg-amber-500/15 border border-amber-500/40 rounded-xl text-xs hover:bg-amber-500/25 transition" title="عرض اليوم">
+      <button id="headerOfferIcon" onclick="openDailyOfferShow()" class="hidden relative p-2 bg-amber-500/15 border border-amber-500/40 rounded-xl text-xs hover:bg-amber-500/25 transition" title="عروض اليوم">
         <span class="inline-block gift-wiggle">🎁</span>
+        <span id="headerOfferCount" class="hidden absolute -top-1.5 -left-1.5 bg-red-600 text-white font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow">1</span>
       </button>
       <button onclick="switchTab('cart')" class="relative p-2 bg-slate-800 border border-slate-700 rounded-xl text-xs hover:border-amber-500/50 transition">
         🛒<span id="cartCountBadge" class="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow hidden">0</span>
@@ -151,6 +148,16 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
     </div>
   </div>
 </header>
+
+<!-- الزر العائم المتحرك عشوائياً لعروض اليوم للعميل أثناء التصفح -->
+<button id="floatingOfferBtn" onclick="openDailyOfferShow()" onmouseenter="pauseFloatingOffer()" onmouseleave="resumeFloatingOffer()" ontouchstart="pauseFloatingOffer()" class="hidden floating-offer-pill overflow-hidden shimmer-overlay bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 text-slate-950 border-2 border-white/80 rounded-full px-3.5 py-2 flex items-center gap-2 shadow-2xl cursor-pointer select-none">
+  <span class="text-lg leading-none gift-wiggle">🎁</span>
+  <div class="text-right leading-tight">
+    <span class="block text-[11px] font-black tracking-tight">عروض اليوم 🔥</span>
+    <span id="floatingOfferSub" class="block text-[9px] font-extrabold text-slate-900">اضغط لاكتشاف الخصم</span>
+  </div>
+  <span id="floatingOfferBadge" class="bg-red-600 text-white text-[10px] font-black min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center shadow">1</span>
+</button>
 
 <main class="max-w-md mx-auto p-3 space-y-3">
 
@@ -301,19 +308,20 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
     <div class="grid grid-cols-2 gap-2.5" id="ownerProductsGrid"></div>
   </section>
 
-  <!-- 6. إدارة عرض اليوم (دعم أكثر من منتج) -->
+  <!-- 6. إدارة عروض اليوم (متعدد المنتجات) -->
   <section id="tab-owner-offer" class="tab-content owner-view space-y-3">
     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
       <div>
         <h2 class="font-black text-sm text-amber-400">🎁 إدارة عروض اليوم التشويقية</h2>
-        <p class="text-[10px] text-slate-400">أضف منتجاً أو أكثر بسعر عرض خاص ليظهروا للعملاء</p>
+        <p class="text-[10px] text-slate-400">أضف منتجاً أو أكثر لتظهر في الزر العائم للعملاء</p>
       </div>
       <span id="offerStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-400">غير مفعل</span>
     </div>
 
+    <!-- نموذج إضافة منتج جديد لقائمة عروض اليوم -->
     <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl space-y-3 text-xs">
       <div>
-        <label class="block text-[11px] font-bold text-amber-400 mb-1">1. اختر الصنف لإضافته إلى العروض:</label>
+        <label class="block text-[11px] font-bold text-amber-400 mb-1">1. اختر الصنف لإضافته للعرض:</label>
         <select id="offerProductSelect" onchange="onOfferProductChange()" class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 text-xs focus:outline-none focus:border-amber-500">
           <option value="">-- اختر الصنف --</option>
         </select>
@@ -328,36 +336,32 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
       </div>
 
       <div>
-        <label class="block text-[11px] font-bold text-amber-400 mb-1">2. سعر العرض الخاص لهذا الصنف (ج.م):</label>
+        <label class="block text-[11px] font-bold text-amber-400 mb-1">2. سعر العرض الخاص اليوم (ج.م):</label>
         <input type="number" id="offerSpecialPrice" placeholder="اكتب سعر العرض المخفض..." class="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-black rounded-xl p-2.5 text-xs focus:outline-none focus:border-amber-500">
       </div>
 
       <div>
-        <label class="block text-[11px] font-bold text-amber-400 mb-1">3. رسالة تشويقية للصنف (اختياري):</label>
+        <label class="block text-[11px] font-bold text-amber-400 mb-1">3. رسالة تشويقية إضافية (اختياري):</label>
         <input type="text" id="offerTagline" placeholder="مثال: كمية محدودة جداً النهاردة فقط!" class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 text-xs focus:outline-none focus:border-amber-500">
       </div>
 
-      <button type="button" onclick="addOfferItemToDraft()" class="w-full bg-slate-800 hover:bg-slate-700 border border-amber-500/50 text-amber-300 font-black py-2 rounded-xl text-xs transition">
-        ➕ إضافة الصنف لقائمة العروض
-      </button>
-
-      <!-- قائمة الأصناف المضافة في العرض الحالي -->
-      <div class="space-y-1.5 pt-2 border-t border-slate-800">
-        <div class="flex justify-between items-center">
-          <span class="text-[11px] font-bold text-slate-300">📋 أصناف العرض الحالية:</span>
-          <span id="draftOffersCount" class="text-[10px] text-amber-400 font-bold">0 أصناف</span>
-        </div>
-        <div id="draftOffersList" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
-      </div>
-
       <div class="flex gap-2 pt-2">
-        <button type="button" onclick="saveDailyOffer()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition shadow-md">
-          🚀 نشر وتفعيل العروض
+        <button onclick="saveDailyOffer()" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition shadow-md">
+          ➕ إضافة / تحديث في عروض اليوم
         </button>
-        <button type="button" onclick="disableDailyOffer()" class="px-3 bg-red-950/60 hover:bg-red-900/80 border border-red-800/60 text-red-400 font-bold py-2.5 rounded-xl text-xs transition">
+        <button onclick="disableDailyOffer()" class="px-3 bg-red-950/60 hover:bg-red-900/80 border border-red-800/60 text-red-400 font-bold py-2.5 rounded-xl text-xs transition">
           إيقاف الكل
         </button>
       </div>
+    </div>
+
+    <!-- قائمة المنتجات النشطة حالياً في عرض اليوم -->
+    <div id="activeOffersAdminSection" class="hidden bg-slate-900/90 border border-amber-500/30 p-3 rounded-2xl space-y-2.5 text-xs">
+      <div class="flex justify-between items-center">
+        <h3 class="font-black text-amber-400 text-xs">🔥 المنتجات المعروضة حالياً في الزر العائم:</h3>
+        <span id="activeOffersCountAdmin" class="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">0</span>
+      </div>
+      <div id="activeOffersAdminList" class="space-y-2"></div>
     </div>
   </section>
 
@@ -428,18 +432,6 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
 
 </main>
 
-<!-- زر العروض التشويقي العائم المتحرك الثابت أثناء التصفح (للعميل فقط) -->
-<button id="floatingOfferBtn" onclick="openDailyOfferShow()" class="client-view floating-fab-anim hidden fixed bottom-20 left-3.5 z-40 overflow-hidden shimmer-overlay bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 text-slate-950 border-2 border-amber-200/85 rounded-full pl-3.5 pr-2.5 py-2 flex items-center gap-2 active:scale-90 transition-transform duration-150">
-  <span class="relative w-8 h-8 rounded-full bg-slate-950/15 flex items-center justify-center text-lg shrink-0">
-    <span class="gift-wiggle inline-block">🎁</span>
-    <span id="floatingOfferCount" class="hidden absolute -top-1 -right-1 bg-red-600 text-white font-black text-[9px] min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center shadow">1</span>
-  </span>
-  <div class="text-right leading-tight">
-    <div class="text-[11px] font-black">عروض اليوم</div>
-    <div class="text-[9px] font-bold text-slate-900/85">اضغط واختر</div>
-  </div>
-</button>
-
 <!-- شريط العميل السفلي -->
 <nav class="client-nav fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 py-2 px-6 z-40 max-w-md mx-auto flex justify-between items-center text-[10px]">
   <button onclick="switchTab('products')" id="navBtn-products" class="nav-btn flex flex-col items-center gap-1 text-amber-400 font-bold">
@@ -463,7 +455,7 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
     <span class="text-base">🏷️</span><span>الأسعار</span>
   </button>
   <button onclick="switchTab('owner-offer')" id="navBtn-owner-offer" class="nav-btn flex flex-col items-center gap-0.5 text-slate-400">
-    <span class="text-base">🎁</span><span>عرض اليوم</span>
+    <span class="text-base">🎁</span><span>عروض اليوم</span>
   </button>
   <button onclick="switchTab('owner-update')" id="navBtn-owner-update" class="nav-btn flex flex-col items-center gap-0.5 text-slate-400">
     <span class="text-base">⚡</span><span>تحديث واتس</span>
@@ -535,25 +527,29 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
   </div>
 </div>
 
-<!-- نافذة عروض اليوم التشويقية (تدعم منتجاً واحداً أو عدة منتجات) -->
+<!-- نافذة عروض اليوم التشويقية المتعددة (Show Modal للعميل) -->
 <div id="dailyOfferShowModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-  <div class="offer-reveal-anim relative bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-2 border-amber-500/80 rounded-3xl p-4 w-full max-w-sm text-center shadow-2xl shadow-amber-500/20 space-y-3 overflow-hidden">
-    <button onclick="closeDailyOfferShow()" class="absolute top-3 left-3 w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white text-xs flex items-center justify-center z-10">✕</button>
-
-    <div class="inline-flex items-center gap-1.5 bg-amber-500 text-slate-950 font-black text-[11px] px-3 py-1 rounded-full shadow-md">
-      <span>🎉</span><span>مفاجآت عروض اليوم</span><span>🎉</span>
+  <div class="offer-reveal-anim relative bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-2 border-amber-500/80 rounded-3xl p-4 w-full max-w-sm shadow-2xl shadow-amber-500/20 space-y-3 overflow-hidden max-h-[88vh] flex flex-col">
+    <div class="flex justify-between items-center shrink-0">
+      <div class="inline-flex items-center gap-1.5 bg-amber-500 text-slate-950 font-black text-[11px] px-3 py-1 rounded-full shadow-md">
+        <span>🎉</span><span>مفاجأة عروض اليوم الحصرية</span>
+      </div>
+      <button onclick="closeDailyOfferShow()" class="w-7 h-7 rounded-full bg-slate-800 text-slate-400 hover:text-white text-xs flex items-center justify-center">✕</button>
     </div>
 
-    <p class="text-[11px] text-amber-300 font-semibold">⏳ اختر العروض اللي تناسبك وأضفها للسلة مع باقي طلباتك</p>
+    <div class="bg-red-500/15 border border-red-500/40 rounded-xl py-1.5 px-3 text-center shrink-0">
+      <p class="text-[11px] font-black text-red-400 animate-pulse">⏳ اختر العروض التي تناسبك وأضفها للسلة مع باقي طلباتك!</p>
+    </div>
 
-    <div id="dailyOfferCardsContainer" class="space-y-2.5 max-h-[62vh] overflow-y-auto pr-0.5 text-right"></div>
+    <!-- قائمة منتجات العرض التشويقي -->
+    <div id="showOffersListContainer" class="space-y-2.5 overflow-y-auto pr-0.5 flex-1"></div>
 
-    <div class="flex gap-2 pt-1">
-      <button type="button" onclick="goToCartFromOffers()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 rounded-2xl text-xs shadow-lg transition active:scale-95">
-        🛒 الذهاب للفاتورة
+    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 shrink-0">
+      <button onclick="closeDailyOfferShow()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl text-xs transition">
+        متابعة التسوق 🛍️
       </button>
-      <button type="button" onclick="closeDailyOfferShow()" class="px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-2xl text-xs transition">
-        متابعة التصفح
+      <button onclick="closeDailyOfferShow(); switchTab('cart');" class="bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black py-2.5 rounded-xl text-xs shadow-lg shadow-amber-500/25 transition">
+        🛒 مراجعة السلة
       </button>
     </div>
   </div>
@@ -773,47 +769,30 @@ function getTobaccoUnitPrice(kiloPrice, weightKey) {
   return Math.round(Number(kiloPrice) / opt.divisor);
 }
 
-// توحيد صيغة العروض لتدعم منتجاً واحداً أو عدة منتجات
+// توحيد بنية عروض اليوم لدعم منتج واحد أو عدة منتجات بسلاسة
 function normalizeDailyOffer(raw) {
-  if (!raw || !raw.active) return { active: false, items: [] };
+  if (!raw) return { active: false, items: [] };
   if (Array.isArray(raw.items)) {
-    const cleanItems = raw.items
-      .filter(it => it && it.productId && Number(it.offerPrice) > 0)
-      .map(it => ({
-        productId: String(it.productId).trim(),
-        offerPrice: Math.round(Number(it.offerPrice)),
-        tagline: (it.tagline || '').trim()
-      }));
-    return { active: cleanItems.length > 0, items: cleanItems };
+    const validItems = raw.items.filter(it => it && it.productId && Number(it.offerPrice) > 0);
+    return {
+      active: Boolean(raw.active) && validItems.length > 0,
+      items: validItems,
+      updatedAt: raw.updatedAt || ''
+    };
   }
-  if (raw.productId && Number(raw.offerPrice) > 0) {
+  // توافق مع البنية القديمة ذات المنتج الواحد
+  if (raw.active && raw.productId) {
     return {
       active: true,
       items: [{
-        productId: String(raw.productId).trim(),
+        productId: String(raw.productId),
         offerPrice: Math.round(Number(raw.offerPrice)),
-        tagline: (raw.tagline || '').trim()
-      }]
+        tagline: raw.tagline || ''
+      }],
+      updatedAt: raw.updatedAt || ''
     };
   }
   return { active: false, items: [] };
-}
-
-function getActiveOfferItems() {
-  const norm = normalizeDailyOffer(dailyOffer);
-  if (!norm.active) return [];
-  return norm.items
-    .map(it => {
-      const prod = products.find(x => String(x.id).trim() === String(it.productId).trim());
-      if (!prod || prod.outOfStock) return null;
-      return {
-        productId: String(prod.id),
-        offerPrice: Math.round(Number(it.offerPrice)),
-        tagline: it.tagline || '',
-        prod
-      };
-    })
-    .filter(Boolean);
 }
 
 // المتغيرات العامة للحالة
@@ -829,7 +808,6 @@ let shopPhone = localStorage.getItem('sp_ph') || '01221143854';
 let ownerPin = localStorage.getItem('sp_pin') || '1234';
 let staffList = JSON.parse(localStorage.getItem('sp_staff') || '[]');
 let dailyOffer = normalizeDailyOffer(JSON.parse(localStorage.getItem('sp_daily_offer') || 'null'));
-let draftOfferItems = [...(dailyOffer.items || [])];
 let stockWaitlist = JSON.parse(localStorage.getItem('sp_waitlist') || '{}');
 let customWelcomeAudioData = localStorage.getItem('sp_welcome_mp3') || '';
 let customWelcomeAudioName = localStorage.getItem('sp_welcome_mp3_name') || '';
@@ -852,6 +830,10 @@ let logoTimer = null;
 // حالة الصوت الترحيبي
 let isWelcomePlaying = false;
 let hasPlayedAutoWelcome = false;
+
+// حالة حركة الزر العائم العشوائية
+let floatingOfferInterval = null;
+let isFloatingOfferPaused = false;
 
 document.addEventListener("DOMContentLoaded", function() {
   initApp();
@@ -1048,7 +1030,6 @@ if ('speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 }
 
-// إدارة رفع وحذف ملف MP3 من لوحة المالك
 async function handleWelcomeMp3Upload(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -1141,6 +1122,13 @@ async function initApp() {
   if(localStorage.getItem('sp_cphone')) document.getElementById('custPhone').value = localStorage.getItem('sp_cphone');
   if(localStorage.getItem('sp_caddr')) document.getElementById('custAddress').value = localStorage.getItem('sp_caddr');
 
+  window.addEventListener('resize', () => {
+    const btn = document.getElementById('floatingOfferBtn');
+    if (btn && !btn.classList.contains('hidden')) {
+      moveFloatingOfferRandomly();
+    }
+  });
+
   await loadProductsFromCloud();
 
   if(db) {
@@ -1174,7 +1162,6 @@ async function initApp() {
           snapshot.forEach(doc => {
             if (doc.id === "_daily_offer_config_") {
               dailyOffer = normalizeDailyOffer(doc.data());
-              draftOfferItems = [...dailyOffer.items];
               localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
             } else if (doc.id === "_categories_config_") {
               const data = doc.data();
@@ -1213,7 +1200,7 @@ async function initApp() {
           renderProducts();
           updateDailyOfferUI();
           if (!document.getElementById('dailyOfferShowModal').classList.contains('hidden')) {
-            renderDailyOfferCards();
+            renderOfferShowModalItems();
           }
           if (isOwner) {
             renderOwnerCategories();
@@ -1232,7 +1219,6 @@ async function initApp() {
   }
 }
 
-// نغمة تنبيه خفيفة عند وصول طلب جديد للمالك
 function playNewOrderBeep() {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -1283,7 +1269,6 @@ async function loadProductsFromCloud() {
       snapshot.forEach(doc => {
         if (doc.id === "_daily_offer_config_") {
           dailyOffer = normalizeDailyOffer(doc.data());
-          draftOfferItems = [...dailyOffer.items];
           localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
         } else if (doc.id === "_categories_config_") {
           const data = doc.data();
@@ -1583,90 +1568,167 @@ async function deleteCategory(catId) {
   renderOwnerProducts();
 }
 
-// ==================== وظائف عروض اليوم المتعددة (الزر العائم المتحرك + النافذة + الإدارة) ====================
+// ==================== وظائف عروض اليوم المتعددة والزر العائم المتحرك عشوائياً ====================
+
+function getValidActiveOffers() {
+  if (!dailyOffer || !dailyOffer.active || !Array.isArray(dailyOffer.items)) return [];
+  return dailyOffer.items
+    .map(item => {
+      const prod = products.find(x => String(x.id).trim() === String(item.productId).trim());
+      if (!prod || prod.outOfStock) return null;
+      return {
+        ...item,
+        product: prod
+      };
+    })
+    .filter(Boolean);
+}
 
 function updateDailyOfferUI() {
   const floatingBtn = document.getElementById('floatingOfferBtn');
-  const floatingCount = document.getElementById('floatingOfferCount');
   const headerIcon = document.getElementById('headerOfferIcon');
+  const headerCount = document.getElementById('headerOfferCount');
+  const floatingBadge = document.getElementById('floatingOfferBadge');
+  const floatingSub = document.getElementById('floatingOfferSub');
+
   if (!floatingBtn || !headerIcon) return;
 
-  const activeOffers = getActiveOfferItems();
-  if (activeOffers.length > 0) {
+  const activeOffers = getValidActiveOffers();
+  if (activeOffers.length > 0 && !isOwner) {
+    const count = activeOffers.length;
     floatingBtn.classList.remove('hidden');
     headerIcon.classList.remove('hidden');
-    if (floatingCount) {
-      floatingCount.innerText = activeOffers.length;
-      floatingCount.classList.toggle('hidden', activeOffers.length <= 1);
+
+    if (floatingBadge) floatingBadge.innerText = count;
+    if (headerCount) {
+      headerCount.innerText = count;
+      headerCount.classList.remove('hidden');
     }
+    if (floatingSub) {
+      floatingSub.innerText = count === 1 ? 'عرض خاص لفترة محدودة' : `${count} عروض حصرية متاحة`;
+    }
+
+    startFloatingOfferMotion();
   } else {
     floatingBtn.classList.add('hidden');
     headerIcon.classList.add('hidden');
-    if (floatingCount) floatingCount.classList.add('hidden');
+    if (headerCount) headerCount.classList.add('hidden');
+    stopFloatingOfferMotion();
   }
+}
+
+function moveFloatingOfferRandomly() {
+  const btn = document.getElementById('floatingOfferBtn');
+  if (!btn || btn.classList.contains('hidden') || isFloatingOfferPaused || isOwner) return;
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const btnWidth = btn.offsetWidth || 165;
+  const btnHeight = btn.offsetHeight || 48;
+
+  // تحديد النطاق الآمن للحركة داخل الشاشة (بعيداً عن الهيدر العلوي والشريط السفلي)
+  const minX = 12;
+  const maxX = Math.max(minX + 10, vw - btnWidth - 12);
+  const minY = 74;
+  const maxY = Math.max(minY + 20, vh - btnHeight - 82);
+
+  const randomX = Math.floor(minX + Math.random() * (maxX - minX));
+  const randomY = Math.floor(minY + Math.random() * (maxY - minY));
+
+  btn.style.left = `${randomX}px`;
+  btn.style.top = `${randomY}px`;
+}
+
+function startFloatingOfferMotion() {
+  const btn = document.getElementById('floatingOfferBtn');
+  if (!btn) return;
+
+  // وضع ابتدائي واضح إذا لم يُحدد بعد
+  if (!btn.style.left || !btn.style.top) {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    btn.style.left = `${Math.max(14, Math.floor((vw - 170) / 2))}px`;
+    btn.style.top = `${Math.max(90, vh - 145)}px`;
+  }
+
+  if (floatingOfferInterval) return;
+
+  // حركة أولى سريعة ثم تحرك عشوائي مستمر كل 3.2 ثانية
+  setTimeout(moveFloatingOfferRandomly, 350);
+  floatingOfferInterval = setInterval(moveFloatingOfferRandomly, 3200);
+}
+
+function stopFloatingOfferMotion() {
+  if (floatingOfferInterval) {
+    clearInterval(floatingOfferInterval);
+    floatingOfferInterval = null;
+  }
+}
+
+function pauseFloatingOffer() {
+  isFloatingOfferPaused = true;
+}
+
+function resumeFloatingOffer() {
+  isFloatingOfferPaused = false;
 }
 
 function openDailyOfferShow() {
-  const activeOffers = getActiveOfferItems();
-  if (!activeOffers.length) {
-    updateDailyOfferUI();
-    return;
-  }
-  renderDailyOfferCards();
+  const activeOffers = getValidActiveOffers();
+  if (!activeOffers.length) return;
+  renderOfferShowModalItems();
   document.getElementById('dailyOfferShowModal').classList.remove('hidden');
 }
 
-function renderDailyOfferCards() {
-  const container = document.getElementById('dailyOfferCardsContainer');
+function renderOfferShowModalItems() {
+  const container = document.getElementById('showOffersListContainer');
   if (!container) return;
 
-  const activeOffers = getActiveOfferItems();
+  const activeOffers = getValidActiveOffers();
   if (!activeOffers.length) {
     closeDailyOfferShow();
-    updateDailyOfferUI();
     return;
   }
 
-  container.innerHTML = activeOffers.map(offer => {
-    const prod = offer.prod;
-    const offerPrice = Math.round(Number(offer.offerPrice));
+  container.innerHTML = activeOffers.map(entry => {
+    const prod = entry.product;
+    const offerPrice = Math.round(Number(entry.offerPrice));
     const origPrice = Math.round(Number(prod.p));
     const saved = origPrice > offerPrice ? (origPrice - offerPrice) : 0;
-    const cartKey = `offer_${prod.id}`;
-    const inCartQty = cart[cartKey] ? cart[cartKey].q : 0;
+    const offerCartKey = `offer_${prod.id}`;
+    const inCartQty = cart[offerCartKey] ? cart[offerCartKey].q : 0;
 
     return `
-      <div class="bg-slate-950/95 border border-amber-500/40 rounded-2xl p-2.5 flex items-center gap-2.5 shadow-md">
-        <div class="relative w-16 h-16 rounded-xl bg-[#090d16] border border-slate-800 p-1 shrink-0 flex items-center justify-center overflow-hidden">
-          <img src="${prod.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-contain rounded-lg">
-          ${saved > 0 ? `<span class="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-md shadow">وفّر ${saved}</span>` : ''}
-        </div>
-
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center justify-between gap-1">
+      <div class="bg-slate-950/90 border border-amber-500/40 rounded-2xl p-3 flex flex-col gap-2.5 shadow-md">
+        <div class="flex items-center gap-3">
+          <div class="relative w-16 h-16 rounded-xl bg-[#090d16] border border-slate-800 p-1 flex items-center justify-center shrink-0 overflow-hidden">
+            <img src="${prod.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-contain rounded-lg">
+            ${saved > 0 ? `<span class="absolute top-0.5 right-0.5 bg-red-600 text-white text-[8px] font-black px-1.5 py-0.2 rounded">وفّر ${saved} ج</span>` : ''}
+          </div>
+          <div class="flex-1 min-w-0 text-right">
             <h4 class="font-black text-xs text-white truncate">${prod.name}</h4>
-            <span class="text-[9px] text-slate-400 shrink-0">${prod.u || ''}</span>
-          </div>
-          ${offer.tagline ? `<p class="text-[10px] text-amber-300/90 truncate mt-0.5">${offer.tagline}</p>` : ''}
-          <div class="flex items-center gap-2 mt-1">
-            <span class="text-emerald-400 font-black text-sm">${offerPrice} ج.م</span>
-            ${origPrice > offerPrice ? `<span class="text-slate-500 line-through text-[10px] font-bold">${origPrice} ج.م</span>` : ''}
+            <p class="text-[10px] text-amber-300/90 line-clamp-1 mt-0.5">${entry.tagline || `خصم خاص على ${prod.u || 'العبوة'} لفترة محدودة!`}</p>
+            <div class="flex items-center gap-2 mt-1">
+              ${origPrice > offerPrice ? `<span class="text-slate-500 line-through text-[11px] font-bold">${origPrice} ج.م</span>` : ''}
+              <span class="text-emerald-400 font-black text-base">${offerPrice} ج.م</span>
+            </div>
           </div>
         </div>
 
-        <div class="shrink-0">
-          ${inCartQty === 0 ? `
-            <button type="button" onclick="claimSingleOfferToCart('${offer.productId}')" class="bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black px-2.5 py-2 rounded-xl text-[10px] shadow transition active:scale-95">
-              + أضف
-            </button>
-          ` : `
-            <div class="flex items-center gap-1 bg-slate-900 border border-amber-500/40 rounded-xl p-1">
-              <button type="button" onclick="changeOfferCartQty('${offer.productId}', -1)" class="w-5 h-5 bg-slate-800 text-amber-400 rounded font-black text-xs flex items-center justify-center">-</button>
-              <span class="text-xs font-black text-white px-1">${inCartQty}</span>
-              <button type="button" onclick="changeOfferCartQty('${offer.productId}', 1)" class="w-5 h-5 bg-slate-800 text-amber-400 rounded font-black text-xs flex items-center justify-center">+</button>
+        ${inCartQty === 0 ? `
+          <button onclick="addOfferItemToCart('${prod.id}')" class="w-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black py-2 rounded-xl text-[11px] shadow transition active:scale-95">
+            🛒 أضف العرض للسلة (${offerPrice} ج.م)
+          </button>
+        ` : `
+          <div class="flex items-center justify-between bg-slate-900 border border-emerald-500/40 rounded-xl px-2.5 py-1.5">
+            <span class="text-[10px] font-bold text-emerald-400">✅ مضاف للسلة (${inCartQty})</span>
+            <div class="flex items-center gap-2">
+              <button onclick="changeOfferCartQty('${prod.id}', -1)" class="w-6 h-6 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg font-black text-xs flex items-center justify-center">-</button>
+              <span class="text-xs font-black text-white min-w-[16px] text-center">${inCartQty}</span>
+              <button onclick="changeOfferCartQty('${prod.id}', 1)" class="w-6 h-6 bg-slate-800 hover:bg-slate-700 text-amber-400 rounded-lg font-black text-xs flex items-center justify-center">+</button>
             </div>
-          `}
-        </div>
+          </div>
+        `}
       </div>
     `;
   }).join('');
@@ -1674,24 +1736,24 @@ function renderDailyOfferCards() {
 
 function closeDailyOfferShow() {
   document.getElementById('dailyOfferShowModal').classList.add('hidden');
+  resumeFloatingOffer();
 }
 
-function claimSingleOfferToCart(productId) {
-  const activeOffers = getActiveOfferItems();
-  const offer = activeOffers.find(o => String(o.productId) === String(productId));
-  if (!offer) return;
+function addOfferItemToCart(prodId) {
+  const activeOffers = getValidActiveOffers();
+  const entry = activeOffers.find(o => String(o.product.id) === String(prodId));
+  if (!entry) return;
 
-  const prod = offer.prod;
-  const offerPrice = Math.round(Number(offer.offerPrice));
-  const cartKey = `offer_${prod.id}`;
+  const prod = entry.product;
+  const offerPrice = Math.round(Number(entry.offerPrice));
+  const offerCartKey = `offer_${prod.id}`;
 
-  if (cart[cartKey]) {
-    cart[cartKey].q += 1;
-    cart[cartKey].p = offerPrice;
-    cart[cartKey].name = `${prod.name} (عرض اليوم 🎁)`;
+  if (cart[offerCartKey]) {
+    cart[offerCartKey].q += 1;
+    cart[offerCartKey].p = offerPrice;
   } else {
-    cart[cartKey] = {
-      key: cartKey,
+    cart[offerCartKey] = {
+      key: offerCartKey,
       id: prod.id,
       name: `${prod.name} (عرض اليوم 🎁)`,
       p: offerPrice,
@@ -1700,21 +1762,21 @@ function claimSingleOfferToCart(productId) {
   }
 
   persistCart();
-  renderDailyOfferCards();
+  renderOfferShowModalItems();
 }
 
-function changeOfferCartQty(productId, delta) {
-  const cartKey = `offer_${productId}`;
-  if (!cart[cartKey]) return;
-  cart[cartKey].q += delta;
-  if (cart[cartKey].q <= 0) delete cart[cartKey];
+function changeOfferCartQty(prodId, delta) {
+  const offerCartKey = `offer_${prodId}`;
+  if (!cart[offerCartKey]) return;
+  cart[offerCartKey].q += delta;
+  if (cart[offerCartKey].q <= 0) {
+    delete cart[offerCartKey];
+  }
   persistCart();
-  renderDailyOfferCards();
-}
-
-function goToCartFromOffers() {
-  closeDailyOfferShow();
-  switchTab('cart');
+  renderOfferShowModalItems();
+  if (document.getElementById('tab-cart').classList.contains('active')) {
+    renderCartItems();
+  }
 }
 
 function populateOfferAdminForm() {
@@ -1724,91 +1786,48 @@ function populateOfferAdminForm() {
   select.innerHTML = '<option value="">-- اختر الصنف من القائمة --</option>' + 
     products.map(p => `<option value="${p.id}">${p.name} (${p.p} ج.م)</option>`).join('');
 
-  draftOfferItems = [...(dailyOffer.items || [])];
-  renderDraftOffersList();
-  updateOfferAdminBadge();
-  onOfferProductChange();
-}
-
-function updateOfferAdminBadge() {
   const badge = document.getElementById('offerStatusBadge');
-  if (!badge) return;
-  const activeCount = getActiveOfferItems().length;
-  if (dailyOffer && dailyOffer.active && activeCount > 0) {
-    badge.innerText = `مفعّل (${activeCount} عروض) ✅`;
+  const activeSec = document.getElementById('activeOffersAdminSection');
+  const activeListEl = document.getElementById('activeOffersAdminList');
+  const countEl = document.getElementById('activeOffersCountAdmin');
+
+  const items = (dailyOffer && Array.isArray(dailyOffer.items)) ? dailyOffer.items : [];
+
+  if (dailyOffer && dailyOffer.active && items.length > 0) {
+    badge.innerText = `مفعّل (${items.length} ${items.length === 1 ? 'صنف' : 'أصناف'}) ✅`;
     badge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400";
+
+    if (activeSec && activeListEl && countEl) {
+      activeSec.classList.remove('hidden');
+      countEl.innerText = `${items.length} عروض`;
+      activeListEl.innerHTML = items.map(item => {
+        const prod = products.find(x => String(x.id) === String(item.productId));
+        if (!prod) return '';
+        return `
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <img src="${prod.i || DEFAULT_LOGO}" class="w-10 h-10 rounded-lg object-contain bg-[#090d16] border border-slate-800 shrink-0">
+              <div class="min-w-0">
+                <p class="font-bold text-white text-xs truncate">${prod.name}</p>
+                <p class="text-[10px] text-slate-400">
+                  بدلاً من <span class="line-through">${Math.round(prod.p)}</span> ← 
+                  <span class="text-emerald-400 font-black">${Math.round(item.offerPrice)} ج.م</span>
+                </p>
+                ${item.tagline ? `<p class="text-[9px] text-amber-300 truncate">${item.tagline}</p>` : ''}
+              </div>
+            </div>
+            <button onclick="removeSingleDailyOffer('${prod.id}')" class="bg-red-950/70 hover:bg-red-900 border border-red-800/60 text-red-300 px-2.5 py-1.5 rounded-lg text-[10px] font-bold shrink-0 transition">
+              🗑️ حذف
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
   } else {
     badge.innerText = "غير مفعل";
     badge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-400";
+    if (activeSec) activeSec.classList.add('hidden');
   }
-}
-
-function renderDraftOffersList() {
-  const listEl = document.getElementById('draftOffersList');
-  const countEl = document.getElementById('draftOffersCount');
-  if (!listEl) return;
-
-  if (countEl) countEl.innerText = `${draftOfferItems.length} أصناف`;
-
-  if (!draftOfferItems.length) {
-    listEl.innerHTML = '<div class="text-center py-3 bg-slate-950/70 rounded-xl border border-slate-800/80 text-slate-500 text-[11px]">لم يتم إضافة أصناف للعرض بعد</div>';
-    return;
-  }
-
-  listEl.innerHTML = draftOfferItems.map((item, idx) => {
-    const prod = products.find(x => String(x.id).trim() === String(item.productId).trim());
-    const prodName = prod ? prod.name : `صنف #${item.productId}`;
-    const origPrice = prod ? Math.round(Number(prod.p)) : 0;
-
-    return `
-      <div class="bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-2 flex items-center justify-between gap-2 text-xs">
-        <div class="min-w-0">
-          <p class="font-bold text-white truncate">${prodName}</p>
-          <p class="text-[10px] text-slate-400">
-            سعر العرض: <span class="text-emerald-400 font-black">${Math.round(Number(item.offerPrice))} ج.م</span>
-            ${origPrice > 0 ? `<span class="line-through text-slate-500 mr-1">${origPrice} ج.م</span>` : ''}
-          </p>
-          ${item.tagline ? `<p class="text-[9px] text-amber-300/90 truncate">${item.tagline}</p>` : ''}
-        </div>
-        <button type="button" onclick="removeDraftOfferItem(${idx})" class="bg-red-950/70 hover:bg-red-900 text-red-300 px-2 py-1 rounded-lg text-[10px] font-bold shrink-0">
-          حذف ✕
-        </button>
-      </div>
-    `;
-  }).join('');
-}
-
-function addOfferItemToDraft() {
-  const productId = document.getElementById('offerProductSelect').value;
-  const offerPrice = Math.round(parseFloat(document.getElementById('offerSpecialPrice').value));
-  const tagline = document.getElementById('offerTagline').value.trim();
-
-  if (!productId) {
-    alert('من فضلك اختر الصنف أولاً من القائمة.');
-    return;
-  }
-  if (isNaN(offerPrice) || offerPrice <= 0) {
-    alert('من فضلك أدخل سعر عرض صحيح.');
-    return;
-  }
-
-  const existingIdx = draftOfferItems.findIndex(x => String(x.productId) === String(productId));
-  const newItem = { productId: String(productId), offerPrice, tagline };
-
-  if (existingIdx >= 0) {
-    draftOfferItems[existingIdx] = newItem;
-  } else {
-    draftOfferItems.push(newItem);
-  }
-
-  document.getElementById('offerSpecialPrice').value = '';
-  document.getElementById('offerTagline').value = '';
-  renderDraftOffersList();
-}
-
-function removeDraftOfferItem(idx) {
-  draftOfferItems.splice(idx, 1);
-  renderDraftOffersList();
 }
 
 function onOfferProductChange() {
@@ -1825,65 +1844,90 @@ function onOfferProductChange() {
     document.getElementById('offerPreviewOrigPrice').innerText = `${prod.p} ج.م`;
     preview.classList.remove('hidden');
 
-    const existingDraft = draftOfferItems.find(x => String(x.productId) === String(selectedId));
-    if (existingDraft) {
-      document.getElementById('offerSpecialPrice').value = existingDraft.offerPrice || '';
-      document.getElementById('offerTagline').value = existingDraft.tagline || '';
+    // تعبئة البيانات تلقائياً إذا كان الصنف مضافاً مسبقاً في العرض
+    const existing = (dailyOffer.items || []).find(it => String(it.productId) === String(selectedId));
+    document.getElementById('offerSpecialPrice').value = existing ? existing.offerPrice : '';
+    document.getElementById('offerTagline').value = existing ? (existing.tagline || '') : '';
+  }
+}
+
+async function persistDailyOfferCloud() {
+  localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
+  if (db) {
+    try {
+      await db.collection("products").doc("_daily_offer_config_").set(dailyOffer);
+    } catch (e) {
+      console.error("خطأ في مزامنة عروض اليوم سحابياً:", e);
     }
   }
 }
 
 async function saveDailyOffer() {
-  const selectedId = document.getElementById('offerProductSelect').value;
-  const typedPrice = Math.round(parseFloat(document.getElementById('offerSpecialPrice').value));
-  const typedTagline = document.getElementById('offerTagline').value.trim();
+  const productId = document.getElementById('offerProductSelect').value;
+  const offerPrice = Math.round(parseFloat(document.getElementById('offerSpecialPrice').value));
+  const tagline = document.getElementById('offerTagline').value.trim();
 
-  if (selectedId && !isNaN(typedPrice) && typedPrice > 0) {
-    const existingIdx = draftOfferItems.findIndex(x => String(x.productId) === String(selectedId));
-    const itemObj = { productId: String(selectedId), offerPrice: typedPrice, tagline: typedTagline };
-    if (existingIdx >= 0) draftOfferItems[existingIdx] = itemObj;
-    else draftOfferItems.push(itemObj);
+  if (!productId) {
+    alert('من فضلك اختر الصنف أولاً من القائمة.');
+    return;
+  }
+  if (isNaN(offerPrice) || offerPrice <= 0) {
+    alert('من فضلك أدخل سعر عرض صحيح.');
+    return;
   }
 
-  if (!draftOfferItems.length) {
-    alert('من فضلك أضف صنفاً واحداً على الأقل إلى قائمة العروض أولاً.');
-    return;
+  const currentItems = Array.isArray(dailyOffer.items) ? [...dailyOffer.items] : [];
+  const existingIdx = currentItems.findIndex(it => String(it.productId) === String(productId));
+
+  const newEntry = {
+    productId: String(productId),
+    offerPrice: offerPrice,
+    tagline: tagline
+  };
+
+  if (existingIdx >= 0) {
+    currentItems[existingIdx] = newEntry;
+  } else {
+    currentItems.push(newEntry);
   }
 
   dailyOffer = {
     active: true,
-    items: [...draftOfferItems],
+    items: currentItems,
     updatedAt: new Date().toISOString()
   };
 
-  localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
-  if (db) {
-    try {
-      await db.collection("products").doc("_daily_offer_config_").set(dailyOffer);
-    } catch (e) {
-      console.error("خطأ في حفظ العروض سحابياً:", e);
-    }
-  }
+  await persistDailyOfferCloud();
+
+  document.getElementById('offerProductSelect').value = '';
+  document.getElementById('offerSpecialPrice').value = '';
+  document.getElementById('offerTagline').value = '';
+  document.getElementById('offerSelectedPreview').classList.add('hidden');
 
   updateDailyOfferUI();
   populateOfferAdminForm();
-  alert(`تم تفعيل ونشر ${dailyOffer.items.length} من عروض اليوم بنجاح! 🎉`);
+  alert('تم إضافة الصنف وتفعيل عروض اليوم بنجاح! 🎉');
+}
+
+async function removeSingleDailyOffer(prodId) {
+  const currentItems = (dailyOffer.items || []).filter(it => String(it.productId) !== String(prodId));
+  dailyOffer = {
+    active: currentItems.length > 0,
+    items: currentItems,
+    updatedAt: new Date().toISOString()
+  };
+
+  await persistDailyOfferCloud();
+  updateDailyOfferUI();
+  populateOfferAdminForm();
 }
 
 async function disableDailyOffer() {
-  dailyOffer = { active: false, items: [] };
-  draftOfferItems = [];
-  localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
-  if (db) {
-    try {
-      await db.collection("products").doc("_daily_offer_config_").set(dailyOffer);
-    } catch (e) {
-      console.error("خطأ في إيقاف العروض سحابياً:", e);
-    }
-  }
+  dailyOffer = { active: false, items: [], updatedAt: new Date().toISOString() };
+  await persistDailyOfferCloud();
   updateDailyOfferUI();
   populateOfferAdminForm();
-  alert('تم إيقاف عروض اليوم وإخفاء الزر العائم من واجهة العملاء.');
+  alert('تم إيقاف جميع عروض اليوم وإخفاء الزر العائم من واجهة العملاء.');
 }
 
 // ==================== التنقل والإدارة ====================
@@ -1908,6 +1952,7 @@ function requestOwnerAuth() {
     stopCinematicWelcome();
     isOwner = true;
     document.body.classList.add('owner-mode');
+    updateDailyOfferUI();
     switchTab('owner-orders');
     renderOwnerCategories();
     renderOwnerProducts();
@@ -1921,8 +1966,8 @@ function requestOwnerAuth() {
 function exitOwnerMode() {
   isOwner = false;
   document.body.classList.remove('owner-mode');
-  switchTab('products');
   updateDailyOfferUI();
+  switchTab('products');
 }
 
 function switchTab(tabId) {
@@ -2171,7 +2216,6 @@ function toggleDeliveryBox() {
   document.getElementById('deliveryBox').classList.toggle('hidden', !isDel);
 }
 
-// تحديد موقع GPS للعميل
 function captureCustomerGPS() {
   const btn = document.getElementById('gpsBtn');
   const statusEl = document.getElementById('gpsStatusTxt');
@@ -2363,7 +2407,6 @@ function renderOwnerOrders() {
         ${o.items.map(i => `<div class="flex justify-between text-slate-300"><span>${i.q} × ${i.name}</span><span class="text-amber-400">${Math.round(i.p * i.q)} ج.م</span></div>`).join('')}
       </div>
 
-      <!-- إسناد الطلب لطاقم التجهيز -->
       <div class="bg-slate-950/90 border border-slate-800 p-2 rounded-xl flex items-center gap-1.5">
         <select id="staffSelect-${o.docId}" class="flex-1 bg-slate-900 border border-slate-700 text-slate-200 rounded-lg px-2 py-1 text-[11px]">
           <option value="">-- اختر فرد من طاقم التجهيز --</option>
@@ -2495,7 +2538,6 @@ function renderOwnerProducts() {
               🔔 ${waiters.length} بانتظار التوفر
             </button>
           ` : ''}
-          <!-- مفتاح التبديل السريع للتوفر -->
           <button onclick="toggleProductStock(${p.id})" class="w-full py-1 rounded-lg text-[10px] font-bold border transition ${isOut ? 'bg-red-950/70 border-red-700/60 text-red-300 hover:bg-red-900/70' : 'bg-emerald-950/50 border-emerald-700/40 text-emerald-300 hover:bg-emerald-900/50'}">
             ${isOut ? '⛔ نفذ (اضغط للإتاحة)' : '✅ متاح بالمخزن'}
           </button>
@@ -2609,7 +2651,6 @@ async function deleteProductFromModal() {
   renderProducts();
   renderOwnerProducts();
   renderOwnerCategories();
-  updateDailyOfferUI();
   closeProductEditModal();
 }
 
@@ -2657,7 +2698,6 @@ function closeImageModal() {
   imageTargetId = null;
 }
 
-// ضغط الصورة تلقائياً بمقاس 500x500 قبل الحفظ لتسريع التحميل
 function compressImageToDataURL(file, maxSize = 500, quality = 0.82) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
