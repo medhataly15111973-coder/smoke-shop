@@ -89,6 +89,9 @@ body.owner-mode nav.owner-nav { display: flex !important; }
 </head>
 <body class="bg-[#090d16] text-slate-100 min-h-screen">
 
+<!-- مشغل الصوت الترحيبي المخصص (يُعبأ تلقائياً عند رفع MP3 من الإدارة) -->
+<audio id="customWelcomeAudio" preload="auto"></audio>
+
 <!-- شريط الإدارة العلوي (يظهر للمالك فقط) -->
 <div id="topOwnerBar" class="owner-view bg-gradient-to-r from-amber-600 to-amber-500 text-slate-950 px-3 py-2 text-xs font-black justify-between items-center sticky top-0 z-50 shadow-lg">
   <div class="flex items-center gap-1.5">
@@ -358,7 +361,7 @@ body.owner-mode nav.owner-nav { display: flex !important; }
     </button>
   </section>
 
-  <!-- 8. إعدادات المتجر وطاقم العمل -->
+  <!-- 8. إعدادات المتجر وطاقم العمل والصوت الترحيبي -->
   <section id="tab-owner-settings" class="tab-content owner-view space-y-3">
     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
       <h2 class="font-bold text-sm text-slate-200">⚙️ إعدادات المتجر وطاقم التجهيز</h2>
@@ -376,11 +379,38 @@ body.owner-mode nav.owner-nav { display: flex !important; }
       <div>
         <label class="block text-[11px] font-bold text-amber-400 mb-0.5">طاقم التجهيز (الاسم: رقم الهاتف):</label>
         <p class="text-[10px] text-slate-500 mb-1.5">اكتب كل فرد في سطر مستقل بالصيغة: مصطفى: 01012345678</p>
-        <textarea id="settingStaffText" rows="4" class="w-full bg-slate-950 border border-slate-700 text-amber-300 rounded-xl p-2.5 text-xs font-mono focus:outline-none focus:border-amber-500" placeholder="مصطفى: 01012345678&#10;إبراهيم: 01122334455"></textarea>
+        <textarea id="settingStaffText" rows="3" class="w-full bg-slate-950 border border-slate-700 text-amber-300 rounded-xl p-2.5 text-xs font-mono focus:outline-none focus:border-amber-500" placeholder="مصطفى: 01012345678&#10;إبراهيم: 01122334455"></textarea>
       </div>
       <button onclick="saveOwnerSettings()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition">
         💾 حفظ كافة الإعدادات
       </button>
+    </div>
+
+    <!-- قسم تخصيص الصوت الترحيبي (رفع ملف MP3) -->
+    <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl space-y-3 text-xs">
+      <div class="flex justify-between items-center">
+        <div>
+          <h3 class="font-bold text-sm text-amber-400">🎵 الرسالة الترحيبية الصوتية (MP3)</h3>
+          <p class="text-[10px] text-slate-400 mt-0.5">ارفع ملف MP3 مخصص (حتى 600 كيلوبايت) ليسمعه العملاء عند الدخول</p>
+        </div>
+        <span id="welcomeAudioStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-300">الافتراضي (إنجليزي)</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <label class="col-span-2 p-3 bg-slate-950 hover:bg-slate-800/80 border border-dashed border-amber-500/50 rounded-xl cursor-pointer text-xs flex items-center justify-center gap-2 transition">
+          <span class="text-base">📁</span>
+          <span class="font-bold text-amber-300">اختر ملف صوتي MP3 للرفع والمزامنة</span>
+          <input type="file" id="welcomeMp3Input" accept="audio/mp3,audio/mpeg,audio/*" onchange="handleWelcomeMp3Upload(event)" class="hidden">
+        </label>
+
+        <button type="button" onclick="previewWelcomeAudioInAdmin()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 rounded-xl text-[11px] transition">
+          ▶️ تجربة الصوت الحالي
+        </button>
+
+        <button type="button" onclick="resetCustomWelcomeAudio()" class="bg-red-950/60 hover:bg-red-900/80 border border-red-800/50 text-red-300 font-bold py-2 rounded-xl text-[11px] transition">
+          🗑️ استعادة الافتراضي
+        </button>
+      </div>
     </div>
   </section>
 
@@ -748,6 +778,8 @@ let ownerPin = localStorage.getItem('sp_pin') || '1234';
 let staffList = JSON.parse(localStorage.getItem('sp_staff') || '[]');
 let dailyOffer = JSON.parse(localStorage.getItem('sp_daily_offer') || 'null');
 let stockWaitlist = JSON.parse(localStorage.getItem('sp_waitlist') || '{}');
+let customWelcomeAudioData = localStorage.getItem('sp_welcome_mp3') || '';
+let customWelcomeAudioName = localStorage.getItem('sp_welcome_mp3_name') || '';
 
 let notifyTargetProductId = null;
 let restockActiveProductId = null;
@@ -764,29 +796,49 @@ let isInitialOrdersLoad = true;
 let logoClickCount = 0;
 let logoTimer = null;
 
-// حالة الصوت الترحيبي السينمائي
+// حالة الصوت الترحيبي
 let isWelcomePlaying = false;
-let hasPlayedAutoWelcome = sessionStorage.getItem('sp_welcome_played') === '1';
+let hasPlayedAutoWelcome = false;
 
 document.addEventListener("DOMContentLoaded", function() {
   initApp();
-  setupCinematicAutoTrigger();
+  initAutoEnglishWelcome();
 });
 
-// ==================== الصوت الترحيبي السينمائي المضمون ====================
+// ==================== الصوت الترحيبي (MP3 مخصص أو صوت سينمائي إنجليزي) ====================
 
-function setupCinematicAutoTrigger() {
-  if (hasPlayedAutoWelcome) return;
-  const triggerOnce = () => {
-    if (hasPlayedAutoWelcome || isOwner) return;
-    hasPlayedAutoWelcome = true;
-    sessionStorage.setItem('sp_welcome_played', '1');
-    playCinematicWelcome();
-    document.removeEventListener('click', triggerOnce);
-    document.removeEventListener('touchstart', triggerOnce);
+function initAutoEnglishWelcome() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('admin') === '1') return;
+
+  // محاولة التشغيل الآلي الفوري لحظة فتح الموقع
+  setTimeout(() => {
+    if (!hasPlayedAutoWelcome && !isOwner) {
+      playCinematicWelcome(true);
+    }
+  }, 350);
+
+  // ضمان التشغيل التلقائي عند أول تفاعل إذا حظر المتصفح التشغيل قبل التفاعل
+  const unlockAndPlay = () => {
+    if (hasPlayedAutoWelcome || isOwner) {
+      cleanupListeners();
+      return;
+    }
+    playCinematicWelcome(false);
+    cleanupListeners();
   };
-  document.addEventListener('click', triggerOnce, { passive: true });
-  document.addEventListener('touchstart', triggerOnce, { passive: true });
+
+  const cleanupListeners = () => {
+    document.removeEventListener('pointerdown', unlockAndPlay);
+    document.removeEventListener('touchstart', unlockAndPlay);
+    document.removeEventListener('scroll', unlockAndPlay);
+    document.removeEventListener('keydown', unlockAndPlay);
+  };
+
+  document.addEventListener('pointerdown', unlockAndPlay, { passive: true });
+  document.addEventListener('touchstart', unlockAndPlay, { passive: true });
+  document.addEventListener('scroll', unlockAndPlay, { passive: true });
+  document.addEventListener('keydown', unlockAndPlay, { passive: true });
 }
 
 function toggleCinematicWelcome(e) {
@@ -795,8 +847,7 @@ function toggleCinematicWelcome(e) {
     stopCinematicWelcome();
   } else {
     hasPlayedAutoWelcome = true;
-    sessionStorage.setItem('sp_welcome_played', '1');
-    playCinematicWelcome();
+    playCinematicWelcome(false);
   }
 }
 
@@ -816,6 +867,11 @@ function setWelcomeSoundUI(playing) {
 
 function stopCinematicWelcome() {
   try {
+    const audioEl = document.getElementById('customWelcomeAudio');
+    if (audioEl) {
+      audioEl.pause();
+      audioEl.currentTime = 0;
+    }
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -823,13 +879,18 @@ function stopCinematicWelcome() {
   setWelcomeSoundUI(false);
 }
 
-// نغمة افتتاحية سينمائية عميقة عبر Web Audio API
-function playCinematicIntroSwell() {
+function playCinematicIntroSwell(isAutoAttempt) {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
+    if (!AudioCtx) return false;
     const ctx = new AudioCtx();
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    if (isAutoAttempt && ctx.state === 'suspended') {
+      return false;
+    }
+
     const now = ctx.currentTime;
 
     // 1. نغمة باس سينمائية عميقة (Sub-Bass Swell)
@@ -865,14 +926,41 @@ function playCinematicIntroSwell() {
       osc.start(now + 0.15 + idx * 0.1);
       osc.stop(now + 2.6);
     });
+    return true;
   } catch (e) {
-    console.warn("Cinematic synth notice:", e);
+    return false;
   }
 }
 
-function playCinematicWelcome() {
+function playCinematicWelcome(isAutoAttempt = false) {
+  // 1. إذا كان المالك قد رفع ملف MP3 مخصص، شغّله أولاً
+  if (customWelcomeAudioData && customWelcomeAudioData.startsWith('data:audio')) {
+    const audioEl = document.getElementById('customWelcomeAudio');
+    if (audioEl) {
+      audioEl.src = customWelcomeAudioData;
+      audioEl.currentTime = 0;
+      const playPromise = audioEl.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          hasPlayedAutoWelcome = true;
+          setWelcomeSoundUI(true);
+          audioEl.onended = () => setWelcomeSoundUI(false);
+        }).catch(() => {
+          // في حال منع المتصفح التشغيل الآلي قبل التفاعل، سينطلق عند أول لمسة
+        });
+        return;
+      }
+    }
+  }
+
+  // 2. الصوت السينمائي الإنجليزي الافتراضي المدمج
+  const audioUnlocked = playCinematicIntroSwell(isAutoAttempt);
+  if (isAutoAttempt && !audioUnlocked) {
+    return;
+  }
+
+  hasPlayedAutoWelcome = true;
   setWelcomeSoundUI(true);
-  playCinematicIntroSwell();
 
   if (!('speechSynthesis' in window)) {
     setTimeout(() => setWelcomeSoundUI(false), 2600);
@@ -883,42 +971,22 @@ function playCinematicWelcome() {
   const voices = window.speechSynthesis.getVoices();
 
   const enVoice = voices.find(v => v.lang.toLowerCase().startsWith('en') && (v.name.includes('Male') || v.name.includes('David') || v.name.includes('Daniel') || v.name.includes('Mark') || v.name.includes('Google'))) || voices.find(v => v.lang.toLowerCase().startsWith('en'));
-  const arVoice = voices.find(v => v.lang.toLowerCase().startsWith('ar'));
 
-  // 1. الترحيب الإنجليزي
-  const enUtter = new SpeechSynthesisUtterance("Welcome to Smoke Shop.");
+  const enUtter = new SpeechSynthesisUtterance("Welcome to Smoke Shop. Your number one destination for everything you need.");
   enUtter.lang = 'en-US';
   enUtter.rate = 0.9;
   enUtter.pitch = 0.85;
   enUtter.volume = 1;
   if (enVoice) enUtter.voice = enVoice;
 
-  // 2. الترحيب العربي (أو الإنجليزي البديل إذا لم يدعم الجهاز العربية)
-  const secondUtter = new SpeechSynthesisUtterance(
-    arVoice ? "أهلاً بك في سموك شوب... وجهتك الأولى لكل ما تحتاجه." : "Your number one destination for everything you need."
-  );
-  secondUtter.lang = arVoice ? arVoice.lang : 'en-US';
-  secondUtter.rate = 0.95;
-  secondUtter.pitch = 0.9;
-  secondUtter.volume = 1;
-  if (arVoice) secondUtter.voice = arVoice;
-  else if (enVoice) secondUtter.voice = enVoice;
-
-  enUtter.onend = () => {
-    setTimeout(() => {
-      try {
-        window.speechSynthesis.speak(secondUtter);
-      } catch (e) {
-        setWelcomeSoundUI(false);
-      }
-    }, 180);
+  enUtter.onstart = () => {
+    hasPlayedAutoWelcome = true;
+    setWelcomeSoundUI(true);
   };
-
+  enUtter.onend = () => setWelcomeSoundUI(false);
   enUtter.onerror = () => setWelcomeSoundUI(false);
-  secondUtter.onend = () => setWelcomeSoundUI(false);
-  secondUtter.onerror = () => setWelcomeSoundUI(false);
 
-  setTimeout(() => setWelcomeSoundUI(false), 7500);
+  setTimeout(() => setWelcomeSoundUI(false), 6000);
 
   setTimeout(() => {
     try {
@@ -931,6 +999,88 @@ function playCinematicWelcome() {
 
 if ('speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
+
+// إدارة رفع وحذف ملف MP3 من لوحة المالك
+async function handleWelcomeMp3Upload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // التحقق من الحجم (بحد أقصى 650 كيلوبايت لضمان التوافق السريع مع Firebase)
+  if (file.size > 650 * 1024) {
+    alert('حجم الملف الصوتي كبير! يُرجى اختيار ملف MP3 أقل من 650 كيلوبايت (يفضل 3 إلى 6 ثوانٍ) لضمان سرعة التحميل للعملاء.');
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const base64Audio = e.target.result;
+    customWelcomeAudioData = base64Audio;
+    customWelcomeAudioName = file.name;
+
+    localStorage.setItem('sp_welcome_mp3', customWelcomeAudioData);
+    localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
+
+    if (db) {
+      try {
+        await db.collection("products").doc("_welcome_audio_config_").set({
+          audioData: customWelcomeAudioData,
+          fileName: customWelcomeAudioName,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error("خطأ في مزامنة الملف الصوتي سحابياً:", err);
+        alert('تم الحفظ محلياً، ولكن تعذرت المزامنة السحابية. تأكد من أن حجم الملف صغير.');
+        return;
+      }
+    }
+
+    updateWelcomeAudioSettingsBadge();
+    alert(`تم رفع وتفعيل الملف الصوتي "${file.name}" بنجاح لجميع العملاء! 🎵`);
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewWelcomeAudioInAdmin() {
+  stopCinematicWelcome();
+  playCinematicWelcome(false);
+}
+
+async function resetCustomWelcomeAudio() {
+  if (!confirm('هل تريد إزالة الملف الصوتي المخصص والعودة للصوت السينمائي الإنجليزي الافتراضي؟')) return;
+
+  stopCinematicWelcome();
+  customWelcomeAudioData = '';
+  customWelcomeAudioName = '';
+  localStorage.removeItem('sp_welcome_mp3');
+  localStorage.removeItem('sp_welcome_mp3_name');
+
+  const inputEl = document.getElementById('welcomeMp3Input');
+  if (inputEl) inputEl.value = '';
+
+  if (db) {
+    try {
+      await db.collection("products").doc("_welcome_audio_config_").delete();
+    } catch (err) {
+      console.warn("Audio reset cloud notice:", err);
+    }
+  }
+
+  updateWelcomeAudioSettingsBadge();
+  alert('تمت استعادة الصوت الترحيبي الافتراضي بنجاح.');
+}
+
+function updateWelcomeAudioSettingsBadge() {
+  const badge = document.getElementById('welcomeAudioStatusBadge');
+  if (!badge) return;
+  if (customWelcomeAudioData) {
+    badge.innerText = `MP3 مخصص ✅ (${customWelcomeAudioName || 'ملف صوتي'})`;
+    badge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 max-w-[160px] truncate";
+  } else {
+    badge.innerText = "الافتراضي (إنجليزي)";
+    badge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-300";
+  }
 }
 
 // ==================== تهيئة التطبيق ====================
@@ -972,10 +1122,11 @@ async function initApp() {
         renderCustomerOrders();
       }, (e) => console.warn("Firestore Read Notice:", e));
 
-      // مراقبة المنتجات والأقسام وعرض اليوم وقائمة انتظار التوفر لحظياً
+      // مراقبة المنتجات والأقسام وعرض اليوم وقائمة انتظار التوفر والصوت المخصص لحظياً
       db.collection("products").onSnapshot((snapshot) => {
         if (!snapshot.empty) {
           const loadedProds = [];
+          let foundAudioDoc = false;
           snapshot.forEach(doc => {
             if (doc.id === "_daily_offer_config_") {
               dailyOffer = doc.data();
@@ -990,10 +1141,25 @@ async function initApp() {
               const data = doc.data();
               stockWaitlist = (data && data.list) ? data.list : {};
               localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
+            } else if (doc.id === "_welcome_audio_config_") {
+              foundAudioDoc = true;
+              const data = doc.data();
+              if (data && data.audioData) {
+                customWelcomeAudioData = data.audioData;
+                customWelcomeAudioName = data.fileName || 'ملف صوتي مخصص';
+                localStorage.setItem('sp_welcome_mp3', customWelcomeAudioData);
+                localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
+              }
             } else {
               loadedProds.push({ id: doc.id, ...doc.data() });
             }
           });
+          if (!foundAudioDoc && customWelcomeAudioData) {
+            customWelcomeAudioData = '';
+            customWelcomeAudioName = '';
+            localStorage.removeItem('sp_welcome_mp3');
+            localStorage.removeItem('sp_welcome_mp3_name');
+          }
           if (loadedProds.length > 0) {
             products = loadedProds;
             localStorage.setItem('sp_p', JSON.stringify(products));
@@ -1005,6 +1171,7 @@ async function initApp() {
             renderOwnerCategories();
             renderOwnerProducts();
             populateOfferAdminForm();
+            updateWelcomeAudioSettingsBadge();
           }
         }
       }, (e) => console.warn("Realtime Sync Notice:", e));
@@ -1079,6 +1246,14 @@ async function loadProductsFromCloud() {
           const data = doc.data();
           stockWaitlist = (data && data.list) ? data.list : {};
           localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
+        } else if (doc.id === "_welcome_audio_config_") {
+          const data = doc.data();
+          if (data && data.audioData) {
+            customWelcomeAudioData = data.audioData;
+            customWelcomeAudioName = data.fileName || 'ملف صوتي مخصص';
+            localStorage.setItem('sp_welcome_mp3', customWelcomeAudioData);
+            localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
+          }
         } else {
           loadedProds.push({ id: doc.id, ...doc.data() });
         }
@@ -1094,6 +1269,7 @@ async function loadProductsFromCloud() {
         renderOwnerCategories();
         renderOwnerProducts();
         populateOfferAdminForm();
+        updateWelcomeAudioSettingsBadge();
       }
     }
   } catch (e) {
@@ -1593,7 +1769,10 @@ function switchTab(tabId) {
     renderOwnerProducts();
   }
   if(tabId === 'owner-offer') populateOfferAdminForm();
-  if(tabId === 'owner-settings') populateSettingsFields();
+  if(tabId === 'owner-settings') {
+    populateSettingsFields();
+    updateWelcomeAudioSettingsBadge();
+  }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
