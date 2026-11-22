@@ -2768,7 +2768,9 @@ async function processPriceImport() {
       const price = Math.round(parseFloat(priceStr));
 
       if(!isNaN(price)) {
-        const p = products.find(x => x.name.toLowerCase().includes(nameStr.toLowerCase()) || nameStr.toLowerCase().includes(x.name.toLowerCase()));
+        const cleanName = nameStr.trim().toLowerCase();
+        const p = products.find(x => x.name.trim().toLowerCase() === cleanName)
+               || products.find(x => x.name.toLowerCase().includes(cleanName) || cleanName.includes(x.name.toLowerCase()));
         if(p) {
           p.p = price;
           updatedCount++;
