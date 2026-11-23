@@ -8,6 +8,8 @@
 <!-- مكتبات Firebase الأساسية -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<!-- مكتبة Excel (SheetJS) لاستخراج واستيراد ملفات الإكسل مباشرة -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
@@ -365,32 +367,61 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
     </div>
   </section>
 
-  <!-- 7. تحديث الأسعار بنص الواتس وتصدير الإكسل -->
+  <!-- 7. تحديث الأسعار واستخراج/استيراد الأصناف -->
   <section id="tab-owner-update" class="tab-content owner-view space-y-3">
-    <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1">
-      <h2 class="font-bold text-sm text-amber-400">⚡ تحديث الأسعار الذكي</h2>
-      <p class="text-[11px] text-slate-400">الصق رسالة الأسعار اليومية لتحديثها تلقائياً:</p>
-    </div>
-    <textarea id="wpImportText" rows="6" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم ١٢٠٠" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-500"></textarea>
-    <button onclick="processPriceImport()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition shadow-md">
-      ⚡ تحديث أسعار المنتجات الآن
-    </button>
+    
+    <!-- بطاقة استخراج واستيراد ملف إكسل (Excel / CSV) لتعديل كل الأصناف دفعة واحدة -->
+    <div class="bg-slate-900 p-3.5 rounded-2xl border border-emerald-500/40 space-y-3 shadow-md">
+      <div class="flex justify-between items-start gap-2">
+        <div>
+          <h2 class="font-black text-sm text-emerald-400 flex items-center gap-1.5">📊 استخراج وتعديل الأصناف (Excel)</h2>
+          <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+            استخرج جميع أصناف المتجر في ملف إكسل جاهز بالمعرّف (<span class="font-mono text-amber-300">ID</span>)، عدّل الأسعار أو الأسماء أو التوفر في الإكسل، ثم ارفعه مرة أخرى ليُحدّث المتجر بالكامل بدون أي لخبطة!
+          </p>
+        </div>
+      </div>
 
-    <!-- قسم تصدير الأصناف الحالية إلى مدير الأسعار (Excel) -->
-    <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl space-y-2.5 text-xs">
-      <div>
-        <h3 class="font-bold text-sm text-emerald-400">📊 تصدير كل أصناف المتجر للإكسل</h3>
-        <p class="text-[10px] text-slate-400 mt-0.5">يسحب كل الأصناف الحالية من السحابة مرتبة تلقائياً لمنع تداخل الأسماء</p>
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="exportProductsToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 px-2 rounded-xl text-[11px] flex items-center justify-center gap-1.5 shadow transition active:scale-95">
+          <span>📤 استخراج الأصناف (Excel)</span>
+        </button>
+
+        <label class="bg-slate-800 hover:bg-slate-700 border border-emerald-500/50 text-emerald-300 font-black py-2.5 px-2 rounded-xl text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95">
+          <span>📥 رفع الملف المُعدّل</span>
+          <input type="file" id="excelImportInput" accept=".xlsx,.xls,.csv" onchange="handleExcelImport(event)" class="hidden">
+        </label>
       </div>
-      <div class="grid grid-cols-2 gap-2">
-        <button type="button" onclick="exportProductsToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 px-2 rounded-xl text-[11px] transition shadow-md flex items-center justify-center gap-1">
-          <span>📥 تحميل ملف Excel</span>
-        </button>
-        <button type="button" onclick="copyProductNamesForExcel()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold py-2.5 px-2 rounded-xl text-[11px] transition flex items-center justify-center gap-1">
-          <span>📋 نسخ الأسماء فقط</span>
-        </button>
+
+      <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-2 text-[10px] text-slate-400 space-y-1">
+        <p>💡 <b class="text-slate-200">ميزة الربط بالمعرّف (ID):</b> تمنع تماماً تداخل الأصناف المتشابهة مثل <span class="text-amber-300">مارلبورو</span> و<span class="text-amber-300">مارلبورو كرافتد</span>.</p>
+        <p>➕ لإضافة صنف جديد من الإكسل: اترك عمود <span class="font-mono text-amber-300">ID</span> فارغاً واكتب اسم الصنف والسعر.</p>
       </div>
     </div>
+
+    <!-- بطاقة التحديث السريع بالنص (واتساب أو استخراج نصي) -->
+    <div class="bg-slate-900 p-3.5 rounded-2xl border border-slate-800 space-y-2.5">
+      <div class="flex justify-between items-center gap-2">
+        <div>
+          <h2 class="font-bold text-sm text-amber-400">⚡ التحديث السريع بالنص (واتساب)</h2>
+          <p class="text-[10px] text-slate-400">استخرج القائمة كنص لتعديلها أو الصق رسالة الأسعار اليومية:</p>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button onclick="exportProductsToTextArea()" class="bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-300 font-bold px-2 py-1 rounded-lg text-[10px] transition" title="جلب كل الأصناف الحالية في المربع للتعديل">
+            📤 جلب الأصناف
+          </button>
+          <button onclick="copyExportedText()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold px-2 py-1 rounded-lg text-[10px] transition" title="نسخ النص">
+            📋 نسخ
+          </button>
+        </div>
+      </div>
+
+      <textarea id="wpImportText" rows="6" placeholder="كيلوباترا ٤٨٥&#10;ال ام احمر ٨٢٥&#10;سلوووم ٢٤٠٠" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-amber-300 font-mono focus:outline-none focus:border-amber-500"></textarea>
+      
+      <button onclick="processPriceImport()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition shadow-md">
+        ⚡ حفظ وتحديث الأسعار من النص
+      </button>
+    </div>
+
   </section>
 
   <!-- 8. إعدادات المتجر وطاقم العمل والصوت الترحيبي -->
@@ -2761,160 +2792,348 @@ async function handleImageFile(event) {
   closeImageModal();
 }
 
+// ==================== استخراج واستيراد الأصناف (Excel / CSV / Text) ====================
+
+function exportProductsToExcel() {
+  if (!products || !products.length) {
+    alert('لا توجد أصناف حالياً لاستخراجها.');
+    return;
+  }
+
+  // تجهيز البيانات في صفوف منظمة وواضحة للمالك
+  const rows = products.map(p => {
+    const catObj = categories.find(c => c.id === p.c);
+    return {
+      'ID': p.id,
+      'اسم الصنف': p.name,
+      'القسم': catObj ? catObj.n : p.c,
+      'السعر': Math.round(Number(p.p) || 0),
+      'الوحدة': p.u || 'خرطوشة',
+      'الحالة': p.outOfStock ? 'نفذ' : 'متاح'
+    };
+  });
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const fileName = `SmokeShop_Prices_${dateStr}.xlsx`;
+
+  // استخدام مكتبة SheetJS لتوليد ملف Excel حقيقي (.xlsx)
+  if (typeof XLSX !== 'undefined') {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // ضبط عرض الأعمدة تلقائياً لسهولة القراءة والتعديل
+    ws['!cols'] = [
+      { wch: 8 },   // ID
+      { wch: 28 },  // اسم الصنف
+      { wch: 18 },  // القسم
+      { wch: 12 },  // السعر
+      { wch: 14 },  // الوحدة
+      { wch: 12 }   // الحالة
+    ];
+
+    // اتجاه الورقة من اليمين لليسار
+    if (!ws['!views']) ws['!views'] = [];
+    ws['!views'].push({ rightToLeft: true });
+
+    XLSX.utils.book_append_sheet(wb, ws, 'قائمة الأسعار');
+    XLSX.writeFile(wb, fileName);
+  } else {
+    // خطة بديلة بصيغة CSV UTF-8 BOM في حال عدم توفر الإنترنت لتحميل المكتبة
+    const headers = ['ID', 'اسم الصنف', 'القسم', 'السعر', 'الوحدة', 'الحالة'];
+    const csvLines = [headers.join(',')];
+    rows.forEach(r => {
+      const line = headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(',');
+      csvLines.push(line);
+    });
+    const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SmokeShop_Prices_${dateStr}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function handleExcelImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (typeof XLSX === 'undefined') {
+    alert('مكتبة قراءة الإكسل قيد التحميل، تأكد من اتصالك بالإنترنت وحاول مرة أخرى.');
+    event.target.value = '';
+    return;
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+    if (!rawRows.length) {
+      alert('الملف فارغ ولا يحتوي على بيانات!');
+      event.target.value = '';
+      return;
+    }
+
+    let updatedCount = 0;
+    let addedCount = 0;
+    let skippedRows = [];
+
+    // حساب أكبر ID حالي لإضافات الأصناف الجديدة
+    let maxId = products.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
+
+    rawRows.forEach((row, index) => {
+      const rowNum = index + 2; // رقم الصف في الإكسل
+
+      // دعم مسميات الأعمدة سواء من ملف التطبيق أو من ملف مدير الأسعار الذكي
+      const rawId = String(row['ID'] ?? row['id'] ?? row['المعرف'] ?? row['الكود'] ?? '').trim();
+      const rawName = String(row['اسم الصنف'] ?? row['الصنف'] ?? row['الاسم'] ?? row['name'] ?? '').trim();
+      const rawCat = String(row['القسم'] ?? row['التصنيف'] ?? row['category'] ?? '').trim();
+      const rawPriceVal = String(row['السعر الجديد'] !== undefined && String(row['السعر الجديد']).trim() !== ''
+        ? row['السعر الجديد']
+        : (row['السعر'] ?? row['السعر الحالي'] ?? row['price'] ?? '')).trim();
+      const rawUnit = String(row['الوحدة'] ?? row['unit'] ?? '').trim();
+      const rawStatus = String(row['الحالة'] ?? row['التوفر'] ?? row['status'] ?? '').trim();
+
+      // تجاهل الصفوف الفارغة تماماً
+      if (!rawId && !rawName && !rawPriceVal) return;
+
+      // تحويل الأرقام العربية إلى إنجليزية في السعر
+      const cleanPriceStr = rawPriceVal.replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
+      const parsedPrice = Math.round(parseFloat(cleanPriceStr));
+
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        skippedRows.push(`صف ${rowNum} (${rawName || rawId}): سعر غير صالح`);
+        return;
+      }
+
+      // تحديد معرّف القسم إذا كُتب اسمه في الإكسل
+      let resolvedCatId = null;
+      if (rawCat) {
+        const normCatInput = normalizeArabicText(rawCat);
+        const foundCat = categories.find(c => c.id !== 'all' && (c.id === rawCat || normalizeArabicText(c.n) === normCatInput));
+        if (foundCat) resolvedCatId = foundCat.id;
+      }
+
+      // تحديد حالة التوفر (نفذ / متاح)
+      let resolvedOutOfStock = null;
+      if (rawStatus) {
+        const st = normalizeArabicText(rawStatus);
+        if (st.includes('نفذ') || st.includes('غير متاح') || st === '0' || st === 'no') {
+          resolvedOutOfStock = true;
+        } else if (st.includes('متاح') || st === '1' || st === 'yes') {
+          resolvedOutOfStock = false;
+        }
+      }
+
+      // 1. البحث بالـ ID أولاً (أعلى دقة 100%)
+      let targetProd = null;
+      if (rawId) {
+        targetProd = products.find(p => String(p.id).trim() === rawId);
+      }
+
+      // 2. إذا لم يوجد ID، نبحث بالمطابقة التامة للاسم
+      if (!targetProd && rawName) {
+        const normName = normalizeArabicText(rawName);
+        targetProd = products.find(p => normalizeArabicText(p.name) === normName);
+      }
+
+      if (targetProd) {
+        // تحديث الصنف الموجود
+        if (rawName) targetProd.name = rawName;
+        targetProd.p = parsedPrice;
+        if (resolvedCatId) targetProd.c = resolvedCatId;
+        if (rawUnit) targetProd.u = isTobaccoCategory(targetProd.c) ? 'كيلو' : rawUnit;
+        if (resolvedOutOfStock !== null) targetProd.outOfStock = resolvedOutOfStock;
+        updatedCount++;
+      } else if (rawName) {
+        // إضافة صنف جديد تماماً
+        maxId++;
+        const finalCat = resolvedCatId || (categories.find(c => c.id !== 'all')?.id || 'oth');
+        const finalUnit = isTobaccoCategory(finalCat) ? 'كيلو' : (rawUnit || 'خرطوشة');
+        products.unshift({
+          id: maxId,
+          name: rawName,
+          c: finalCat,
+          p: parsedPrice,
+          u: finalUnit,
+          outOfStock: resolvedOutOfStock !== null ? resolvedOutOfStock : false
+        });
+        addedCount++;
+      } else {
+        skippedRows.push(`صف ${rowNum}: لم يتم العثور على الصنف`);
+      }
+    });
+
+    if (updatedCount > 0 || addedCount > 0) {
+      localStorage.setItem('sp_p', JSON.stringify(products));
+      await saveProductsToCloud();
+      renderCategories();
+      renderProducts();
+      renderOwnerCategories();
+      renderOwnerProducts();
+      updateDailyOfferUI();
+    }
+
+    let summary = `🎉 تمت معالجة ملف الإكسل ومزامنته سحابياً بنجاح!\n`;
+    summary += `✅ أصناف تم تحديثها: ${updatedCount}\n`;
+    if (addedCount > 0) summary += `➕ أصناف جديدة تمت إضافتها: ${addedCount}\n`;
+    if (skippedRows.length > 0) {
+      summary += `\n⚠️ ملاحظات (${skippedRows.length}):\n- ` + skippedRows.slice(0, 8).join('\n- ');
+    }
+    alert(summary);
+  } catch (err) {
+    console.error('Excel Import Error:', err);
+    alert('حدث خطأ أثناء قراءة الملف. تأكد أن الملف بصيغة Excel (.xlsx) أو (.csv) سليمة.');
+  }
+
+  event.target.value = '';
+}
+
+function exportProductsToTextArea() {
+  const textarea = document.getElementById('wpImportText');
+  if (!textarea) return;
+  const lines = products.map(p => `${p.name} ${Math.round(Number(p.p))}`);
+  textarea.value = lines.join('\n');
+  textarea.focus();
+}
+
+function copyExportedText() {
+  const textarea = document.getElementById('wpImportText');
+  if (!textarea || !textarea.value.trim()) {
+    exportProductsToTextArea();
+  }
+  textarea.select();
+  navigator.clipboard?.writeText(textarea.value).then(() => {
+    alert('تم نسخ قائمة الأسعار بالكامل! 📋');
+  }).catch(() => {
+    document.execCommand('copy');
+    alert('تم نسخ قائمة الأسعار بالكامل! 📋');
+  });
+}
+
+// ==================== التحديث الذكي عالي الدقة للأسعار ====================
+
+function normalizeArabicText(str) {
+  if (!str) return '';
+  return str
+    // تحويل الأرقام العربية/الهندية إلى إنجليزية
+    .replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
+    // توحيد الألف والهمزات
+    .replace(/[أإآٱ]/g, 'ا')
+    // توحيد التاء المربوطة والهاء
+    .replace(/ة/g, 'ه')
+    // توحيد الياء والألف اللينة
+    .replace(/ى/g, 'ي')
+    // إزالة التشكيل والرموز غير الضرورية
+    .replace(/[\u064B-\u065F\-_:=\/\\]/g, ' ')
+    // توحيد المسافات المتعددة
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 async function processPriceImport() {
   const text = document.getElementById('wpImportText').value.trim();
-  if(!text) {
+  if (!text) {
     alert('الرجاء لصق نص الأسعار أولاً.');
     return;
   }
 
   const lines = text.split('\n');
   let updatedCount = 0;
+  let skippedLines = [];
 
-  lines.forEach(line => {
-    const parts = line.trim().split(/\s+/);
-    if(parts.length >= 2) {
-      const priceStr = parts.pop();
-      const nameStr = parts.join(' ');
-      const price = Math.round(parseFloat(priceStr));
+  lines.forEach(rawLine => {
+    const line = rawLine.trim();
+    if (!line) return;
 
-      if(!isNaN(price)) {
-        const cleanName = nameStr.trim().toLowerCase();
-        const p = products.find(x => x.name.trim().toLowerCase() === cleanName)
-               || products.find(x => x.name.toLowerCase().includes(cleanName) || cleanName.includes(x.name.toLowerCase()));
-        if(p) {
-          p.p = price;
-          updatedCount++;
-        }
+    // تحويل الأرقام العربية إلى إنجليزية في السطر بالكامل
+    const normalizedLine = line.replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
+
+    // استخراج الاسم والسعر (حتى لو كان بينهما = أو : أو -)
+    const match = normalizedLine.match(/^(.+?)\s*[:=\-]?\s*(\d+(?:\.\d+)?)\s*(?:ج\.?م|جنيه|ج)?$/);
+    if (!match) {
+      skippedLines.push(`${line} (تنسيق غير مفهوم)`);
+      return;
+    }
+
+    const rawName = match[1].trim();
+    const price = Math.round(parseFloat(match[2]));
+
+    if (!rawName || isNaN(price) || price <= 0) {
+      skippedLines.push(`${line} (سعر غير صحيح)`);
+      return;
+    }
+
+    const normInput = normalizeArabicText(rawName);
+    const inputTokens = normInput.split(' ').filter(Boolean);
+
+    // تجهيز قائمة الأصناف مع أسمائها المطبّعة
+    const indexedProducts = products.map(p => {
+      const normProd = normalizeArabicText(p.name);
+      return {
+        prod: p,
+        normName: normProd,
+        tokens: normProd.split(' ').filter(Boolean)
+      };
+    });
+
+    let matchedProduct = null;
+
+    // المستوى 1: مطابقة تامة 100% بعد التطبيع (يمنع خلط مارلبورو مع مارلبورو كرافتد)
+    const exactMatch = indexedProducts.find(item => item.normName === normInput);
+    if (exactMatch) {
+      matchedProduct = exactMatch.prod;
+    }
+
+    // المستوى 2: مطابقة نفس الكلمات بالضبط حتى لو اختلف ترتيبها (مثل: احمر ال ام = ال ام احمر)
+    if (!matchedProduct) {
+      const sameTokensMatch = indexedProducts.find(item =>
+        item.tokens.length === inputTokens.length &&
+        inputTokens.every(t => item.tokens.includes(t))
+      );
+      if (sameTokensMatch) {
+        matchedProduct = sameTokensMatch.prod;
       }
+    }
+
+    // المستوى 3: مطابقة جزئية آمنة (بشرط أن تكون النتيجة وحيدة وغير غامضة)
+    if (!matchedProduct && normInput.length >= 3) {
+      const partialMatches = indexedProducts.filter(item =>
+        inputTokens.every(t => item.tokens.includes(t))
+      );
+      if (partialMatches.length === 1) {
+        matchedProduct = partialMatches[0].prod;
+      } else if (partialMatches.length > 1) {
+        skippedLines.push(`${rawName} (اسم غير محدد - يشبه أكثر من صنف)`);
+        return;
+      }
+    }
+
+    if (matchedProduct) {
+      matchedProduct.p = price;
+      updatedCount++;
+    } else {
+      skippedLines.push(`${rawName} (غير موجود بالقائمة)`);
     }
   });
 
-  localStorage.setItem('sp_p', JSON.stringify(products));
-  await saveProductsToCloud();
-  
-  renderProducts();
-  renderOwnerProducts();
-  alert(`تم تحديث ومزامنة أسعار ${updatedCount} صنفاً سحابياً بنجاح للجميع!`);
-}
-
-// ==================== دوال تصدير الأصناف الحالية للإكسل (مدمجة 100% بدون مكتبات خارجية) ====================
-
-function getSortedProductsForExport() {
-  return [...products].sort((a, b) => {
-    if (a.c !== b.c) return String(a.c).localeCompare(String(b.c));
-    return b.name.trim().length - a.name.trim().length;
-  });
-}
-
-function copyProductNamesForExcel() {
-  const sorted = getSortedProductsForExport();
-  if (!sorted.length) {
-    alert('لا توجد أصناف لتصديرها!');
-    return;
-  }
-  const namesText = sorted.map(p => p.name.trim()).join('\n');
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(namesText).then(() => {
-      alert(`تم نسخ ${sorted.length} صنفاً بنجاح! 📋\nافتح ملف الإكسل واضغط لصق (Ctrl+V) في الخلية A6.`);
-    }).catch(() => {
-      document.getElementById('wpImportText').value = namesText;
-      alert(`تم وضع ${sorted.length} صنفاً في مربع النص بالأعلى، انسخها يدوياً.`);
-    });
-  } else {
-    document.getElementById('wpImportText').value = namesText;
-    alert(`تم وضع ${sorted.length} صنفاً في مربع النص بالأعلى، انسخها يدوياً.`);
-  }
-}
-
-function escapeXmlStr(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function exportProductsToExcel() {
-  const sorted = getSortedProductsForExport();
-  if (!sorted.length) {
-    alert('لا توجد أصناف لتصديرها!');
-    return;
+  if (updatedCount > 0) {
+    localStorage.setItem('sp_p', JSON.stringify(products));
+    await saveProductsToCloud();
+    renderProducts();
+    renderOwnerProducts();
   }
 
-  const lastRow = 5 + sorted.length;
-  let rowsXml = `
-    <Row ss:Height="26">
-      <Cell ss:MergeAcross="2" ss:StyleID="sTitle"><Data ss:Type="String">مدير أسعار Smoke Shop الذكي (${sorted.length} صنف)</Data></Cell>
-    </Row>
-    <Row ss:Height="20">
-      <Cell ss:MergeAcross="2" ss:StyleID="sSub"><Data ss:Type="String">اكتب السعر الجديد في العمود الأخضر ثم انسخ الصندوق الأصفر بالأسفل بضغطة واحدة (Ctrl+C)</Data></Cell>
-    </Row>
-    <Row ss:Height="20">
-      <Cell ss:MergeAcross="2" ss:StyleID="sBoxLbl"><Data ss:Type="String">صندوق النسخ التلقائي المجمّع (اضغط هنا ضغطة واحدة ثم انسخ Ctrl+C):</Data></Cell>
-    </Row>
-    <Row ss:Height="42">
-      <Cell ss:MergeAcross="2" ss:StyleID="sBox" ss:Formula="=TEXTJOIN(CHAR(10),TRUE,R[2]C[2]:R[${sorted.length + 1}]C[2])"><Data ss:Type="String"></Data></Cell>
-    </Row>
-    <Row ss:Height="24">
-      <Cell ss:StyleID="sHead"><Data ss:Type="String">اسم الصنف</Data></Cell>
-      <Cell ss:StyleID="sHeadGreen"><Data ss:Type="String">السعر الجديد</Data></Cell>
-      <Cell ss:StyleID="sHead"><Data ss:Type="String">سطر النسخ الجاهز (تلقائي)</Data></Cell>
-    </Row>
-  `;
-
-  sorted.forEach((p) => {
-    const safeName = escapeXmlStr(p.name.trim());
-    rowsXml += `
-    <Row ss:Height="21">
-      <Cell ss:StyleID="sName"><Data ss:Type="String">${safeName}</Data></Cell>
-      <Cell ss:StyleID="sPrice"></Cell>
-      <Cell ss:StyleID="sOut" ss:Formula='=IF(RC[-1]="","",RC[-2]&amp;" "&amp;ROUND(RC[-1],0))'><Data ss:Type="String"></Data></Cell>
-    </Row>`;
-  });
-
-  rowsXml += `
-    <Row ss:Height="22">
-      <Cell ss:StyleID="sFoot" ss:Formula='="إجمالي الأصناف: "&amp;COUNTA(R[-${sorted.length}]C:R[-1]C)'><Data ss:Type="String"></Data></Cell>
-      <Cell ss:StyleID="sFoot" ss:Formula='="المعدّل: "&amp;COUNTIF(R[-${sorted.length}]C:R[-1]C,"&gt;0")'><Data ss:Type="String"></Data></Cell>
-      <Cell ss:StyleID="sFoot"><Data ss:Type="String">جاهز للصق في ⚡ تحديث واتس</Data></Cell>
-    </Row>
-  `;
-
-  const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
- <Styles>
-  <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="11"/></Style>
-  <Style ss:ID="sTitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="13" ss:Bold="1" ss:Color="#FBBF24"/><Interior ss:Color="#0F172A" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="sSub"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="10" ss:Color="#334155"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="sBoxLbl"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="10" ss:Bold="1" ss:Color="#92400E"/><Interior ss:Color="#FEF3C7" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="sBox"><Alignment ss:Horizontal="Right" ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#F59E0B"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#F59E0B"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#F59E0B"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#F59E0B"/></Borders><Font ss:FontName="Cairo" ss:Size="11" ss:Bold="1" ss:Color="#0F172A"/><Interior ss:Color="#FEF9C3" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="sHead"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E293B" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="sHeadGreen"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#059669" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="sName"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/></Borders><Font ss:FontName="Cairo" ss:Size="11" ss:Bold="1"/></Style>
-  <Style ss:ID="sPrice"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/></Borders><Font ss:FontName="Cairo" ss:Size="11" ss:Bold="1" ss:Color="#065F46"/><Interior ss:Color="#ECFDF5" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="sOut"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/></Borders><Font ss:FontName="Cairo" ss:Size="10" ss:Color="#475569"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/></Style>
-  <Style ss:ID="sFoot"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="10" ss:Bold="1" ss:Color="#FBBF24"/><Interior ss:Color="#0F172A" ss:Pattern="Solid"/></Style>
- </Styles>
- <Worksheet ss:Name="تحديث الأسعار" ss:RightToLeft="1">
-  <Table>
-   <Column ss:Width="170"/>
-   <Column ss:Width="110"/>
-   <Column ss:Width="190"/>
-   ${rowsXml}
-  </Table>
- </Worksheet>
-</Workbook>`;
-
-  const blob = new Blob(['\uFEFF' + xmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `مدير_أسعار_Smoke_Shop_${sorted.length}_صنف.xls`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  let report = `✅ تم تحديث ومزامنة أسعار (${updatedCount}) صنفاً بدقة!`;
+  if (skippedLines.length > 0) {
+    report += `\n\n⚠️ سطور لم يتم تحديثها (${skippedLines.length}):\n- ` + skippedLines.join('\n- ');
+  }
+  alert(report);
 }
 
 function populateSettingsFields() {
