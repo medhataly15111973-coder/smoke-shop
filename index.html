@@ -365,7 +365,7 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
     </div>
   </section>
 
-  <!-- 7. تحديث الأسعار بنص الواتس -->
+  <!-- 7. تحديث الأسعار بنص الواتس وتصدير الإكسل -->
   <section id="tab-owner-update" class="tab-content owner-view space-y-3">
     <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1">
       <h2 class="font-bold text-sm text-amber-400">⚡ تحديث الأسعار الذكي</h2>
@@ -375,6 +375,22 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
     <button onclick="processPriceImport()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition shadow-md">
       ⚡ تحديث أسعار المنتجات الآن
     </button>
+
+    <!-- قسم تصدير الأصناف الحالية إلى مدير الأسعار (Excel) -->
+    <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl space-y-2.5 text-xs">
+      <div>
+        <h3 class="font-bold text-sm text-emerald-400">📊 تصدير كل أصناف المتجر للإكسل</h3>
+        <p class="text-[10px] text-slate-400 mt-0.5">يسحب كل الأصناف الحالية من السحابة مرتبة تلقائياً لمنع تداخل الأسماء</p>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" onclick="exportProductsToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 px-2 rounded-xl text-[11px] transition shadow-md flex items-center justify-center gap-1">
+          <span>📥 تحميل ملف Excel</span>
+        </button>
+        <button type="button" onclick="copyProductNamesForExcel()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold py-2.5 px-2 rounded-xl text-[11px] transition flex items-center justify-center gap-1">
+          <span>📋 نسخ الأسماء فقط</span>
+        </button>
+      </div>
+    </div>
   </section>
 
   <!-- 8. إعدادات المتجر وطاقم العمل والصوت الترحيبي -->
@@ -780,7 +796,6 @@ function normalizeDailyOffer(raw) {
       updatedAt: raw.updatedAt || ''
     };
   }
-  // توافق مع البنية القديمة ذات المنتج الواحد
   if (raw.active && raw.productId) {
     return {
       active: true,
@@ -1626,7 +1641,6 @@ function moveFloatingOfferRandomly() {
   const btnWidth = btn.offsetWidth || 165;
   const btnHeight = btn.offsetHeight || 48;
 
-  // تحديد النطاق الآمن للحركة داخل الشاشة (بعيداً عن الهيدر العلوي والشريط السفلي)
   const minX = 12;
   const maxX = Math.max(minX + 10, vw - btnWidth - 12);
   const minY = 74;
@@ -1643,7 +1657,6 @@ function startFloatingOfferMotion() {
   const btn = document.getElementById('floatingOfferBtn');
   if (!btn) return;
 
-  // وضع ابتدائي واضح إذا لم يُحدد بعد
   if (!btn.style.left || !btn.style.top) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -1653,7 +1666,6 @@ function startFloatingOfferMotion() {
 
   if (floatingOfferInterval) return;
 
-  // حركة أولى سريعة ثم تحرك عشوائي مستمر كل 3.2 ثانية
   setTimeout(moveFloatingOfferRandomly, 350);
   floatingOfferInterval = setInterval(moveFloatingOfferRandomly, 3200);
 }
@@ -1844,7 +1856,6 @@ function onOfferProductChange() {
     document.getElementById('offerPreviewOrigPrice').innerText = `${prod.p} ج.م`;
     preview.classList.remove('hidden');
 
-    // تعبئة البيانات تلقائياً إذا كان الصنف مضافاً مسبقاً في العرض
     const existing = (dailyOffer.items || []).find(it => String(it.productId) === String(selectedId));
     document.getElementById('offerSpecialPrice').value = existing ? existing.offerPrice : '';
     document.getElementById('offerTagline').value = existing ? (existing.tagline || '') : '';
@@ -2785,6 +2796,125 @@ async function processPriceImport() {
   renderProducts();
   renderOwnerProducts();
   alert(`تم تحديث ومزامنة أسعار ${updatedCount} صنفاً سحابياً بنجاح للجميع!`);
+}
+
+// ==================== دوال تصدير الأصناف الحالية للإكسل (مدمجة 100% بدون مكتبات خارجية) ====================
+
+function getSortedProductsForExport() {
+  return [...products].sort((a, b) => {
+    if (a.c !== b.c) return String(a.c).localeCompare(String(b.c));
+    return b.name.trim().length - a.name.trim().length;
+  });
+}
+
+function copyProductNamesForExcel() {
+  const sorted = getSortedProductsForExport();
+  if (!sorted.length) {
+    alert('لا توجد أصناف لتصديرها!');
+    return;
+  }
+  const namesText = sorted.map(p => p.name.trim()).join('\n');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(namesText).then(() => {
+      alert(`تم نسخ ${sorted.length} صنفاً بنجاح! 📋\nافتح ملف الإكسل واضغط لصق (Ctrl+V) في الخلية A6.`);
+    }).catch(() => {
+      document.getElementById('wpImportText').value = namesText;
+      alert(`تم وضع ${sorted.length} صنفاً في مربع النص بالأعلى، انسخها يدوياً.`);
+    });
+  } else {
+    document.getElementById('wpImportText').value = namesText;
+    alert(`تم وضع ${sorted.length} صنفاً في مربع النص بالأعلى، انسخها يدوياً.`);
+  }
+}
+
+function escapeXmlStr(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function exportProductsToExcel() {
+  const sorted = getSortedProductsForExport();
+  if (!sorted.length) {
+    alert('لا توجد أصناف لتصديرها!');
+    return;
+  }
+
+  const lastRow = 5 + sorted.length;
+  let rowsXml = `
+    <Row ss:Height="26">
+      <Cell ss:MergeAcross="2" ss:StyleID="sTitle"><Data ss:Type="String">مدير أسعار Smoke Shop الذكي (${sorted.length} صنف)</Data></Cell>
+    </Row>
+    <Row ss:Height="20">
+      <Cell ss:MergeAcross="2" ss:StyleID="sSub"><Data ss:Type="String">اكتب السعر الجديد في العمود الأخضر ثم انسخ الصندوق الأصفر بالأسفل بضغطة واحدة (Ctrl+C)</Data></Cell>
+    </Row>
+    <Row ss:Height="20">
+      <Cell ss:MergeAcross="2" ss:StyleID="sBoxLbl"><Data ss:Type="String">صندوق النسخ التلقائي المجمّع (اضغط هنا ضغطة واحدة ثم انسخ Ctrl+C):</Data></Cell>
+    </Row>
+    <Row ss:Height="42">
+      <Cell ss:MergeAcross="2" ss:StyleID="sBox" ss:Formula="=TEXTJOIN(CHAR(10),TRUE,R[2]C[2]:R[${sorted.length + 1}]C[2])"><Data ss:Type="String"></Data></Cell>
+    </Row>
+    <Row ss:Height="24">
+      <Cell ss:StyleID="sHead"><Data ss:Type="String">اسم الصنف</Data></Cell>
+      <Cell ss:StyleID="sHeadGreen"><Data ss:Type="String">السعر الجديد</Data></Cell>
+      <Cell ss:StyleID="sHead"><Data ss:Type="String">سطر النسخ الجاهز (تلقائي)</Data></Cell>
+    </Row>
+  `;
+
+  sorted.forEach((p) => {
+    const safeName = escapeXmlStr(p.name.trim());
+    rowsXml += `
+    <Row ss:Height="21">
+      <Cell ss:StyleID="sName"><Data ss:Type="String">${safeName}</Data></Cell>
+      <Cell ss:StyleID="sPrice"></Cell>
+      <Cell ss:StyleID="sOut" ss:Formula='=IF(RC[-1]="","",RC[-2]&amp;" "&amp;ROUND(RC[-1],0))'><Data ss:Type="String"></Data></Cell>
+    </Row>`;
+  });
+
+  rowsXml += `
+    <Row ss:Height="22">
+      <Cell ss:StyleID="sFoot" ss:Formula='="إجمالي الأصناف: "&amp;COUNTA(R[-${sorted.length}]C:R[-1]C)'><Data ss:Type="String"></Data></Cell>
+      <Cell ss:StyleID="sFoot" ss:Formula='="المعدّل: "&amp;COUNTIF(R[-${sorted.length}]C:R[-1]C,"&gt;0")'><Data ss:Type="String"></Data></Cell>
+      <Cell ss:StyleID="sFoot"><Data ss:Type="String">جاهز للصق في ⚡ تحديث واتس</Data></Cell>
+    </Row>
+  `;
+
+  const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="11"/></Style>
+  <Style ss:ID="sTitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="13" ss:Bold="1" ss:Color="#FBBF24"/><Interior ss:Color="#0F172A" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sSub"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="10" ss:Color="#334155"/><Interior ss:Color="#F1F5F9" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sBoxLbl"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="10" ss:Bold="1" ss:Color="#92400E"/><Interior ss:Color="#FEF3C7" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sBox"><Alignment ss:Horizontal="Right" ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#F59E0B"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#F59E0B"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#F59E0B"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#F59E0B"/></Borders><Font ss:FontName="Cairo" ss:Size="11" ss:Bold="1" ss:Color="#0F172A"/><Interior ss:Color="#FEF9C3" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sHead"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1E293B" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sHeadGreen"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#059669" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sName"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/></Borders><Font ss:FontName="Cairo" ss:Size="11" ss:Bold="1"/></Style>
+  <Style ss:ID="sPrice"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/></Borders><Font ss:FontName="Cairo" ss:Size="11" ss:Bold="1" ss:Color="#065F46"/><Interior ss:Color="#ECFDF5" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sOut"><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/></Borders><Font ss:FontName="Cairo" ss:Size="10" ss:Color="#475569"/><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="sFoot"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Cairo" ss:Size="10" ss:Bold="1" ss:Color="#FBBF24"/><Interior ss:Color="#0F172A" ss:Pattern="Solid"/></Style>
+ </Styles>
+ <Worksheet ss:Name="تحديث الأسعار" ss:RightToLeft="1">
+  <Table>
+   <Column ss:Width="170"/>
+   <Column ss:Width="110"/>
+   <Column ss:Width="190"/>
+   ${rowsXml}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+  const blob = new Blob(['\uFEFF' + xmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `مدير_أسعار_Smoke_Shop_${sorted.length}_صنف.xls`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 function populateSettingsFields() {
