@@ -2972,8 +2972,8 @@ function exportProductsToExcel() {
 
     // الخلية X2 تحتوي على النص النهائي المتراكم لجميع الأصناف المعدّلة مفصولة بـ CHAR(10)
     ws.getCell('X2').value = { formula: `Y${lastRow}` };
-    // تحويل الفواصل السطرية CHAR(10) إلى %0A والمسافات إلى %20 لرابط واتساب
-    ws.getCell('W2').value = { formula: 'SUBSTITUTE(SUBSTITUTE(X2,CHAR(10),"%0A")," ","%20")' };
+    // ترميز النص بالكامل باستخدام ENCODEURL حتى لا تتعطل الروابط بسبب الحروف العربية أو الرموز أو الفواصل
+    ws.getCell('W2').value = { formula: 'ENCODEURL(X2)' };
     // عداد الأصناف المعدّلة باستخدام دالة قياسية متوافقة مع كل نسخ Excel
     ws.getCell('V2').value = { formula: `COUNTIF(D2:D${lastRow},"معدّل:*")` };
 
@@ -2987,67 +2987,61 @@ function exportProductsToExcel() {
     titleCell.border = thinBorder;
     ws.getCell('G1').border = thinBorder;
 
-    ws.mergeCells('F2:G3');
+    // خلية مفردة غير مدمجة (F2) لضمان استجابة النقر على HYPERLINK في جميع إصدارات Excel و WPS و LibreOffice
+    ws.getRow(2).height = 34;
     const waBtnCell = ws.getCell('F2');
     waBtnCell.value = {
-      formula: `HYPERLINK("https://wa.me/${waPhone}?text="&IF(W2="","تعديل أسعار",W2),"🚀 إرسال التعديلات للواتساب")`
+      formula: `HYPERLINK("https://api.whatsapp.com/send?phone=${waPhone}&text="&IF(W2="",ENCODEURL("تعديل أسعار"),W2),"🚀 اضغط هنا لإرسال التعديلات")`
     };
-    waBtnCell.font = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    waBtnCell.font = { name: 'Cairo', size: 11, bold: true, underline: true, color: { argb: 'FFFFFFFF' } };
     waBtnCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16A34A' } };
     waBtnCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: 'rightToLeft' };
-    for (let rr = 2; rr <= 3; rr++) {
-      for (let cc = 6; cc <= 7; cc++) {
-        ws.getCell(rr, cc).border = btnBorder;
-      }
-    }
+    waBtnCell.border = btnBorder;
 
-    const lblCount = ws.getCell('F4');
-    lblCount.value = 'عدد الأصناف المعدّلة:';
-    lblCount.font = { name: 'Cairo', size: 10, bold: true, color: { argb: 'FF334155' } };
-    lblCount.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-    lblCount.alignment = { horizontal: 'right', vertical: 'middle', readingOrder: 'rightToLeft' };
+    const lblCount = ws.getCell('G2');
+    lblCount.value = { formula: `"المعدّل: "&V2` };
+    lblCount.font = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FF15803D' } };
+    lblCount.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
+    lblCount.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
     lblCount.border = thinBorder;
 
-    const valCount = ws.getCell('G4');
-    valCount.value = { formula: 'V2' };
-    valCount.font = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FF15803D' } };
-    valCount.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
-    valCount.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
-    valCount.numFmt = '#,##0';
-    valCount.border = thinBorder;
-
-    ws.mergeCells('F5:G5');
-    const directWaCell = ws.getCell('F5');
+    ws.getRow(3).height = 26;
+    const directWaCell = ws.getCell('F3');
     directWaCell.value = {
-      formula: `HYPERLINK("https://wa.me/${waPhone}","💬 فتح محادثة واتساب المحل")`
+      formula: `HYPERLINK("https://api.whatsapp.com/send?phone=${waPhone}","💬 فتح واتساب المحل مباشرة")`
     };
     directWaCell.font = { name: 'Cairo', size: 10, bold: true, underline: true, color: { argb: 'FF166534' } };
     directWaCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
     directWaCell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
-    for (let cc = 6; cc <= 7; cc++) {
-      ws.getCell(5, cc).border = thinBorder;
-    }
+    directWaCell.border = thinBorder;
 
-    // صندوق معاينة الأصناف والأسعار المستخرجة (F6:G12)
-    ws.mergeCells('F6:G6');
-    const previewHeader = ws.getCell('F6');
-    previewHeader.value = '📝 معاينة الأصناف والأسعار المستخرجة';
+    const copyHintCell = ws.getCell('G3');
+    copyHintCell.value = 'أو انسخ الصندوق أدناه';
+    copyHintCell.font = { name: 'Cairo', size: 9, bold: true, color: { argb: 'FF475569' } };
+    copyHintCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    copyHintCell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
+    copyHintCell.border = thinBorder;
+
+    // صندوق معاينة الأصناف والأسعار المستخرجة (F4:G11)
+    ws.mergeCells('F4:G4');
+    const previewHeader = ws.getCell('F4');
+    previewHeader.value = '📝 معاينة النص الجاهز للواتساب';
     previewHeader.font = { name: 'Cairo', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
     previewHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
     previewHeader.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
     for (let cc = 6; cc <= 7; cc++) {
-      ws.getCell(6, cc).border = thinBorder;
+      ws.getCell(4, cc).border = thinBorder;
     }
 
-    ws.mergeCells('F7:G12');
-    const previewBox = ws.getCell('F7');
+    ws.mergeCells('F5:G11');
+    const previewBox = ws.getCell('F5');
     previewBox.value = {
       formula: `IF(X2="","لا توجد أصناف معدّلة بعد",X2)`
     };
     previewBox.font = { name: 'Cairo', size: 10, bold: true, color: { argb: 'FF0F172A' } };
     previewBox.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
     previewBox.alignment = { horizontal: 'right', vertical: 'top', wrapText: true, readingOrder: 'rightToLeft' };
-    for (let rr = 7; rr <= 12; rr++) {
+    for (let rr = 5; rr <= 11; rr++) {
       for (let cc = 6; cc <= 7; cc++) {
         ws.getCell(rr, cc).border = thinBorder;
       }
@@ -3072,8 +3066,8 @@ function exportProductsToExcel() {
     ws.getColumn(3).width = 13;
     ws.getColumn(4).width = 24;
     ws.getColumn(5).width = 3;
-    ws.getColumn(6).width = 23;
-    ws.getColumn(7).width = 17;
+    ws.getColumn(6).width = 30;
+    ws.getColumn(7).width = 18;
 
     for (let colIdx = 22; colIdx <= 26; colIdx++) {
       ws.getColumn(colIdx).hidden = true;
