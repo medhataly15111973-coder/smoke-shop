@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <!-- مكتبة Excel (SheetJS) لاستخراج واستيراد ملفات الإكسل مباشرة -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
@@ -2872,172 +2872,200 @@ function exportProductsToExcel() {
   let waPhone = (shopPhone || '01221143854').replace(/\D/g, '');
   if (waPhone.startsWith('01')) waPhone = '2' + waPhone;
 
-  if (typeof XLSX !== 'undefined') {
-    const wb = XLSX.utils.book_new();
-    if (!wb.Workbook) wb.Workbook = {};
-    wb.Workbook.Views = [{ RTL: true }];
+  if (typeof ExcelJS !== 'undefined') {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Smoke Shop';
+    wb.created = new Date();
 
-    const ws = {};
-
-    // تنسيقات احترافية موحدة
-    const borderThin = {
-      top: { style: 'thin', color: { rgb: 'CBD5E1' } },
-      bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
-      left: { style: 'thin', color: { rgb: 'CBD5E1' } },
-      right: { style: 'thin', color: { rgb: 'CBD5E1' } }
-    };
-
-    const headerStyle = {
-      font: { name: 'Arial', sz: 12, bold: true, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: '1E293B' } },
-      alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 },
-      border: borderThin
-    };
-
-    const idCellStyle = (isEven) => ({
-      font: { name: 'Arial', sz: 11, color: { rgb: '475569' } },
-      fill: { fgColor: { rgb: isEven ? 'F8FAFC' : 'FFFFFF' } },
-      alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 },
-      border: borderThin
+    const ws = wb.addWorksheet('قائمة الأسعار', {
+      views: [{ rightToLeft: true, state: 'frozen', ySplit: 1 }]
     });
 
-    const nameCellStyle = (isEven) => ({
-      font: { name: 'Arial', sz: 12, bold: true, color: { rgb: '0F172A' } },
-      fill: { fgColor: { rgb: isEven ? 'F8FAFC' : 'FFFFFF' } },
-      alignment: { horizontal: 'right', vertical: 'center', readingOrder: 2 },
-      border: borderThin
-    });
-
-    const priceCellStyle = (isEven) => ({
-      font: { name: 'Arial', sz: 12, bold: true, color: { rgb: '0369A1' } },
-      fill: { fgColor: { rgb: isEven ? 'F0F9FF' : 'E0F2FE' } },
-      alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 },
-      numFmt: '#,##0',
-      border: borderThin
-    });
-
-    const waBtnStyle = {
-      font: { name: 'Arial', sz: 12, bold: true, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: '16A34A' } },
-      alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 },
-      border: {
-        top: { style: 'medium', color: { rgb: '15803D' } },
-        bottom: { style: 'medium', color: { rgb: '15803D' } },
-        left: { style: 'medium', color: { rgb: '15803D' } },
-        right: { style: 'medium', color: { rgb: '15803D' } }
-      }
+    const thinBorder = {
+      top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+      right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
     };
 
-    const waDirectStyle = {
-      font: { name: 'Arial', sz: 11, bold: true, underline: true, color: { rgb: '15803D' } },
-      fill: { fgColor: { rgb: 'DCFCE7' } },
-      alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 },
-      border: borderThin
+    const btnBorder = {
+      top: { style: 'medium', color: { argb: 'FF15803D' } },
+      bottom: { style: 'medium', color: { argb: 'FF15803D' } },
+      left: { style: 'medium', color: { argb: 'FF15803D' } },
+      right: { style: 'medium', color: { argb: 'FF15803D' } }
     };
 
-    // عناوين الأعمدة الأساسية (A, B, C)
-    ws['A1'] = { t: 's', v: 'ID', s: headerStyle };
-    ws['B1'] = { t: 's', v: 'اسم الصنف', s: headerStyle };
-    ws['C1'] = { t: 's', v: 'السعر', s: headerStyle };
+    // عناوين الجدول الأساسي (A1:D1)
+    const headers = [
+      { col: 1, title: 'ID' },
+      { col: 2, title: 'اسم الصنف' },
+      { col: 3, title: 'السعر' },
+      { col: 4, title: 'حالة التعديل' }
+    ];
 
-    // عناوين الأعمدة المخفية للمعادلات (W, X, Y, Z)
-    ws['W1'] = { t: 's', v: 'رابط مشفر' };
-    ws['X1'] = { t: 's', v: 'النص المدمج' };
-    ws['Y1'] = { t: 's', v: 'سطر التعديل' };
-    ws['Z1'] = { t: 's', v: 'السعر المرجعي' };
+    ws.getRow(1).height = 28;
+    headers.forEach(h => {
+      const cell = ws.getCell(1, h.col);
+      cell.value = h.title;
+      cell.font = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
+      cell.border = thinBorder;
+    });
 
     const lastRow = sortedProducts.length + 1;
 
     sortedProducts.forEach((p, idx) => {
       const r = idx + 2;
       const isEven = idx % 2 === 1;
+      const rowBg = isEven ? 'FFF8FAFC' : 'FFFFFFFF';
       const basePrice = Math.round(Number(p.p) || 0);
 
-      ws[`A${r}`] = { t: 'n', v: Number(p.id) || (idx + 1), s: idCellStyle(isEven) };
-      ws[`B${r}`] = { t: 's', v: String(p.name), s: nameCellStyle(isEven) };
-      ws[`C${r}`] = { t: 'n', v: basePrice, s: priceCellStyle(isEven) };
+      ws.getRow(r).height = 24;
 
-      // الأعمدة المخفية لحساب التغييرات تلقائياً
-      ws[`Z${r}`] = { t: 'n', v: basePrice };
-      ws[`Y${r}`] = {
-        t: 's',
-        f: `IF(AND(B${r}<>"", ROUND(C${r},0)<>ROUND(Z${r},0)), TRIM(B${r}) & " " & ROUND(C${r},0), "")`
+      const cId = ws.getCell(r, 1);
+      cId.value = Number(p.id) || (idx + 1);
+      cId.font = { name: 'Cairo', size: 10, color: { argb: 'FF64748B' } };
+      cId.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+      cId.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
+      cId.border = thinBorder;
+
+      const cName = ws.getCell(r, 2);
+      cName.value = String(p.name);
+      cName.font = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FF0F172A' } };
+      cName.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+      cName.alignment = { horizontal: 'right', vertical: 'middle', readingOrder: 'rightToLeft' };
+      cName.border = thinBorder;
+
+      const cPrice = ws.getCell(r, 3);
+      cPrice.value = basePrice;
+      cPrice.font = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FF1D4ED8' } };
+      cPrice.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+      cPrice.numFmt = '#,##0';
+      cPrice.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
+      cPrice.border = thinBorder;
+
+      // عمود حالة التعديل تلقائياً عند تغيير السعر في العمود C مقارنة بالمرجع Z
+      const cStatus = ws.getCell(r, 4);
+      cStatus.value = { formula: `IF(ROUND(C${r},0)<>ROUND(Z${r},0),"معدّل ✅","")` };
+      cStatus.font = { name: 'Cairo', size: 10, bold: true, color: { argb: 'FF047857' } };
+      cStatus.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+      cStatus.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
+      cStatus.border = thinBorder;
+
+      // عمود مرجعي مخفي (Z): يحفظ السعر الأصلي عند التصدير
+      const cRef = ws.getCell(r, 26);
+      cRef.value = basePrice;
+      cRef.numFmt = '0';
+
+      // عمود مساعد مخفي (Y): يولّد سطر الصنف المعدّل فقط (الاسم + السعر الجديد)
+      const cLine = ws.getCell(r, 25);
+      cLine.value = {
+        formula: `IF(AND(B${r}<>"",ROUND(C${r},0)<>ROUND(Z${r},0)),TRIM(B${r})&" "&ROUND(C${r},0),"")`
       };
     });
 
-    // الخلية X2 (مخفية): دمج السطور المعدلة بفاصل سطر جديد (%0A)
-    ws['X2'] = {
-      t: 's',
-      f: `TEXTJOIN("%0A", TRUE, Y2:Y${lastRow})`
+    // خلايا حسابية مخفية (V, W, X) لتجميع التعديلات وتجهيز رابط واتساب المتوافق مع الجوال والكمبيوتر
+    // X2: دمج السطور المعدّلة بفاصل سطر جديد (%0A)
+    ws.getCell('X2').value = { formula: `TEXTJOIN("%0A",TRUE,Y2:Y${lastRow})` };
+    // W2: ترميز المسافات إلى %20 ليعمل الرابط على جميع متصفحات وتطبيقات الجوال
+    ws.getCell('W2').value = { formula: 'SUBSTITUTE(X2," ","%20")' };
+    // V2: عدد الأصناف التي تم تعديل سعرها
+    ws.getCell('V2').value = { formula: `COUNTIF(Y2:Y${lastRow},"<>")` };
+
+    // لوحة إرسال التعديلات عبر واتساب في الأعمدة F و G
+    ws.mergeCells('F1:G1');
+    const titleCell = ws.getCell('F1');
+    titleCell.value = '📲 إرسال التعديلات عبر واتساب';
+    titleCell.font = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF065F46' } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
+    titleCell.border = thinBorder;
+    ws.getCell('G1').border = thinBorder;
+
+    ws.mergeCells('F2:G3');
+    const waBtnCell = ws.getCell('F2');
+    waBtnCell.value = {
+      formula: `HYPERLINK("https://wa.me/${waPhone}?text="&W2,"🚀 اضغط لإرسال المعدّل للواتساب")`
     };
+    waBtnCell.font = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+    waBtnCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16A34A' } };
+    waBtnCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true, readingOrder: 'rightToLeft' };
+    for (let rr = 2; rr <= 3; rr++) {
+      for (let cc = 6; cc <= 7; cc++) {
+        ws.getCell(rr, cc).border = btnBorder;
+      }
+    }
 
-    // الخلية W2 (مخفية): ترميز المسافات إلى %20 ليعمل رابط wa.me على الجوال فوراً
-    ws['W2'] = {
-      t: 's',
-      f: `SUBSTITUTE(X2, " ", "%20")`
+    const lblCount = ws.getCell('F4');
+    lblCount.value = 'عدد الأصناف المعدّلة:';
+    lblCount.font = { name: 'Cairo', size: 10, bold: true, color: { argb: 'FF334155' } };
+    lblCount.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+    lblCount.alignment = { horizontal: 'right', vertical: 'middle', readingOrder: 'rightToLeft' };
+    lblCount.border = thinBorder;
+
+    const valCount = ws.getCell('G4');
+    valCount.value = { formula: 'V2' };
+    valCount.font = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FF15803D' } };
+    valCount.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
+    valCount.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
+    valCount.numFmt = '#,##0';
+    valCount.border = thinBorder;
+
+    ws.mergeCells('F5:G5');
+    const directWaCell = ws.getCell('F5');
+    directWaCell.value = {
+      formula: `HYPERLINK("https://wa.me/${waPhone}","💬 فتح محادثة واتساب المحل مباشرة")`
     };
+    directWaCell.font = { name: 'Cairo', size: 10, bold: true, underline: true, color: { argb: 'FF166534' } };
+    directWaCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+    directWaCell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
+    for (let cc = 6; cc <= 7; cc++) {
+      ws.getCell(5, cc).border = thinBorder;
+    }
 
-    // الخلية E2: زر إرسال القائمة للواتساب بتنسيق زر أخضر واضح
-    const btnTitle = '📲 اضغط لإرسال القائمة للواتساب';
-    ws['E2'] = {
-      t: 's',
-      f: `HYPERLINK("https://wa.me/${waPhone}?text=" & W2, "${btnTitle}")`,
-      s: waBtnStyle
-    };
-
-    // الخلية E3: رابط احتياطي مباشر يفتح واتساب المحل مباشرة
-    const directTitle = '💬 فتح محادثة واتساب المحل';
-    ws['E3'] = {
-      t: 's',
-      v: directTitle,
-      l: { Target: `https://wa.me/${waPhone}`, Tooltip: 'فتح محادثة واتساب المحل' },
-      s: waDirectStyle
-    };
-
-    const maxRow = Math.max(lastRow, 4);
-    ws['!ref'] = `A1:Z${maxRow}`;
-
-    // حساب دقيق وموسّع لعرض الأعمدة العربية لمنع ظهور ### أو قص الكلام على الجوال والكمبيوتر
+    // حساب دقيق لعرض الأعمدة العربية
     const calcDisplayWidth = (str) => {
       let w = 0;
       for (const ch of String(str)) {
-        w += /[\u0600-\u06FF]/.test(ch) ? 1.85 : 1.25;
+        w += /[\u0600-\u06FF]/.test(ch) ? 1.75 : 1.2;
       }
       return Math.ceil(w);
     };
 
-    const maxIdLen = Math.max(6, ...sortedProducts.map(p => String(p.id).length)) + 3;
-    const maxNameLen = Math.max(22, calcDisplayWidth('اسم الصنف'), ...sortedProducts.map(p => calcDisplayWidth(p.name))) + 6;
-    const maxPriceLen = Math.max(12, calcDisplayWidth('السعر'), ...sortedProducts.map(p => String(Math.round(Number(p.p) || 0)).length + 3)) + 4;
-    const btnColLen = Math.max(calcDisplayWidth(btnTitle), calcDisplayWidth(directTitle)) + 6;
+    const maxIdLen = Math.max(7, ...sortedProducts.map(p => String(p.id).length)) + 3;
+    const maxNameLen = Math.max(24, calcDisplayWidth('اسم الصنف'), ...sortedProducts.map(p => calcDisplayWidth(p.name))) + 6;
+    const maxPriceLen = Math.max(13, calcDisplayWidth('السعر'), ...sortedProducts.map(p => String(Math.round(Number(p.p) || 0)).length + 3)) + 4;
 
-    const cols = [];
-    cols[0] = { wch: maxIdLen };     // A: ID
-    cols[1] = { wch: maxNameLen };   // B: اسم الصنف
-    cols[2] = { wch: maxPriceLen };  // C: السعر
-    cols[3] = { wch: 3 };            // D: عمود فاصل
-    cols[4] = { wch: btnColLen };    // E: زر الواتساب
-    for (let c = 5; c < 26; c++) {
-      cols[c] = { hidden: true, wch: 2 };
+    ws.getColumn(1).width = maxIdLen;
+    ws.getColumn(2).width = maxNameLen;
+    ws.getColumn(3).width = maxPriceLen;
+    ws.getColumn(4).width = 16;
+    ws.getColumn(5).width = 3;
+    ws.getColumn(6).width = 22;
+    ws.getColumn(7).width = 16;
+
+    for (let colIdx = 22; colIdx <= 26; colIdx++) {
+      ws.getColumn(colIdx).hidden = true;
+      ws.getColumn(colIdx).width = 4;
     }
-    ws['!cols'] = cols;
 
-    // ارتفاع صفوف مريح للقراءة والضغط بالإصبع على الجوال
-    const rows = [];
-    rows[0] = { hpt: 30 }; // صف العناوين
-    for (let r = 1; r < maxRow; r++) {
-      rows[r] = { hpt: r === 1 ? 34 : (r === 2 ? 28 : 24) };
-    }
-    ws['!rows'] = rows;
-
-    // تجميد صف العناوين العلوي (الصف 1) ليظل ظاهراً عند التمرير لأسفل
-    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
-
-    // اتجاه الورقة من اليمين لليسار
-    ws['!views'] = [{ rightToLeft: true }];
-
-    XLSX.utils.book_append_sheet(wb, ws, 'قائمة الأسعار');
-    XLSX.writeFile(wb, fileName);
+    wb.xlsx.writeBuffer().then((buffer) => {
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }).catch((err) => {
+      console.error('ExcelJS Export Error:', err);
+      alert('حدث خطأ أثناء إنشاء ملف الإكسل.');
+    });
   } else {
     const headers = ['ID', 'اسم الصنف', 'السعر'];
     const csvLines = [headers.join(',')];
