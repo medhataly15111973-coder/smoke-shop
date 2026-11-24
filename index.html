@@ -376,7 +376,7 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
         <div>
           <h2 class="font-black text-sm text-emerald-400 flex items-center gap-1.5">📊 استخراج وتعديل الأصناف (Excel)</h2>
           <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-            استخرج جميع أصناف المتجر في ملف إكسل جاهز بالمعرّف (<span class="font-mono text-amber-300">ID</span>)، عدّل الأسعار أو الأسماء أو التوفر في الإكسل، ثم ارفعه مرة أخرى ليُحدّث المتجر بالكامل بدون أي لخبطة!
+            استخرج جميع أصناف المتجر في ملف إكسل مبسط يحتوي على (<span class="font-mono text-amber-300">ID</span>، <span class="text-white">اسم الصنف</span>، <span class="text-emerald-300">السعر</span>) فقط، عدّل الأسعار أو الأسماء في الإكسل، ثم ارفعه مرة أخرى ليُحدّث المتجر بالكامل!
           </p>
         </div>
       </div>
@@ -2800,46 +2800,33 @@ function exportProductsToExcel() {
     return;
   }
 
-  // تجهيز البيانات في صفوف منظمة وواضحة للمالك
-  const rows = products.map(p => {
-    const catObj = categories.find(c => c.id === p.c);
-    return {
-      'ID': p.id,
-      'اسم الصنف': p.name,
-      'القسم': catObj ? catObj.n : p.c,
-      'السعر': Math.round(Number(p.p) || 0),
-      'الوحدة': p.u || 'خرطوشة',
-      'الحالة': p.outOfStock ? 'نفذ' : 'متاح'
-    };
-  });
+  // تجهيز البيانات بـ 3 أعمدة فقط: ID، اسم الصنف، السعر
+  const rows = products.map(p => ({
+    'ID': p.id,
+    'اسم الصنف': p.name,
+    'السعر': Math.round(Number(p.p) || 0)
+  }));
 
   const dateStr = new Date().toISOString().slice(0, 10);
   const fileName = `SmokeShop_Prices_${dateStr}.xlsx`;
 
-  // استخدام مكتبة SheetJS لتوليد ملف Excel حقيقي (.xlsx)
   if (typeof XLSX !== 'undefined') {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
 
-    // ضبط عرض الأعمدة تلقائياً لسهولة القراءة والتعديل
     ws['!cols'] = [
-      { wch: 8 },   // ID
-      { wch: 28 },  // اسم الصنف
-      { wch: 18 },  // القسم
-      { wch: 12 },  // السعر
-      { wch: 14 },  // الوحدة
-      { wch: 12 }   // الحالة
+      { wch: 10 },  // ID
+      { wch: 30 },  // اسم الصنف
+      { wch: 14 }   // السعر
     ];
 
-    // اتجاه الورقة من اليمين لليسار
     if (!ws['!views']) ws['!views'] = [];
     ws['!views'].push({ rightToLeft: true });
 
     XLSX.utils.book_append_sheet(wb, ws, 'قائمة الأسعار');
     XLSX.writeFile(wb, fileName);
   } else {
-    // خطة بديلة بصيغة CSV UTF-8 BOM في حال عدم توفر الإنترنت لتحميل المكتبة
-    const headers = ['ID', 'اسم الصنف', 'القسم', 'السعر', 'الوحدة', 'الحالة'];
+    const headers = ['ID', 'اسم الصنف', 'السعر'];
     const csvLines = [headers.join(',')];
     rows.forEach(r => {
       const line = headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(',');
@@ -2882,51 +2869,25 @@ async function handleExcelImport(event) {
     let addedCount = 0;
     let skippedRows = [];
 
-    // حساب أكبر ID حالي لإضافات الأصناف الجديدة
     let maxId = products.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0);
 
     rawRows.forEach((row, index) => {
-      const rowNum = index + 2; // رقم الصف في الإكسل
+      const rowNum = index + 2;
 
-      // دعم مسميات الأعمدة سواء من ملف التطبيق أو من ملف مدير الأسعار الذكي
       const rawId = String(row['ID'] ?? row['id'] ?? row['المعرف'] ?? row['الكود'] ?? '').trim();
       const rawName = String(row['اسم الصنف'] ?? row['الصنف'] ?? row['الاسم'] ?? row['name'] ?? '').trim();
-      const rawCat = String(row['القسم'] ?? row['التصنيف'] ?? row['category'] ?? '').trim();
       const rawPriceVal = String(row['السعر الجديد'] !== undefined && String(row['السعر الجديد']).trim() !== ''
         ? row['السعر الجديد']
         : (row['السعر'] ?? row['السعر الحالي'] ?? row['price'] ?? '')).trim();
-      const rawUnit = String(row['الوحدة'] ?? row['unit'] ?? '').trim();
-      const rawStatus = String(row['الحالة'] ?? row['التوفر'] ?? row['status'] ?? '').trim();
 
-      // تجاهل الصفوف الفارغة تماماً
       if (!rawId && !rawName && !rawPriceVal) return;
 
-      // تحويل الأرقام العربية إلى إنجليزية في السعر
       const cleanPriceStr = rawPriceVal.replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
       const parsedPrice = Math.round(parseFloat(cleanPriceStr));
 
       if (isNaN(parsedPrice) || parsedPrice <= 0) {
         skippedRows.push(`صف ${rowNum} (${rawName || rawId}): سعر غير صالح`);
         return;
-      }
-
-      // تحديد معرّف القسم إذا كُتب اسمه في الإكسل
-      let resolvedCatId = null;
-      if (rawCat) {
-        const normCatInput = normalizeArabicText(rawCat);
-        const foundCat = categories.find(c => c.id !== 'all' && (c.id === rawCat || normalizeArabicText(c.n) === normCatInput));
-        if (foundCat) resolvedCatId = foundCat.id;
-      }
-
-      // تحديد حالة التوفر (نفذ / متاح)
-      let resolvedOutOfStock = null;
-      if (rawStatus) {
-        const st = normalizeArabicText(rawStatus);
-        if (st.includes('نفذ') || st.includes('غير متاح') || st === '0' || st === 'no') {
-          resolvedOutOfStock = true;
-        } else if (st.includes('متاح') || st === '1' || st === 'yes') {
-          resolvedOutOfStock = false;
-        }
       }
 
       // 1. البحث بالـ ID أولاً (أعلى دقة 100%)
@@ -2942,25 +2903,19 @@ async function handleExcelImport(event) {
       }
 
       if (targetProd) {
-        // تحديث الصنف الموجود
         if (rawName) targetProd.name = rawName;
         targetProd.p = parsedPrice;
-        if (resolvedCatId) targetProd.c = resolvedCatId;
-        if (rawUnit) targetProd.u = isTobaccoCategory(targetProd.c) ? 'كيلو' : rawUnit;
-        if (resolvedOutOfStock !== null) targetProd.outOfStock = resolvedOutOfStock;
         updatedCount++;
       } else if (rawName) {
-        // إضافة صنف جديد تماماً
         maxId++;
-        const finalCat = resolvedCatId || (categories.find(c => c.id !== 'all')?.id || 'oth');
-        const finalUnit = isTobaccoCategory(finalCat) ? 'كيلو' : (rawUnit || 'خرطوشة');
+        const defaultCat = categories.find(c => c.id !== 'all')?.id || 'oth';
         products.unshift({
           id: maxId,
           name: rawName,
-          c: finalCat,
+          c: defaultCat,
           p: parsedPrice,
-          u: finalUnit,
-          outOfStock: resolvedOutOfStock !== null ? resolvedOutOfStock : false
+          u: isTobaccoCategory(defaultCat) ? 'كيلو' : 'خرطوشة',
+          outOfStock: false
         });
         addedCount++;
       } else {
