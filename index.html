@@ -2983,10 +2983,11 @@ function exportProductsToExcel() {
     titleCell.border = thinBorder;
     ws.getCell('G1').border = thinBorder;
 
+    // استخدام HYPERLINK مع نص بديل عند عدم وجود تعديلات لتفادي روابط فارغة أو غير مفعّلة في بعض التطبيقات
     ws.mergeCells('F2:G3');
     const waBtnCell = ws.getCell('F2');
     waBtnCell.value = {
-      formula: `HYPERLINK("https://wa.me/${waPhone}?text="&W2,"🚀 اضغط لإرسال المعدّل للواتساب")`
+      formula: `HYPERLINK("https://wa.me/${waPhone}?text="&IF(W2="","تعديل أسعار",W2),"🚀 إرسال التعديلات للواتساب")`
     };
     waBtnCell.font = { name: 'Cairo', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
     waBtnCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16A34A' } };
@@ -3015,7 +3016,7 @@ function exportProductsToExcel() {
     ws.mergeCells('F5:G5');
     const directWaCell = ws.getCell('F5');
     directWaCell.value = {
-      formula: `HYPERLINK("https://wa.me/${waPhone}","💬 فتح محادثة واتساب المحل مباشرة")`
+      formula: `HYPERLINK("https://wa.me/${waPhone}","💬 فتح محادثة واتساب المحل")`
     };
     directWaCell.font = { name: 'Cairo', size: 10, bold: true, underline: true, color: { argb: 'FF166534' } };
     directWaCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
@@ -3024,26 +3025,27 @@ function exportProductsToExcel() {
       ws.getCell(5, cc).border = thinBorder;
     }
 
-    // حساب دقيق لعرض الأعمدة العربية
+    // حساب عرض مناسب ومتوازن لعمود اسم الصنف بحيث لا يكون ضخماً ولا يقص النص
     const calcDisplayWidth = (str) => {
       let w = 0;
       for (const ch of String(str)) {
-        w += /[\u0600-\u06FF]/.test(ch) ? 1.75 : 1.2;
+        w += /[\u0600-\u06FF]/.test(ch) ? 1.25 : 1.05;
       }
       return Math.ceil(w);
     };
 
-    const maxIdLen = Math.max(7, ...sortedProducts.map(p => String(p.id).length)) + 3;
-    const maxNameLen = Math.max(24, calcDisplayWidth('اسم الصنف'), ...sortedProducts.map(p => calcDisplayWidth(p.name))) + 6;
-    const maxPriceLen = Math.max(13, calcDisplayWidth('السعر'), ...sortedProducts.map(p => String(Math.round(Number(p.p) || 0)).length + 3)) + 4;
+    const maxNameLen = Math.min(
+      34,
+      Math.max(20, calcDisplayWidth('اسم الصنف'), ...sortedProducts.map(p => calcDisplayWidth(p.name))) + 3
+    );
 
-    ws.getColumn(1).width = maxIdLen;
+    ws.getColumn(1).width = 8;
     ws.getColumn(2).width = maxNameLen;
-    ws.getColumn(3).width = maxPriceLen;
-    ws.getColumn(4).width = 16;
+    ws.getColumn(3).width = 13;
+    ws.getColumn(4).width = 15;
     ws.getColumn(5).width = 3;
-    ws.getColumn(6).width = 22;
-    ws.getColumn(7).width = 16;
+    ws.getColumn(6).width = 21;
+    ws.getColumn(7).width = 15;
 
     for (let colIdx = 22; colIdx <= 26; colIdx++) {
       ws.getColumn(colIdx).hidden = true;
