@@ -2915,6 +2915,9 @@ function exportProductsToExcel() {
 
     const lastRow = sortedProducts.length + 1;
 
+    // صف بذرة مخفي (Y1) لتجميع السطور دون الاعتماد على TEXTJOIN (يعمل على كل نسخ Excel وLibreOffice وWPS)
+    ws.getCell('Y1').value = '';
+
     sortedProducts.forEach((p, idx) => {
       const r = idx + 2;
       const isEven = idx % 2 === 1;
@@ -2945,12 +2948,14 @@ function exportProductsToExcel() {
       cPrice.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
       cPrice.border = thinBorder;
 
-      // عمود حالة التعديل تلقائياً عند تغيير السعر في العمود C مقارنة بالمرجع Z
+      // عرض "معدّل: [اسم الصنف] [السعر الجديد]" مباشرة عند تغيّر السعر عن المرجع Z
       const cStatus = ws.getCell(r, 4);
-      cStatus.value = { formula: `IF(ROUND(C${r},0)<>ROUND(Z${r},0),"معدّل ✅","")` };
+      cStatus.value = {
+        formula: `IF(AND(B${r}<>"",ROUND(C${r},0)<>ROUND(Z${r},0)),"معدّل: "&TRIM(B${r})&" "&ROUND(C${r},0),"")`
+      };
       cStatus.font = { name: 'Cairo', size: 10, bold: true, color: { argb: 'FF047857' } };
       cStatus.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
-      cStatus.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
+      cStatus.alignment = { horizontal: 'right', vertical: 'middle', readingOrder: 'rightToLeft' };
       cStatus.border = thinBorder;
 
       // عمود مرجعي مخفي (Z): يحفظ السعر الأصلي عند التصدير
@@ -2958,20 +2963,19 @@ function exportProductsToExcel() {
       cRef.value = basePrice;
       cRef.numFmt = '0';
 
-      // عمود مساعد مخفي (Y): يولّد سطر الصنف المعدّل فقط (الاسم + السعر الجديد)
-      const cLine = ws.getCell(r, 25);
-      cLine.value = {
-        formula: `IF(AND(B${r}<>"",ROUND(C${r},0)<>ROUND(Z${r},0)),TRIM(B${r})&" "&ROUND(C${r},0),"")`
+      // عمود تراكمي مخفي (Y): يجمع السطور المعدّلة بفاصل سطر حقيقي CHAR(10) بدون الحاجة لـ TEXTJOIN
+      const cAcc = ws.getCell(r, 25);
+      cAcc.value = {
+        formula: `IF(AND(B${r}<>"",ROUND(C${r},0)<>ROUND(Z${r},0)),IF(Y${r - 1}="",TRIM(B${r})&" "&ROUND(C${r},0),Y${r - 1}&CHAR(10)&TRIM(B${r})&" "&ROUND(C${r},0)),Y${r - 1})`
       };
     });
 
-    // خلايا حسابية مخفية (V, W, X) لتجميع التعديلات وتجهيز رابط واتساب المتوافق مع الجوال والكمبيوتر
-    // X2: دمج السطور المعدّلة بفاصل سطر جديد (%0A)
-    ws.getCell('X2').value = { formula: `TEXTJOIN("%0A",TRUE,Y2:Y${lastRow})` };
-    // W2: ترميز المسافات إلى %20 ليعمل الرابط على جميع متصفحات وتطبيقات الجوال
-    ws.getCell('W2').value = { formula: 'SUBSTITUTE(X2," ","%20")' };
-    // V2: عدد الأصناف التي تم تعديل سعرها
-    ws.getCell('V2').value = { formula: `COUNTIF(Y2:Y${lastRow},"<>")` };
+    // الخلية X2 تحتوي على النص النهائي المتراكم لجميع الأصناف المعدّلة مفصولة بـ CHAR(10)
+    ws.getCell('X2').value = { formula: `Y${lastRow}` };
+    // تحويل الفواصل السطرية CHAR(10) إلى %0A والمسافات إلى %20 لرابط واتساب
+    ws.getCell('W2').value = { formula: 'SUBSTITUTE(SUBSTITUTE(X2,CHAR(10),"%0A")," ","%20")' };
+    // عداد الأصناف المعدّلة باستخدام دالة قياسية متوافقة مع كل نسخ Excel
+    ws.getCell('V2').value = { formula: `COUNTIF(D2:D${lastRow},"معدّل:*")` };
 
     // لوحة إرسال التعديلات عبر واتساب في الأعمدة F و G
     ws.mergeCells('F1:G1');
@@ -2983,7 +2987,6 @@ function exportProductsToExcel() {
     titleCell.border = thinBorder;
     ws.getCell('G1').border = thinBorder;
 
-    // استخدام HYPERLINK مع نص بديل عند عدم وجود تعديلات لتفادي روابط فارغة أو غير مفعّلة في بعض التطبيقات
     ws.mergeCells('F2:G3');
     const waBtnCell = ws.getCell('F2');
     waBtnCell.value = {
@@ -3025,7 +3028,32 @@ function exportProductsToExcel() {
       ws.getCell(5, cc).border = thinBorder;
     }
 
-    // حساب عرض مناسب ومتوازن لعمود اسم الصنف بحيث لا يكون ضخماً ولا يقص النص
+    // صندوق معاينة الأصناف والأسعار المستخرجة (F6:G12)
+    ws.mergeCells('F6:G6');
+    const previewHeader = ws.getCell('F6');
+    previewHeader.value = '📝 معاينة الأصناف والأسعار المستخرجة';
+    previewHeader.font = { name: 'Cairo', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    previewHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+    previewHeader.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
+    for (let cc = 6; cc <= 7; cc++) {
+      ws.getCell(6, cc).border = thinBorder;
+    }
+
+    ws.mergeCells('F7:G12');
+    const previewBox = ws.getCell('F7');
+    previewBox.value = {
+      formula: `IF(X2="","لا توجد أصناف معدّلة بعد",X2)`
+    };
+    previewBox.font = { name: 'Cairo', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+    previewBox.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+    previewBox.alignment = { horizontal: 'right', vertical: 'top', wrapText: true, readingOrder: 'rightToLeft' };
+    for (let rr = 7; rr <= 12; rr++) {
+      for (let cc = 6; cc <= 7; cc++) {
+        ws.getCell(rr, cc).border = thinBorder;
+      }
+    }
+
+    // حساب عرض مناسب ومتوازن للأعمدة
     const calcDisplayWidth = (str) => {
       let w = 0;
       for (const ch of String(str)) {
@@ -3042,10 +3070,10 @@ function exportProductsToExcel() {
     ws.getColumn(1).width = 8;
     ws.getColumn(2).width = maxNameLen;
     ws.getColumn(3).width = 13;
-    ws.getColumn(4).width = 15;
+    ws.getColumn(4).width = 24;
     ws.getColumn(5).width = 3;
-    ws.getColumn(6).width = 21;
-    ws.getColumn(7).width = 15;
+    ws.getColumn(6).width = 23;
+    ws.getColumn(7).width = 17;
 
     for (let colIdx = 22; colIdx <= 26; colIdx++) {
       ws.getColumn(colIdx).hidden = true;
@@ -3089,18 +3117,73 @@ async function handleExcelImport(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  if (typeof XLSX === 'undefined') {
-    alert('مكتبة قراءة الإكسل قيد التحميل، تأكد من اتصالك بالإنترنت وحاول مرة أخرى.');
-    event.target.value = '';
-    return;
-  }
-
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
-    const rawRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+    let rawRows = [];
+    const fileNameLower = file.name.toLowerCase();
+
+    if (fileNameLower.endsWith('.csv')) {
+      const text = await file.text();
+      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+      if (lines.length > 1) {
+        const parseCsvLine = (line) => {
+          const res = [];
+          let cur = '', inQ = false;
+          for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (ch === '"') {
+              if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+              else inQ = !inQ;
+            } else if (ch === ',' && !inQ) {
+              res.push(cur.trim()); cur = '';
+            } else {
+              cur += ch;
+            }
+          }
+          res.push(cur.trim());
+          return res;
+        };
+        const headers = parseCsvLine(lines[0]);
+        for (let i = 1; i < lines.length; i++) {
+          const vals = parseCsvLine(lines[i]);
+          const obj = {};
+          headers.forEach((h, idx) => { obj[h] = vals[idx] ?? ''; });
+          rawRows.push(obj);
+        }
+      }
+    } else if (typeof ExcelJS !== 'undefined') {
+      const arrayBuffer = await file.arrayBuffer();
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(arrayBuffer);
+      const ws = wb.worksheets[0];
+      if (ws) {
+        const headerMap = {};
+        ws.getRow(1).eachCell((cell, colNumber) => {
+          const val = cell.text ? cell.text.trim() : String(cell.value ?? '').trim();
+          if (val) headerMap[colNumber] = val;
+        });
+
+        ws.eachRow((row, rowNumber) => {
+          if (rowNumber === 1) return;
+          const obj = {};
+          let hasData = false;
+          Object.entries(headerMap).forEach(([colNum, hName]) => {
+            const cell = row.getCell(Number(colNum));
+            let val = cell.value;
+            if (val && typeof val === 'object') {
+              val = val.result !== undefined ? val.result : (val.text || '');
+            }
+            const strVal = String(val ?? '').trim();
+            if (strVal !== '') hasData = true;
+            obj[hName] = strVal;
+          });
+          if (hasData) rawRows.push(obj);
+        });
+      }
+    } else {
+      alert('مكتبة قراءة الإكسل قيد التحميل، تأكد من اتصالك بالإنترنت وحاول مرة أخرى.');
+      event.target.value = '';
+      return;
+    }
 
     if (!rawRows.length) {
       alert('الملف فارغ ولا يحتوي على بيانات!');
