@@ -376,7 +376,7 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
         <div>
           <h2 class="font-black text-sm text-emerald-400 flex items-center gap-1.5">📊 استخراج وتعديل الأصناف (Excel)</h2>
           <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-            استخرج جميع أصناف المتجر في ملف إكسل مبسط يحتوي على (<span class="font-mono text-amber-300">ID</span>، <span class="text-white">اسم الصنف</span>، <span class="text-emerald-300">السعر</span>) فقط، عدّل الأسعار أو الأسماء في الإكسل، ثم ارفعه مرة أخرى ليُحدّث المتجر بالكامل!
+            استخرج جميع أصناف المتجر في ملف إكسل مبسط يحتوي على (<span class="font-mono text-amber-300">ID</span>، <span class="text-white">اسم الصنف</span>، <span class="text-emerald-300">السعر</span>) فقط ومرتب حسب أقسام المتجر، عدّل الأسعار أو الأسماء في الإكسل، ثم ارفعه مرة أخرى ليُحدّث المتجر بالكامل!
           </p>
         </div>
       </div>
@@ -2800,8 +2800,30 @@ function exportProductsToExcel() {
     return;
   }
 
+  // ترتيب الأقسام حسب ترتيب التبويبات المعروضة في المتجر (بعد تبويب الكل)
+  const orderedCats = categories.filter(c => c.id !== 'all');
+  const sortedProducts = [];
+  const addedIds = new Set();
+
+  orderedCats.forEach(cat => {
+    const catProducts = products
+      .filter(p => p.c === cat.id)
+      .sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+    catProducts.forEach(p => {
+      sortedProducts.push(p);
+      addedIds.add(String(p.id));
+    });
+  });
+
+  // إضافة أي أصناف أخرى غير مصنفة إن وجدت في النهاية
+  products.forEach(p => {
+    if (!addedIds.has(String(p.id))) {
+      sortedProducts.push(p);
+    }
+  });
+
   // تجهيز البيانات بـ 3 أعمدة فقط: ID، اسم الصنف، السعر
-  const rows = products.map(p => ({
+  const rows = sortedProducts.map(p => ({
     'ID': p.id,
     'اسم الصنف': p.name,
     'السعر': Math.round(Number(p.p) || 0)
@@ -2814,10 +2836,15 @@ function exportProductsToExcel() {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows);
 
+    // حساب العرض الملائم تلقائياً لكل عمود بناءً على أطول نص في الجدول
+    const maxIdLen = Math.max(6, ...rows.map(r => String(r['ID']).length + 4));
+    const maxNameLen = Math.max(16, ...rows.map(r => String(r['اسم الصنف']).length + 6));
+    const maxPriceLen = Math.max(10, ...rows.map(r => String(r['السعر']).length + 5));
+
     ws['!cols'] = [
-      { wch: 10 },  // ID
-      { wch: 30 },  // اسم الصنف
-      { wch: 14 }   // السعر
+      { wch: maxIdLen },
+      { wch: maxNameLen },
+      { wch: maxPriceLen }
     ];
 
     if (!ws['!views']) ws['!views'] = [];
