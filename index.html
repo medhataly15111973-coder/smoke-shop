@@ -2540,11 +2540,55 @@ async function updateOrderStatus(docId, newStatus) {
   }
 }
 
-function clearAllOrders() {
-  if(confirm('هل أنت متأكد من مسح كافة الطلبات من اللوحة؟')) {
+async function clearAllOrders() {
+  // 1. التأكيد الأول: تنبيه بعدد الطلبات التي سيتم حذفها
+  const totalCount = incomingOrders.length;
+  if (totalCount === 0) {
+    alert('لا توجد طلبات حالياً لمسحها.');
+    return;
+  }
+
+  const firstConfirm = confirm(
+    `⚠️ تحذير: أنت على وشك مسح (${totalCount}) طلب نهائياً من قاعدة البيانات!\nلا يمكن التراجع عن هذه العملية. هل تريد المتابعة؟`
+  );
+  if (!firstConfirm) return;
+
+  // 2. التأكيد الثاني: طلب إدخال رمز PIN الخاص بالإدارة لمنع الضغط بالخطأ
+  const pinCheck = prompt(
+    `🔒 لتأكيد المسح النهائي لجميع الطلبات، أدخل رمز PIN الخاص بالإدارة:`
+  );
+  if (pinCheck === null) return; // إلغاء العملية
+
+  if (pinCheck.trim() !== ownerPin) {
+    alert('❌ رمز PIN غير صحيح! تم إلغاء عملية المسح.');
+    return;
+  }
+
+  // 3. تنفيذ الحذف الفعلي من Firestore والواجهة
+  try {
+    if (db) {
+      const snapshot = await db.collection("orders").get();
+      if (!snapshot.empty) {
+        const docs = snapshot.docs;
+        for (let i = 0; i < docs.length; i += 450) {
+          const batch = db.batch();
+          docs.slice(i, i + 450).forEach(doc => {
+            batch.delete(doc.ref);
+          });
+          await batch.commit();
+        }
+      }
+    }
+
     incomingOrders = [];
+    knownOrderIds.clear();
     updateOwnerOrderBadges();
     renderOwnerOrders();
+    renderCustomerOrders();
+    alert('✅ تم مسح كافة الطلبات من قاعدة البيانات بنجاح.');
+  } catch (err) {
+    console.error('خطأ أثناء مسح الطلبات من Firestore:', err);
+    alert('تعذر مسح الطلبات من السحابة، تحقق من الصلاحيات أو الاتصال بالإنترنت.');
   }
 }
 
@@ -2852,48 +2896,50 @@ function exportProductsToExcel() {
       ws[`Z${r}`] = { t: 'n', v: basePrice };
     });
 
-    // لوحة الاستخراج الآلي للتعديلات والإرسال للواتساب (العمود E)
-    ws['E1'] = { t: 's', v: '⚡ استخراج التعديلات آلياً وإرسالها للواتساب' };
-
-    // الخلية E2: عداد تلقائي لعدد الأصناف التي تغير سعرها في العمود C مقارنة بالسعر الأصلي في Z
+    // صيغة اكتشاف الأصناف المعدلة وتجميعها بصيغة صالحة مباشرة للنسخ واللصق في التطبيق (اسم الصنف السعر)
     const countFormula = `SUMPRODUCT(--(B2:B${lastRow}<>"") * --(ROUND(C2:C${lastRow},0)<>ROUND(Z2:Z${lastRow},0)))`;
+    const diffItemsFormula = `TEXTJOIN(CHAR(10), TRUE, IF((B2:B${lastRow}<>"")*(ROUND(C2:C${lastRow},0)<>ROUND(Z2:Z${lastRow},0)), TRIM(B2:B${lastRow}) & " " & ROUND(C2:C${lastRow},0), ""))`;
+
+    // الخلية Z2: تخزن القائمة النظيفة للأصناف المعدلة فقط (بدون عناوين أو زخارف) لتكون جاهزة للنسخ واللصق المباشر من الواتس للتطبيق
+    ws['Z2'] = { t: 's', f: `IFERROR(IF(${countFormula}=0, "", ${diffItemsFormula}), "")` };
+
+    // العمود E: زر إرسال القائمة للواتساب فقط (مظهر زر مدمج وأنيق بدون مربعات حوارية إضافية)
+    const btnTitle = '📲 اضغط لإرسال القائمة';
+    const waFormula = `HYPERLINK(IF(${countFormula}=0, "#range=C2", "https://api.whatsapp.com/send?phone=${waPhone}&text=" & ENCODEURL(Z2)), "${btnTitle}")`;
     ws['E2'] = {
       t: 's',
-      f: `IF(${countFormula}=0, "ℹ️ عدّل أي سعر في العمود (C) وسيتم استخراج التعديلات هنا تلقائياً", "✅ تم اكتشاف (" & ${countFormula} & ") تعديلات جاهزة للإرسال والنسخ:")`
+      f: waFormula,
+      s: {
+        fill: { fgColor: { rgb: "16A34A" } },
+        font: { name: "Cairo", sz: 12, bold: true, color: { rgb: "FFFFFF" } },
+        alignment: { horizontal: "center", vertical: "center" }
+      }
     };
 
-    // الخلية E4: تجميع الأصناف المُعدّلة فقط تلقائياً في رسالة مفصّلة (اسم الصنف + السعر الجديد)
-    // يدعم التعديلات على الأصناف الموجودة وأي أصناف جديدة تُضاف في أسفل الجدول
-    const diffItemsFormula = `TEXTJOIN(CHAR(10), TRUE, IF((B2:B${lastRow}<>"")*(ROUND(C2:C${lastRow},0)<>ROUND(Z2:Z${lastRow},0)), B2:B${lastRow} & " " & ROUND(C2:C${lastRow},0), ""))`;
-    const fullMessageFormula = `IFERROR(IF(${countFormula}=0, "", "📋 *تحديث أسعار Smoke Shop*" & CHAR(10) & "-----------------------------" & CHAR(10) & ${diffItemsFormula}), "")`;
-
-    ws['E3'] = { t: 's', v: '💬 نص التعديلات المفصّل (اضغط هنا ثم Ctrl+C للنسخ المباشر):' };
-    ws['E4'] = { t: 's', f: fullMessageFormula };
-
-    // الخلية E5: زر تفاعلي يرسل التعديلات المُستخرجة آلياً إلى الواتساب بضغطة واحدة
-    const waFormula = `HYPERLINK(IF(${countFormula}=0, "#range=C2", "https://api.whatsapp.com/send?phone=${waPhone}&text=" & ENCODEURL(E4)), IF(${countFormula}=0, "⏳ عدّل الأسعار أولاً لتفعيل زر الإرسال للواتساب", "📲 اضغط هنا لإرسال التعديلات للواتساب (" & ${countFormula} & " أصناف)"))`;
-    ws['E5'] = { t: 's', f: waFormula };
-
     // تحديد نطاق الورقة ليشمل العمود المرجعي Z
-    const maxRow = Math.max(lastRow, 7);
+    const maxRow = Math.max(lastRow, 4);
     ws['!ref'] = `A1:Z${maxRow}`;
 
-    // حساب العرض الملائم تلقائياً لكل عمود وإخفاء العمود المرجعي Z تماماً ليبقى الشيت نظيفاً
-    const maxIdLen = Math.max(8, ...sortedProducts.map(p => String(p.id).length + 4));
-    const maxNameLen = Math.max(18, ...sortedProducts.map(p => String(p.name).length + 6));
-    const maxPriceLen = Math.max(12, ...sortedProducts.map(p => String(Math.round(Number(p.p) || 0)).length + 5));
+    // ضبط عرض كل عمود على مقاس أطول جملة/قيمة فيه بدقة (بدون اتساع زائد)
+    const maxIdLen = Math.max('ID'.length, ...sortedProducts.map(p => String(p.id).length)) + 2;
+    const maxNameLen = Math.max('اسم الصنف'.length, ...sortedProducts.map(p => String(p.name).length)) + 2;
+    const maxPriceLen = Math.max('السعر'.length, ...sortedProducts.map(p => String(Math.round(Number(p.p) || 0)).length)) + 2;
+    const btnColLen = btnTitle.length + 3;
 
     const cols = [];
-    cols[0] = { wch: maxIdLen };     // A: ID
-    cols[1] = { wch: maxNameLen };   // B: اسم الصنف
-    cols[2] = { wch: maxPriceLen };  // C: السعر
-    cols[3] = { wch: 3 };            // D: فاصل بصري
-    cols[4] = { wch: 54 };           // E: لوحة التعديلات المستخرجة آلياً وزر الواتساب
+    cols[0] = { wch: maxIdLen };     // A: ID على مقاس أطول رقم
+    cols[1] = { wch: maxNameLen };   // B: اسم الصنف على مقاس أطول اسم
+    cols[2] = { wch: maxPriceLen };  // C: السعر على مقاس أطول سعر
+    cols[3] = { wch: 2 };            // D: فاصل صغير
+    cols[4] = { wch: btnColLen };    // E: زر الواتساب على مقاس الجملة تماماً
     for (let c = 5; c < 25; c++) {
       cols[c] = { hidden: true, wch: 2 };
     }
-    cols[25] = { hidden: true, wch: 8 }; // Z: عمود السعر المرجعي مخفي تلقائياً
+    cols[25] = { hidden: true, wch: 8 }; // Z: عمود مرجعي ومجمع للقائمة النظيفة مخفي
     ws['!cols'] = cols;
+
+    // ارتفاع مناسب لصف الزر ليكون بارزاً كزر واضح
+    ws['!rows'] = [{ hpt: 24 }, { hpt: 30 }];
 
     // اتجاه الورقة من اليمين لليسار
     ws['!views'] = [{ rightToLeft: true }];
