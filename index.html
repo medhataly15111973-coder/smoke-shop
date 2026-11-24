@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <!-- مكتبة Excel (SheetJS) لاستخراج واستيراد ملفات الإكسل مباشرة -->
-<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
@@ -2859,7 +2859,6 @@ function exportProductsToExcel() {
     });
   });
 
-  // إضافة أي أصناف أخرى غير مصنفة إن وجدت في النهاية
   products.forEach(p => {
     if (!addedIds.has(String(p.id))) {
       sortedProducts.push(p);
@@ -2875,101 +2874,164 @@ function exportProductsToExcel() {
 
   if (typeof XLSX !== 'undefined') {
     const wb = XLSX.utils.book_new();
+    if (!wb.Workbook) wb.Workbook = {};
+    wb.Workbook.Views = [{ RTL: true }];
+
     const ws = {};
 
-    // الجدول الأساسي المبسط (3 أعمدة فقط): A=ID, B=اسم الصنف, C=السعر
-    ws['A1'] = { t: 's', v: 'ID' };
-    ws['B1'] = { t: 's', v: 'اسم الصنف' };
-    ws['C1'] = { t: 's', v: 'السعر' };
+    // تنسيقات احترافية موحدة
+    const borderThin = {
+      top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+      bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+      left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+      right: { style: 'thin', color: { rgb: 'CBD5E1' } }
+    };
 
-    // عمود مرجعي مخفي (Z) يحفظ السعر الأصلي عند التصدير لاكتشاف التعديلات تلقائياً بدون تحديد أو تظليل
-    ws['Z1'] = { t: 's', v: 'المرجع' };
+    const headerStyle = {
+      font: { name: 'Arial', sz: 12, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1E293B' } },
+      alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 },
+      border: borderThin
+    };
+
+    const idCellStyle = (isEven) => ({
+      font: { name: 'Arial', sz: 11, color: { rgb: '475569' } },
+      fill: { fgColor: { rgb: isEven ? 'F8FAFC' : 'FFFFFF' } },
+      alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 },
+      border: borderThin
+    });
+
+    const nameCellStyle = (isEven) => ({
+      font: { name: 'Arial', sz: 12, bold: true, color: { rgb: '0F172A' } },
+      fill: { fgColor: { rgb: isEven ? 'F8FAFC' : 'FFFFFF' } },
+      alignment: { horizontal: 'right', vertical: 'center', readingOrder: 2 },
+      border: borderThin
+    });
+
+    const priceCellStyle = (isEven) => ({
+      font: { name: 'Arial', sz: 12, bold: true, color: { rgb: '0369A1' } },
+      fill: { fgColor: { rgb: isEven ? 'F0F9FF' : 'E0F2FE' } },
+      alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 },
+      numFmt: '#,##0',
+      border: borderThin
+    });
+
+    const waBtnStyle = {
+      font: { name: 'Arial', sz: 12, bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '16A34A' } },
+      alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 },
+      border: {
+        top: { style: 'medium', color: { rgb: '15803D' } },
+        bottom: { style: 'medium', color: { rgb: '15803D' } },
+        left: { style: 'medium', color: { rgb: '15803D' } },
+        right: { style: 'medium', color: { rgb: '15803D' } }
+      }
+    };
+
+    const waDirectStyle = {
+      font: { name: 'Arial', sz: 11, bold: true, underline: true, color: { rgb: '15803D' } },
+      fill: { fgColor: { rgb: 'DCFCE7' } },
+      alignment: { horizontal: 'center', vertical: 'center', readingOrder: 2 },
+      border: borderThin
+    };
+
+    // عناوين الأعمدة الأساسية (A, B, C)
+    ws['A1'] = { t: 's', v: 'ID', s: headerStyle };
+    ws['B1'] = { t: 's', v: 'اسم الصنف', s: headerStyle };
+    ws['C1'] = { t: 's', v: 'السعر', s: headerStyle };
+
+    // عناوين الأعمدة المخفية للمعادلات (W, X, Y, Z)
+    ws['W1'] = { t: 's', v: 'رابط مشفر' };
+    ws['X1'] = { t: 's', v: 'النص المدمج' };
+    ws['Y1'] = { t: 's', v: 'سطر التعديل' };
+    ws['Z1'] = { t: 's', v: 'السعر المرجعي' };
 
     const lastRow = sortedProducts.length + 1;
 
     sortedProducts.forEach((p, idx) => {
       const r = idx + 2;
+      const isEven = idx % 2 === 1;
       const basePrice = Math.round(Number(p.p) || 0);
-      ws[`A${r}`] = { t: 'n', v: Number(p.id) || (idx + 1) };
-      ws[`B${r}`] = { t: 's', v: String(p.name) };
-      ws[`C${r}`] = { t: 'n', v: basePrice };
+
+      ws[`A${r}`] = { t: 'n', v: Number(p.id) || (idx + 1), s: idCellStyle(isEven) };
+      ws[`B${r}`] = { t: 's', v: String(p.name), s: nameCellStyle(isEven) };
+      ws[`C${r}`] = { t: 'n', v: basePrice, s: priceCellStyle(isEven) };
+
+      // الأعمدة المخفية لحساب التغييرات تلقائياً
       ws[`Z${r}`] = { t: 'n', v: basePrice };
-    });
-
-    // دوال متوافقة 100% مع Excel على الجوال (أندرويد و iOS) بدون دوال مصفوفات أو دوال غير مدعومة على الموبايل
-    // الخلية Z2: بناء القائمة المعدلة تلقائياً بدالة TEXTJOIN البسيطة المتوافقة مع الجوال
-    // نستخدم عمود مساعد مخفي Y لتجهيز سطر كل صنف معدّل فقط: Y2 = IF(ROUND(C2,0)<>ROUND(Z2,0), TRIM(B2)&" "&ROUND(C2,0), "")
-    ws['Y1'] = { t: 's', v: 'سطر التعديل' };
-    ws['Z1'] = { t: 's', v: 'السعر المرجعي' };
-
-    sortedProducts.forEach((p, idx) => {
-      const r = idx + 2;
       ws[`Y${r}`] = {
         t: 's',
         f: `IF(AND(B${r}<>"", ROUND(C${r},0)<>ROUND(Z${r},0)), TRIM(B${r}) & " " & ROUND(C${r},0), "")`
       };
     });
 
-    // الخلية X2 (مخفية): دمج السطور المعدلة بفاصل سطر جديد (%0A مباشرة للرابط لتعمل على الجوال بدون ENCODEURL)
-    // ملاحظة: ENCODEURL غير مدعومة في Excel الجوال (تسبب خطأ #NAME?)، لذا نستخدم SUBSTITUTE للمسافة والسطر الجديد!
-    ws['X1'] = { t: 's', v: 'النص المدمج' };
+    // الخلية X2 (مخفية): دمج السطور المعدلة بفاصل سطر جديد (%0A)
     ws['X2'] = {
       t: 's',
       f: `TEXTJOIN("%0A", TRUE, Y2:Y${lastRow})`
     };
 
-    // الخلية W2 (مخفية): ترميز المسافات إلى %20 ليعمل رابط wa.me على جميع متصفحات وتطبيقات الجوال فوراً
-    ws['W1'] = { t: 's', v: 'رابط مشفر' };
+    // الخلية W2 (مخفية): ترميز المسافات إلى %20 ليعمل رابط wa.me على الجوال فوراً
     ws['W2'] = {
       t: 's',
       f: `SUBSTITUTE(X2, " ", "%20")`
     };
 
-    // الخلية E2: زر إرسال القائمة للواتساب (رابط wa.me قياسي مدعوم على جميع أجهزة الموبايل)
-    const btnTitle = '📲 اضغط لإرسال القائمة';
+    // الخلية E2: زر إرسال القائمة للواتساب بتنسيق زر أخضر واضح
+    const btnTitle = '📲 اضغط لإرسال القائمة للواتساب';
     ws['E2'] = {
       t: 's',
-      f: `HYPERLINK("https://wa.me/${waPhone}?text=" & W2, "${btnTitle}")`
+      f: `HYPERLINK("https://wa.me/${waPhone}?text=" & W2, "${btnTitle}")`,
+      s: waBtnStyle
     };
 
-    // الخلية E3: رابط احتياطي مباشر يفتح واتساب دائماً حتى في برامج الجوال التي لا تدعم دمج الروابط
+    // الخلية E3: رابط احتياطي مباشر يفتح واتساب المحل مباشرة
+    const directTitle = '💬 فتح محادثة واتساب المحل';
     ws['E3'] = {
       t: 's',
-      v: 'فتح واتساب المحل مباشرة',
-      l: { Target: `https://wa.me/${waPhone}`, Tooltip: 'فتح محادثة واتساب المحل' }
+      v: directTitle,
+      l: { Target: `https://wa.me/${waPhone}`, Tooltip: 'فتح محادثة واتساب المحل' },
+      s: waDirectStyle
     };
 
-    // تحديد نطاق الورقة ليشمل الأعمدة المرجعية المخفية W:Z
     const maxRow = Math.max(lastRow, 4);
     ws['!ref'] = `A1:Z${maxRow}`;
 
-    // حساب دقيق لعرض الأعمدة العربية (الحرف العربي أعرض من الإنجليزي في إكسل الجوال بمعامل 1.35)
+    // حساب دقيق وموسّع لعرض الأعمدة العربية لمنع ظهور ### أو قص الكلام على الجوال والكمبيوتر
     const calcDisplayWidth = (str) => {
       let w = 0;
       for (const ch of String(str)) {
-        w += /[؀-ۿ]/.test(ch) ? 1.45 : 1.05;
+        w += /[\u0600-\u06FF]/.test(ch) ? 1.85 : 1.25;
       }
       return Math.ceil(w);
     };
 
-    const maxIdLen = Math.max(4, ...sortedProducts.map(p => String(p.id).length)) + 2;
-    const maxNameLen = Math.max(calcDisplayWidth('اسم الصنف'), ...sortedProducts.map(p => calcDisplayWidth(p.name))) + 2;
-    const maxPriceLen = Math.max(calcDisplayWidth('السعر'), ...sortedProducts.map(p => String(Math.round(Number(p.p) || 0)).length)) + 2;
-    const btnColLen = calcDisplayWidth(btnTitle) + 3;
+    const maxIdLen = Math.max(6, ...sortedProducts.map(p => String(p.id).length)) + 3;
+    const maxNameLen = Math.max(22, calcDisplayWidth('اسم الصنف'), ...sortedProducts.map(p => calcDisplayWidth(p.name))) + 6;
+    const maxPriceLen = Math.max(12, calcDisplayWidth('السعر'), ...sortedProducts.map(p => String(Math.round(Number(p.p) || 0)).length + 3)) + 4;
+    const btnColLen = Math.max(calcDisplayWidth(btnTitle), calcDisplayWidth(directTitle)) + 6;
 
     const cols = [];
-    cols[0] = { wch: maxIdLen };     // A: ID مضبوط
-    cols[1] = { wch: maxNameLen };   // B: اسم الصنف على مقاس أطول اسم عربي بدقة
-    cols[2] = { wch: maxPriceLen };  // C: السعر مضبوط
-    cols[3] = { wch: 2 };            // D: فاصل
-    cols[4] = { wch: btnColLen };    // E: عمود الزر على مقاس النص تماماً
+    cols[0] = { wch: maxIdLen };     // A: ID
+    cols[1] = { wch: maxNameLen };   // B: اسم الصنف
+    cols[2] = { wch: maxPriceLen };  // C: السعر
+    cols[3] = { wch: 3 };            // D: عمود فاصل
+    cols[4] = { wch: btnColLen };    // E: زر الواتساب
     for (let c = 5; c < 26; c++) {
       cols[c] = { hidden: true, wch: 2 };
     }
     ws['!cols'] = cols;
 
-    // ارتفاع صفوف واضح ومريح للضغط بالإصبع على الجوال
-    ws['!rows'] = [{ hpt: 24 }, { hpt: 32 }, { hpt: 22 }];
+    // ارتفاع صفوف مريح للقراءة والضغط بالإصبع على الجوال
+    const rows = [];
+    rows[0] = { hpt: 30 }; // صف العناوين
+    for (let r = 1; r < maxRow; r++) {
+      rows[r] = { hpt: r === 1 ? 34 : (r === 2 ? 28 : 24) };
+    }
+    ws['!rows'] = rows;
+
+    // تجميد صف العناوين العلوي (الصف 1) ليظل ظاهراً عند التمرير لأسفل
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
 
     // اتجاه الورقة من اليمين لليسار
     ws['!views'] = [{ rightToLeft: true }];
