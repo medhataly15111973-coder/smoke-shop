@@ -376,7 +376,7 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
         <div>
           <h2 class="font-black text-sm text-emerald-400 flex items-center gap-1.5">📊 استخراج وتعديل الأصناف (Excel)</h2>
           <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-            استخرج جميع أصناف المتجر في ملف إكسل مبسط يحتوي على (<span class="font-mono text-amber-300">ID</span>، <span class="text-white">اسم الصنف</span>، <span class="text-emerald-300">السعر</span>) فقط ومرتب حسب أقسام المتجر، عدّل الأسعار أو الأسماء في الإكسل، ثم ارفعه مرة أخرى ليُحدّث المتجر بالكامل!
+            استخرج أصناف المتجر في ملف إكسل مبسط (<span class="font-mono text-amber-300">ID</span>، <span class="text-white">اسم الصنف</span>، <span class="text-emerald-300">السعر</span>) مزوّد بـ <b>زر إرسال للواتساب</b> وصندوق نص مجمّع قابل للنسخ المباشر، أو ارفع الملف المُعدّل هنا لتحديث المتجر بالكامل!
           </p>
         </div>
       </div>
@@ -2822,42 +2822,73 @@ function exportProductsToExcel() {
     }
   });
 
-  // تجهيز البيانات بـ 3 أعمدة فقط: ID، اسم الصنف، السعر
-  const rows = sortedProducts.map(p => ({
-    'ID': p.id,
-    'اسم الصنف': p.name,
-    'السعر': Math.round(Number(p.p) || 0)
-  }));
-
   const dateStr = new Date().toISOString().slice(0, 10);
   const fileName = `SmokeShop_Prices_${dateStr}.xlsx`;
 
+  // تجهيز رقم واتساب المتجر بصيغة دولية صحيحة للرابط المباشر
+  let waPhone = (shopPhone || '01221143854').replace(/\D/g, '');
+  if (waPhone.startsWith('01')) waPhone = '2' + waPhone;
+
   if (typeof XLSX !== 'undefined') {
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows);
+    const ws = {};
 
-    // حساب العرض الملائم تلقائياً لكل عمود بناءً على أطول نص في الجدول
-    const maxIdLen = Math.max(6, ...rows.map(r => String(r['ID']).length + 4));
-    const maxNameLen = Math.max(16, ...rows.map(r => String(r['اسم الصنف']).length + 6));
-    const maxPriceLen = Math.max(10, ...rows.map(r => String(r['السعر']).length + 5));
+    // عناوين الأعمدة الثلاثة الأساسية فقط: A=ID, B=اسم الصنف, C=السعر
+    ws['A1'] = { t: 's', v: 'ID' };
+    ws['B1'] = { t: 's', v: 'اسم الصنف' };
+    ws['C1'] = { t: 's', v: 'السعر' };
+
+    // لوحة جانبية في العمود E لزر الواتساب المباشر وصندوق النص القابل للنسخ
+    ws['E1'] = { t: 's', v: '📲 الإرسال المباشر للواتساب والنسخ للتطبيق' };
+
+    const lastRow = sortedProducts.length + 1;
+
+    sortedProducts.forEach((p, idx) => {
+      const r = idx + 2;
+      ws[`A${r}`] = { t: 'n', v: Number(p.id) || (idx + 1) };
+      ws[`B${r}`] = { t: 's', v: String(p.name) };
+      ws[`C${r}`] = { t: 'n', v: Math.round(Number(p.p) || 0) };
+    });
+
+    // الخلية E4: صندوق تجميع كل الأصناف وأسعارها كرسالة نصية جاهزة للنسخ (Ctrl+C) أو الإرسال
+    // متوافق مع Excel 2019/365 و Google Sheets
+    const joinFormula = `IFERROR(TEXTJOIN(CHAR(10), TRUE, IF(B2:B${lastRow}<>"", B2:B${lastRow} & " " & ROUND(C2:C${lastRow}, 0), "")), "")`;
+    ws['E3'] = { t: 's', v: '📋 النص المجمّع (اضغط هنا ثم Ctrl+C للنسخ المباشر داخل التطبيق):' };
+    ws['E4'] = { t: 's', f: joinFormula };
+
+    // الخلية E2: زر رابط تفاعلي يفتح الواتساب مباشرة محملاً بنص الشيت المعدل بالكامل
+    const waFormula = `HYPERLINK("https://api.whatsapp.com/send?phone=${waPhone}&text=" & ENCODEURL(E4), "📲 اضغط هنا لإرسال الشيت المعدل إلى واتساب (${shopPhone})")`;
+    ws['E2'] = { t: 's', f: waFormula };
+
+    // تحديد نطاق الورقة بالكامل
+    const maxRow = Math.max(lastRow, 6);
+    ws['!ref'] = `A1:E${maxRow}`;
+
+    // حساب العرض الملائم تلقائياً لكل عمود
+    const maxIdLen = Math.max(8, ...sortedProducts.map(p => String(p.id).length + 4));
+    const maxNameLen = Math.max(18, ...sortedProducts.map(p => String(p.name).length + 6));
+    const maxPriceLen = Math.max(12, ...sortedProducts.map(p => String(Math.round(Number(p.p) || 0)).length + 5));
 
     ws['!cols'] = [
-      { wch: maxIdLen },
-      { wch: maxNameLen },
-      { wch: maxPriceLen }
+      { wch: maxIdLen },     // A: ID
+      { wch: maxNameLen },   // B: اسم الصنف
+      { wch: maxPriceLen },  // C: السعر
+      { wch: 3 },            // D: فاصل بصري
+      { wch: 52 }            // E: زر الواتساب وصندوق النص القابل للنسخ
     ];
 
-    if (!ws['!views']) ws['!views'] = [];
-    ws['!views'].push({ rightToLeft: true });
+    // اتجاه الورقة من اليمين لليسار
+    ws['!views'] = [{ rightToLeft: true }];
 
     XLSX.utils.book_append_sheet(wb, ws, 'قائمة الأسعار');
     XLSX.writeFile(wb, fileName);
   } else {
+    // خطة بديلة بصيغة CSV في حال عدم توفر الإنترنت
     const headers = ['ID', 'اسم الصنف', 'السعر'];
     const csvLines = [headers.join(',')];
-    rows.forEach(r => {
-      const line = headers.map(h => `"${String(r[h]).replace(/"/g, '""')}"`).join(',');
-      csvLines.push(line);
+    sortedProducts.forEach(p => {
+      const rowVals = [p.id, p.name, Math.round(Number(p.p) || 0)];
+      csvLines.push(rowVals.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
     });
     const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
