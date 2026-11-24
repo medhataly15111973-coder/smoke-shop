@@ -376,7 +376,7 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
         <div>
           <h2 class="font-black text-sm text-emerald-400 flex items-center gap-1.5">📊 استخراج وتعديل الأصناف (Excel)</h2>
           <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-            استخرج أصناف المتجر في ملف إكسل مبسط (<span class="font-mono text-amber-300">ID</span>، <span class="text-white">اسم الصنف</span>، <span class="text-emerald-300">السعر</span>) مزوّد بـ <b>زر إرسال للواتساب</b> وصندوق نص مجمّع قابل للنسخ المباشر، أو ارفع الملف المُعدّل هنا لتحديث المتجر بالكامل!
+            استخرج الأصناف في شيت إكسل ذكي يكتشف <b>التعديلات فقط تلقائياً</b> (بدون تحديد أو تظليل) ويجهّزها كرسالة مفصّلة جاهزة للإرسال للواتساب بضغطة زر أو للنسخ المباشر!
           </p>
         </div>
       </div>
@@ -2833,49 +2833,67 @@ function exportProductsToExcel() {
     const wb = XLSX.utils.book_new();
     const ws = {};
 
-    // عناوين الأعمدة الثلاثة الأساسية فقط: A=ID, B=اسم الصنف, C=السعر
+    // الجدول الأساسي المبسط (3 أعمدة فقط): A=ID, B=اسم الصنف, C=السعر
     ws['A1'] = { t: 's', v: 'ID' };
     ws['B1'] = { t: 's', v: 'اسم الصنف' };
     ws['C1'] = { t: 's', v: 'السعر' };
 
-    // لوحة جانبية في العمود E لزر الواتساب المباشر وصندوق النص القابل للنسخ
-    ws['E1'] = { t: 's', v: '📲 الإرسال المباشر للواتساب والنسخ للتطبيق' };
+    // عمود مرجعي مخفي (Z) يحفظ السعر الأصلي عند التصدير لاكتشاف التعديلات تلقائياً بدون تحديد أو تظليل
+    ws['Z1'] = { t: 's', v: 'المرجع' };
 
     const lastRow = sortedProducts.length + 1;
 
     sortedProducts.forEach((p, idx) => {
       const r = idx + 2;
+      const basePrice = Math.round(Number(p.p) || 0);
       ws[`A${r}`] = { t: 'n', v: Number(p.id) || (idx + 1) };
       ws[`B${r}`] = { t: 's', v: String(p.name) };
-      ws[`C${r}`] = { t: 'n', v: Math.round(Number(p.p) || 0) };
+      ws[`C${r}`] = { t: 'n', v: basePrice };
+      ws[`Z${r}`] = { t: 'n', v: basePrice };
     });
 
-    // الخلية E4: صندوق تجميع كل الأصناف وأسعارها كرسالة نصية جاهزة للنسخ (Ctrl+C) أو الإرسال
-    // متوافق مع Excel 2019/365 و Google Sheets
-    const joinFormula = `IFERROR(TEXTJOIN(CHAR(10), TRUE, IF(B2:B${lastRow}<>"", B2:B${lastRow} & " " & ROUND(C2:C${lastRow}, 0), "")), "")`;
-    ws['E3'] = { t: 's', v: '📋 النص المجمّع (اضغط هنا ثم Ctrl+C للنسخ المباشر داخل التطبيق):' };
-    ws['E4'] = { t: 's', f: joinFormula };
+    // لوحة الاستخراج الآلي للتعديلات والإرسال للواتساب (العمود E)
+    ws['E1'] = { t: 's', v: '⚡ استخراج التعديلات آلياً وإرسالها للواتساب' };
 
-    // الخلية E2: زر رابط تفاعلي يفتح الواتساب مباشرة محملاً بنص الشيت المعدل بالكامل
-    const waFormula = `HYPERLINK("https://api.whatsapp.com/send?phone=${waPhone}&text=" & ENCODEURL(E4), "📲 اضغط هنا لإرسال الشيت المعدل إلى واتساب (${shopPhone})")`;
-    ws['E2'] = { t: 's', f: waFormula };
+    // الخلية E2: عداد تلقائي لعدد الأصناف التي تغير سعرها في العمود C مقارنة بالسعر الأصلي في Z
+    const countFormula = `SUMPRODUCT(--(B2:B${lastRow}<>"") * --(ROUND(C2:C${lastRow},0)<>ROUND(Z2:Z${lastRow},0)))`;
+    ws['E2'] = {
+      t: 's',
+      f: `IF(${countFormula}=0, "ℹ️ عدّل أي سعر في العمود (C) وسيتم استخراج التعديلات هنا تلقائياً", "✅ تم اكتشاف (" & ${countFormula} & ") تعديلات جاهزة للإرسال والنسخ:")`
+    };
 
-    // تحديد نطاق الورقة بالكامل
-    const maxRow = Math.max(lastRow, 6);
-    ws['!ref'] = `A1:E${maxRow}`;
+    // الخلية E4: تجميع الأصناف المُعدّلة فقط تلقائياً في رسالة مفصّلة (اسم الصنف + السعر الجديد)
+    // يدعم التعديلات على الأصناف الموجودة وأي أصناف جديدة تُضاف في أسفل الجدول
+    const diffItemsFormula = `TEXTJOIN(CHAR(10), TRUE, IF((B2:B${lastRow}<>"")*(ROUND(C2:C${lastRow},0)<>ROUND(Z2:Z${lastRow},0)), B2:B${lastRow} & " " & ROUND(C2:C${lastRow},0), ""))`;
+    const fullMessageFormula = `IFERROR(IF(${countFormula}=0, "", "📋 *تحديث أسعار Smoke Shop*" & CHAR(10) & "-----------------------------" & CHAR(10) & ${diffItemsFormula}), "")`;
 
-    // حساب العرض الملائم تلقائياً لكل عمود
+    ws['E3'] = { t: 's', v: '💬 نص التعديلات المفصّل (اضغط هنا ثم Ctrl+C للنسخ المباشر):' };
+    ws['E4'] = { t: 's', f: fullMessageFormula };
+
+    // الخلية E5: زر تفاعلي يرسل التعديلات المُستخرجة آلياً إلى الواتساب بضغطة واحدة
+    const waFormula = `HYPERLINK(IF(${countFormula}=0, "#range=C2", "https://api.whatsapp.com/send?phone=${waPhone}&text=" & ENCODEURL(E4)), IF(${countFormula}=0, "⏳ عدّل الأسعار أولاً لتفعيل زر الإرسال للواتساب", "📲 اضغط هنا لإرسال التعديلات للواتساب (" & ${countFormula} & " أصناف)"))`;
+    ws['E5'] = { t: 's', f: waFormula };
+
+    // تحديد نطاق الورقة ليشمل العمود المرجعي Z
+    const maxRow = Math.max(lastRow, 7);
+    ws['!ref'] = `A1:Z${maxRow}`;
+
+    // حساب العرض الملائم تلقائياً لكل عمود وإخفاء العمود المرجعي Z تماماً ليبقى الشيت نظيفاً
     const maxIdLen = Math.max(8, ...sortedProducts.map(p => String(p.id).length + 4));
     const maxNameLen = Math.max(18, ...sortedProducts.map(p => String(p.name).length + 6));
     const maxPriceLen = Math.max(12, ...sortedProducts.map(p => String(Math.round(Number(p.p) || 0)).length + 5));
 
-    ws['!cols'] = [
-      { wch: maxIdLen },     // A: ID
-      { wch: maxNameLen },   // B: اسم الصنف
-      { wch: maxPriceLen },  // C: السعر
-      { wch: 3 },            // D: فاصل بصري
-      { wch: 52 }            // E: زر الواتساب وصندوق النص القابل للنسخ
-    ];
+    const cols = [];
+    cols[0] = { wch: maxIdLen };     // A: ID
+    cols[1] = { wch: maxNameLen };   // B: اسم الصنف
+    cols[2] = { wch: maxPriceLen };  // C: السعر
+    cols[3] = { wch: 3 };            // D: فاصل بصري
+    cols[4] = { wch: 54 };           // E: لوحة التعديلات المستخرجة آلياً وزر الواتساب
+    for (let c = 5; c < 25; c++) {
+      cols[c] = { hidden: true, wch: 2 };
+    }
+    cols[25] = { hidden: true, wch: 8 }; // Z: عمود السعر المرجعي مخفي تلقائياً
+    ws['!cols'] = cols;
 
     // اتجاه الورقة من اليمين لليسار
     ws['!views'] = [{ rightToLeft: true }];
@@ -2883,7 +2901,6 @@ function exportProductsToExcel() {
     XLSX.utils.book_append_sheet(wb, ws, 'قائمة الأسعار');
     XLSX.writeFile(wb, fileName);
   } else {
-    // خطة بديلة بصيغة CSV في حال عدم توفر الإنترنت
     const headers = ['ID', 'اسم الصنف', 'السعر'];
     const csvLines = [headers.join(',')];
     sortedProducts.forEach(p => {
@@ -3063,6 +3080,8 @@ async function processPriceImport() {
   lines.forEach(rawLine => {
     const line = rawLine.trim();
     if (!line) return;
+    // تجاهل أسطر العناوين التوضيحية والفواصل إذا تم نسخ الرسالة كاملة من الإكسل أو الواتساب
+    if (line.startsWith('📋') || line.startsWith('---') || line.startsWith('===')) return;
 
     // تحويل الأرقام العربية إلى إنجليزية في السطر بالكامل
     const normalizedLine = line.replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
