@@ -381,6 +381,13 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
         </div>
       </div>
 
+      <div class="pt-1">
+        <label class="block text-[10px] font-bold text-emerald-300 mb-1">📂 اختر القسم المطلوب استخراج أسعاره:</label>
+        <select id="excelExportCatSelect" class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-emerald-500">
+          <option value="all">✨ كل الأقسام</option>
+        </select>
+      </div>
+
       <div class="grid grid-cols-2 gap-2 pt-1">
         <button onclick="exportProductsToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 px-2 rounded-xl text-[11px] flex items-center justify-center gap-1.5 shadow transition active:scale-95">
           <span>📤 استخراج الأصناف (Excel)</span>
@@ -2040,6 +2047,7 @@ function switchTab(tabId) {
     renderOwnerProducts();
   }
   if(tabId === 'owner-offer') populateOfferAdminForm();
+  if(tabId === 'owner-update') populateExcelExportCategories();
   if(tabId === 'owner-settings') {
     populateSettingsFields();
     updateWelcomeAudioSettingsBadge();
@@ -2073,6 +2081,7 @@ function renderCategories() {
       </button>
     `;
   }).join('');
+  populateExcelExportCategories();
 }
 
 function setCategory(catId) {
@@ -2838,35 +2847,66 @@ async function handleImageFile(event) {
 
 // ==================== استخراج واستيراد الأصناف (Excel / CSV / Text) ====================
 
+function populateExcelExportCategories() {
+  const select = document.getElementById('excelExportCatSelect');
+  if (!select) return;
+  const currentVal = select.value || 'all';
+  select.innerHTML = categories.map(c => {
+    const count = c.id === 'all' ? products.length : products.filter(p => p.c === c.id).length;
+    return `<option value="${c.id}">${c.n} (${count} صنف)</option>`;
+  }).join('');
+  if (categories.some(c => c.id === currentVal)) {
+    select.value = currentVal;
+  }
+}
+
 function exportProductsToExcel() {
   if (!products || !products.length) {
     alert('لا توجد أصناف حالياً لاستخراجها.');
     return;
   }
 
-  // ترتيب الأقسام حسب ترتيب التبويبات المعروضة في المتجر (بعد تبويب الكل)
-  const orderedCats = categories.filter(c => c.id !== 'all');
+  const selectedCatId = document.getElementById('excelExportCatSelect')?.value || 'all';
+  const selectedCatObj = categories.find(c => c.id === selectedCatId);
+
   const sortedProducts = [];
   const addedIds = new Set();
 
-  orderedCats.forEach(cat => {
-    const catProducts = products
-      .filter(p => p.c === cat.id)
-      .sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
-    catProducts.forEach(p => {
-      sortedProducts.push(p);
-      addedIds.add(String(p.id));
+  if (selectedCatId === 'all') {
+    // ترتيب الأقسام حسب ترتيب التبويبات المعروضة في المتجر (بعد تبويب الكل)
+    const orderedCats = categories.filter(c => c.id !== 'all');
+    orderedCats.forEach(cat => {
+      const catProducts = products
+        .filter(p => p.c === cat.id)
+        .sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+      catProducts.forEach(p => {
+        sortedProducts.push(p);
+        addedIds.add(String(p.id));
+      });
     });
-  });
 
-  products.forEach(p => {
-    if (!addedIds.has(String(p.id))) {
-      sortedProducts.push(p);
-    }
-  });
+    products.forEach(p => {
+      if (!addedIds.has(String(p.id))) {
+        sortedProducts.push(p);
+      }
+    });
+  } else {
+    products
+      .filter(p => p.c === selectedCatId)
+      .sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0))
+      .forEach(p => sortedProducts.push(p));
+  }
+
+  if (!sortedProducts.length) {
+    alert('لا توجد أصناف في هذا القسم لاستخراجها.');
+    return;
+  }
 
   const dateStr = new Date().toISOString().slice(0, 10);
-  const fileName = `SmokeShop_Prices_${dateStr}.xlsx`;
+  const catSlug = (selectedCatId !== 'all' && selectedCatObj)
+    ? `_${selectedCatObj.n.replace(/\s+/g, '_')}`
+    : '_الكل';
+  const fileName = `SmokeShop_Prices${catSlug}_${dateStr}.xlsx`;
 
   // تجهيز رقم واتساب المتجر بصيغة دولية صحيحة للرابط المباشر
   let waPhone = (shopPhone || '01221143854').replace(/\D/g, '');
@@ -3101,7 +3141,7 @@ function exportProductsToExcel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `SmokeShop_Prices_${dateStr}.csv`;
+    a.download = `SmokeShop_Prices${catSlug}_${dateStr}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
