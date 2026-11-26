@@ -369,6 +369,45 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
 
   <!-- 7. تحديث الأسعار واستخراج/استيراد الأصناف -->
   <section id="tab-owner-update" class="tab-content owner-view space-y-3">
+
+    <!-- بطاقة التعديل السريع باللمس مباشرة من الجوال (آيفون وأندرويد) -->
+    <div class="bg-slate-900 p-3.5 rounded-2xl border border-amber-500/40 space-y-3 shadow-md">
+      <div class="flex justify-between items-start gap-2">
+        <div>
+          <h2 class="font-black text-sm text-amber-400 flex items-center gap-1.5">📱 التعديل السريع من الجوال (باللمس)</h2>
+          <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+            عدّل الأسعار مباشرة بالأرقام، ثم احفظها في المتجر أو أرسل التعديلات فقط لواتساب بضغطة واحدة.
+          </p>
+        </div>
+        <span id="mobileModifiedBadge" class="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-black bg-slate-800 text-slate-400">
+          0 معدّل
+        </span>
+      </div>
+
+      <!-- فلترة سريعة بالقسم والبحث -->
+      <div class="grid grid-cols-2 gap-2">
+        <select id="mobileQuickCatSelect" onchange="renderMobileQuickPriceList()" class="bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
+          <option value="all">✨ كل الأقسام</option>
+        </select>
+        <input type="text" id="mobileQuickSearch" oninput="renderMobileQuickPriceList()" placeholder="🔍 بحث سريع..." class="bg-slate-950 border border-slate-700 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-amber-500">
+      </div>
+
+      <!-- قائمة الأصناف القابلة للتعديل السريع -->
+      <div id="mobileQuickPriceList" class="space-y-1.5 max-h-80 overflow-y-auto pr-0.5"></div>
+
+      <!-- أزرار الحفظ والإرسال عبر واتساب -->
+      <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+        <button onclick="saveMobileQuickPrices()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 px-2 rounded-xl text-[11px] flex items-center justify-center gap-1 shadow transition active:scale-95">
+          <span>💾 حفظ التعديلات</span>
+        </button>
+        <button onclick="sendMobileQuickChangesWhatsapp()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 px-2 rounded-xl text-[11px] flex items-center justify-center gap-1 shadow transition active:scale-95">
+          <span>📲 إرسال التعديلات واتس</span>
+        </button>
+      </div>
+      <div class="flex justify-end">
+        <button onclick="resetMobileQuickEdits()" class="text-[10px] text-slate-400 hover:text-red-400 transition">↺ تراجع عن التعديلات غير المحفوظة</button>
+      </div>
+    </div>
     
     <!-- بطاقة استخراج واستيراد ملف إكسل (Excel / CSV) لتعديل كل الأصناف دفعة واحدة -->
     <div class="bg-slate-900 p-3.5 rounded-2xl border border-emerald-500/40 space-y-3 shadow-md">
@@ -2047,7 +2086,10 @@ function switchTab(tabId) {
     renderOwnerProducts();
   }
   if(tabId === 'owner-offer') populateOfferAdminForm();
-  if(tabId === 'owner-update') populateExcelExportCategories();
+  if(tabId === 'owner-update') {
+    populateExcelExportCategories();
+    initMobileQuickPriceEditor();
+  }
   if(tabId === 'owner-settings') {
     populateSettingsFields();
     updateWelcomeAudioSettingsBadge();
@@ -2082,6 +2124,7 @@ function renderCategories() {
     `;
   }).join('');
   populateExcelExportCategories();
+  populateMobileQuickCategories();
 }
 
 function setCategory(catId) {
@@ -2843,6 +2886,211 @@ async function handleImageFile(event) {
     alert('حدث خطأ أثناء معالجة الصورة.');
   }
   closeImageModal();
+}
+
+
+// ==================== محرر الأسعار السريع باللمس للجوال (آيفون وأندرويد) ====================
+
+let mobilePendingPrices = {}; // { [productId]: newNumericPrice }
+
+function populateMobileQuickCategories() {
+  const select = document.getElementById('mobileQuickCatSelect');
+  if (!select) return;
+  const currentVal = select.value || 'all';
+  select.innerHTML = categories.map(c => {
+    const count = c.id === 'all' ? products.length : products.filter(p => p.c === c.id).length;
+    return `<option value="${c.id}">${c.n} (${count})</option>`;
+  }).join('');
+  if (categories.some(c => c.id === currentVal)) {
+    select.value = currentVal;
+  }
+}
+
+function initMobileQuickPriceEditor() {
+  populateMobileQuickCategories();
+  renderMobileQuickPriceList();
+  updateMobileModifiedBadge();
+}
+
+function getMobileModifiedEntries() {
+  const entries = [];
+  Object.entries(mobilePendingPrices).forEach(([pid, newVal]) => {
+    const prod = products.find(p => String(p.id) === String(pid));
+    if (!prod) return;
+    const oldPrice = Math.round(Number(prod.p) || 0);
+    const parsedNew = Math.round(Number(newVal));
+    if (!isNaN(parsedNew) && parsedNew > 0 && parsedNew !== oldPrice) {
+      entries.push({
+        id: prod.id,
+        name: prod.name,
+        oldPrice,
+        newPrice: parsedNew,
+        diff: parsedNew - oldPrice
+      });
+    }
+  });
+  return entries;
+}
+
+function updateMobileModifiedBadge() {
+  const badge = document.getElementById('mobileModifiedBadge');
+  if (!badge) return;
+  const count = getMobileModifiedEntries().length;
+  if (count > 0) {
+    badge.innerText = `${count} معدّل ✨`;
+    badge.className = "shrink-0 text-[10px] px-2 py-0.5 rounded-full font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
+  } else {
+    badge.innerText = "0 معدّل";
+    badge.className = "shrink-0 text-[10px] px-2 py-0.5 rounded-full font-black bg-slate-800 text-slate-400";
+  }
+}
+
+function onMobileQuickPriceInput(prodId, rawVal) {
+  const pid = String(prodId);
+  const prod = products.find(p => String(p.id) === pid);
+  if (!prod) return;
+
+  const cleanStr = String(rawVal || '').replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]).trim();
+  const oldPrice = Math.round(Number(prod.p) || 0);
+
+  if (cleanStr === '') {
+    delete mobilePendingPrices[pid];
+  } else {
+    const num = Math.round(parseFloat(cleanStr));
+    if (!isNaN(num) && num !== oldPrice) {
+      mobilePendingPrices[pid] = num;
+    } else {
+      delete mobilePendingPrices[pid];
+    }
+  }
+
+  // تحديث مظهر الصف والشارة لحظياً بدون إعادة رسم القائمة بالكامل حتى لا يفقد الجوال التركيز (Focus)
+  const rowEl = document.getElementById(`mq-row-${pid}`);
+  const diffEl = document.getElementById(`mq-diff-${pid}`);
+  const isModified = mobilePendingPrices[pid] !== undefined && mobilePendingPrices[pid] > 0;
+
+  if (rowEl) {
+    rowEl.className = isModified
+      ? "flex items-center justify-between gap-2 bg-emerald-950/35 border border-emerald-500/50 p-2 rounded-xl text-xs transition"
+      : "flex items-center justify-between gap-2 bg-slate-950 border border-slate-800 p-2 rounded-xl text-xs transition";
+  }
+
+  if (diffEl) {
+    if (isModified) {
+      const diff = mobilePendingPrices[pid] - oldPrice;
+      const sign = diff > 0 ? '+' : '';
+      diffEl.innerText = `${oldPrice} ← (${sign}${diff})`;
+      diffEl.className = diff > 0
+        ? "text-[10px] font-bold text-amber-400"
+        : "text-[10px] font-bold text-emerald-400";
+    } else {
+      diffEl.innerText = `الحالي: ${oldPrice} ج.م`;
+      diffEl.className = "text-[10px] text-slate-500";
+    }
+  }
+
+  updateMobileModifiedBadge();
+}
+
+function renderMobileQuickPriceList() {
+  const container = document.getElementById('mobileQuickPriceList');
+  if (!container) return;
+
+  const catId = document.getElementById('mobileQuickCatSelect')?.value || 'all';
+  const query = (document.getElementById('mobileQuickSearch')?.value || '').trim().toLowerCase();
+
+  const list = products.filter(p => {
+    const matchCat = (catId === 'all' || p.c === catId);
+    const matchName = !query || p.name.toLowerCase().includes(query);
+    return matchCat && matchName;
+  });
+
+  if (!list.length) {
+    container.innerHTML = '<div class="text-center py-6 text-slate-500 text-xs bg-slate-950 rounded-xl border border-slate-800">لا توجد أصناف مطابقة 🔍</div>';
+    return;
+  }
+
+  container.innerHTML = list.map(p => {
+    const pid = String(p.id);
+    const oldPrice = Math.round(Number(p.p) || 0);
+    const pendingVal = mobilePendingPrices[pid];
+    const isModified = pendingVal !== undefined && pendingVal > 0 && pendingVal !== oldPrice;
+    const inputVal = pendingVal !== undefined ? pendingVal : oldPrice;
+    const diff = isModified ? (pendingVal - oldPrice) : 0;
+
+    return `
+      <div id="mq-row-${pid}" class="flex items-center justify-between gap-2 ${isModified ? 'bg-emerald-950/35 border-emerald-500/50' : 'bg-slate-950 border-slate-800'} border p-2 rounded-xl text-xs transition">
+        <div class="min-w-0 flex-1">
+          <p class="font-bold text-white truncate">${p.name}</p>
+          <p id="mq-diff-${pid}" class="${isModified ? (diff > 0 ? 'text-[10px] font-bold text-amber-400' : 'text-[10px] font-bold text-emerald-400') : 'text-[10px] text-slate-500'}">
+            ${isModified ? `${oldPrice} ← (${diff > 0 ? '+' : ''}${diff})` : `الحالي: ${oldPrice} ج.م`}
+          </p>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <input
+            type="number"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            value="${inputVal}"
+            onfocus="this.select()"
+            oninput="onMobileQuickPriceInput('${pid}', this.value)"
+            class="w-20 bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-lg py-1.5 px-2 text-center font-black text-amber-300 text-xs focus:outline-none"
+          >
+          <span class="text-[10px] text-slate-400">ج.م</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function saveMobileQuickPrices() {
+  const modified = getMobileModifiedEntries();
+  if (!modified.length) {
+    alert('لم تقم بتغيير أي سعر بعد. اضغط على السعر بجانب أي صنف واكتب السعر الجديد.');
+    return;
+  }
+
+  modified.forEach(item => {
+    const prod = products.find(p => String(p.id) === String(item.id));
+    if (prod) prod.p = item.newPrice;
+  });
+
+  mobilePendingPrices = {};
+  localStorage.setItem('sp_p', JSON.stringify(products));
+  await saveProductsToCloud();
+
+  renderProducts();
+  renderOwnerProducts();
+  renderMobileQuickPriceList();
+  updateMobileModifiedBadge();
+  updateDailyOfferUI();
+
+  alert(`✅ تم حفظ ومزامنة (${modified.length}) تعديل بنجاح!`);
+}
+
+function sendMobileQuickChangesWhatsapp() {
+  const modified = getMobileModifiedEntries();
+  if (!modified.length) {
+    alert('لا توجد تعديلات حالية لإرسالها! عدّل سعراً واحداً على الأقل أولاً.');
+    return;
+  }
+
+  const lines = modified.map(m => `${m.name} ${m.newPrice}`);
+  const msg = `📋 *تحديث أسعار - Smoke Shop*
+` + lines.join('
+');
+
+  let dest = (shopPhone || '01221143854').replace(/\D/g, '');
+  if (dest.startsWith('01')) dest = '2' + dest;
+
+  window.open(`https://wa.me/${dest}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+function resetMobileQuickEdits() {
+  if (Object.keys(mobilePendingPrices).length === 0) return;
+  mobilePendingPrices = {};
+  renderMobileQuickPriceList();
+  updateMobileModifiedBadge();
 }
 
 // ==================== استخراج واستيراد الأصناف (Excel / CSV / Text) ====================
