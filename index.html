@@ -3076,9 +3076,7 @@ function sendMobileQuickChangesWhatsapp() {
   }
 
   const lines = modified.map(m => `${m.name} ${m.newPrice}`);
-  const msg = `📋 *تحديث أسعار - Smoke Shop*
-` + lines.join('
-');
+  const msg = `📋 *تحديث أسعار - Smoke Shop*\n` + lines.join('\n');
 
   let dest = (shopPhone || '01221143854').replace(/\D/g, '');
   if (dest.startsWith('01')) dest = '2' + dest;
