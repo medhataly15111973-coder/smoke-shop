@@ -894,6 +894,39 @@ if(!localStorage.getItem('sp_cats')) localStorage.setItem('sp_cats', JSON.string
 let products = JSON.parse(localStorage.getItem('sp_p') || 'null') || INITIAL_PRODUCTS;
 if(!localStorage.getItem('sp_p')) localStorage.setItem('sp_p', JSON.stringify(INITIAL_PRODUCTS));
 
+// توحيد معرّفات الأقسام وبنية المنتجات القادمة من التخزين المحلي أو Firebase
+function normalizeCategoryId(value) {
+  return String(value == null ? '' : value).trim().toLowerCase();
+}
+
+function getProductCategoryId(product) {
+  if (!product) return '';
+  const value = product.c ?? product.categoryId ?? product.category ?? '';
+  return normalizeCategoryId(value);
+}
+
+function normalizeProductRecord(product, fallbackId) {
+  const item = product && typeof product === 'object' ? { ...product } : {};
+  item.id = item.id ?? fallbackId;
+  item.c = getProductCategoryId(item);
+  item.name = String(item.name ?? item.n ?? '');
+  return item;
+}
+
+function normalizeCategoriesList(list) {
+  if (!Array.isArray(list)) return DEFAULT_CATEGORIES;
+  return list
+    .filter(c => c && typeof c === 'object')
+    .map(c => ({ ...c, id: normalizeCategoryId(c.id), n: String(c.n ?? c.name ?? '') }))
+    .filter(c => c.id && c.n);
+}
+
+categories = normalizeCategoriesList(categories);
+products = (Array.isArray(products) ? products : INITIAL_PRODUCTS)
+  .map((p, index) => normalizeProductRecord(p, index + 1));
+localStorage.setItem('sp_cats', JSON.stringify(categories));
+localStorage.setItem('sp_p', JSON.stringify(products));
+
 let cart = JSON.parse(localStorage.getItem('sp_c') || '{}');
 let selectedWeights = {};
 let shopPhone = localStorage.getItem('sp_ph') || '01221143854';
@@ -1258,7 +1291,7 @@ async function initApp() {
             } else if (doc.id === "_categories_config_") {
               const data = doc.data();
               if (data && Array.isArray(data.list) && data.list.length > 0) {
-                categories = data.list;
+                categories = normalizeCategoriesList(data.list);
                 localStorage.setItem('sp_cats', JSON.stringify(categories));
               }
             } else if (doc.id === "_stock_waitlist_config_") {
@@ -1275,7 +1308,7 @@ async function initApp() {
                 localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
               }
             } else {
-              loadedProds.push({ id: doc.id, ...doc.data() });
+              loadedProds.push(normalizeProductRecord({ ...doc.data(), id: doc.id }, doc.id));
             }
           });
           if (!foundAudioDoc && customWelcomeAudioData) {
@@ -1365,7 +1398,7 @@ async function loadProductsFromCloud() {
         } else if (doc.id === "_categories_config_") {
           const data = doc.data();
           if (data && Array.isArray(data.list) && data.list.length > 0) {
-            categories = data.list;
+            categories = normalizeCategoriesList(data.list);
             localStorage.setItem('sp_cats', JSON.stringify(categories));
           }
         } else if (doc.id === "_stock_waitlist_config_") {
@@ -1381,7 +1414,7 @@ async function loadProductsFromCloud() {
             localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
           }
         } else {
-          loadedProds.push({ id: doc.id, ...doc.data() });
+          loadedProds.push(normalizeProductRecord({ ...doc.data(), id: doc.id }, doc.id));
         }
       });
       if (loadedProds.length > 0) {
@@ -1579,7 +1612,7 @@ function renderOwnerCategories() {
 
   container.innerHTML = categories.map((c, idx) => {
     const isAll = c.id === 'all';
-    const count = isAll ? products.length : products.filter(p => p.c === c.id).length;
+    const count = isAll ? products.length : products.filter(p => getProductCategoryId(p) === normalizeCategoryId(c.id)).length;
     const vis = getCategoryVisuals(c, idx);
     return `
       <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-2.5 py-1.5 rounded-xl text-xs">
@@ -2102,16 +2135,16 @@ function renderCategories() {
   const container = document.getElementById('catsBar');
   if (!container) return;
 
-  const activeObj = categories.find(c => c.id === currentCat);
+  const activeObj = categories.find(c => normalizeCategoryId(c.id) === normalizeCategoryId(currentCat));
   const labelEl = document.getElementById('activeCatLabel');
   if (labelEl && activeObj) {
     labelEl.innerText = activeObj.id === 'all' ? `عرض الكل (${products.length} صنف)` : `قسم: ${activeObj.n}`;
   }
 
   container.innerHTML = categories.map((c, idx) => {
-    const isSelected = currentCat === c.id;
+    const isSelected = normalizeCategoryId(currentCat) === normalizeCategoryId(c.id);
     const vis = getCategoryVisuals(c, idx);
-    const count = c.id === 'all' ? products.length : products.filter(p => p.c === c.id).length;
+    const count = c.id === 'all' ? products.length : products.filter(p => getProductCategoryId(p) === normalizeCategoryId(c.id)).length;
 
     return `
       <button onclick="setCategory('${c.id}')" class="relative flex flex-col items-center justify-center p-2.5 rounded-2xl border bg-gradient-to-br transition-all duration-200 active:scale-95 ${isSelected ? vis.active + ' scale-[1.02] font-black' : vis.idle + ' hover:brightness-110 font-bold'}">
@@ -2128,7 +2161,12 @@ function renderCategories() {
 }
 
 function setCategory(catId) {
-  currentCat = catId;
+  currentCat = normalizeCategoryId(catId) || 'all';
+
+  // لا نحتفظ بنص البحث عند الانتقال لقسم آخر حتى لا يخفي كل منتجات القسم
+  const searchInput = document.getElementById('srchInput');
+  if (searchInput) searchInput.value = '';
+
   renderCategories();
   renderProducts();
 }
@@ -2140,8 +2178,16 @@ function selectTobaccoWeight(prodId, weightKey) {
 
 function renderProducts() {
   const searchQ = (document.getElementById('srchInput')?.value || '').trim().toLowerCase();
-  const filtered = products.filter(p => (currentCat === 'all' || p.c === currentCat) && p.name.toLowerCase().includes(searchQ));
+  const selectedCategoryId = normalizeCategoryId(currentCat);
+  const filtered = (Array.isArray(products) ? products : []).filter(p => {
+    const productCategoryId = getProductCategoryId(p);
+    const productName = String(p?.name ?? p?.n ?? '').trim().toLowerCase();
+    const categoryMatch = selectedCategoryId === 'all' || productCategoryId === selectedCategoryId;
+    const searchMatch = !searchQ || productName.includes(searchQ);
+    return categoryMatch && searchMatch;
+  });
   const grid = document.getElementById('productsGrid');
+  if (!grid) return;
   const myNotifs = JSON.parse(localStorage.getItem('sp_my_notifs') || '[]');
 
   if (!filtered.length) {
@@ -2898,7 +2944,7 @@ function populateMobileQuickCategories() {
   if (!select) return;
   const currentVal = select.value || 'all';
   select.innerHTML = categories.map(c => {
-    const count = c.id === 'all' ? products.length : products.filter(p => p.c === c.id).length;
+    const count = c.id === 'all' ? products.length : products.filter(p => getProductCategoryId(p) === normalizeCategoryId(c.id)).length;
     return `<option value="${c.id}">${c.n} (${count})</option>`;
   }).join('');
   if (categories.some(c => c.id === currentVal)) {
@@ -3098,7 +3144,7 @@ function populateExcelExportCategories() {
   if (!select) return;
   const currentVal = select.value || 'all';
   select.innerHTML = categories.map(c => {
-    const count = c.id === 'all' ? products.length : products.filter(p => p.c === c.id).length;
+    const count = c.id === 'all' ? products.length : products.filter(p => getProductCategoryId(p) === normalizeCategoryId(c.id)).length;
     return `<option value="${c.id}">${c.n} (${count} صنف)</option>`;
   }).join('');
   if (categories.some(c => c.id === currentVal)) {
