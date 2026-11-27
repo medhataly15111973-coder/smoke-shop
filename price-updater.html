@@ -2,54 +2,271 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>تعديل الأسعار السريع - Smoke Shop</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <style>
-  * { box-sizing: border-box; font-family: Tahoma, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-  body { margin: 0; padding: 0 0 95px 0; background: #090d16; color: #f8fafc; }
-  header { position: sticky; top: 0; z-index: 30; background: #111827; border-bottom: 1px solid #1f2937; padding: 12px 16px; }
-  .header-inner { max-width: 520px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .brand-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
-  .brand h1 { margin: 0; font-size: 15px; color: #fbbf24; }
-  .brand p { margin: 2px 0 0; font-size: 11px; color: #94a3b8; }
-  .badge { font-size: 11px; font-weight: bold; padding: 5px 10px; border-radius: 999px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); white-space: nowrap; }
-  .badge.warn { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
-  main { max-width: 520px; margin: 14px auto 0; padding: 0 12px; }
-  .card { background: #111827; border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 16px; padding: 14px; }
-  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
-  .card-top h2 { margin: 0; font-size: 15px; color: #fbbf24; }
-  .card-top p { margin: 4px 0 0; font-size: 11px; color: #94a3b8; line-height: 1.5; }
-  .mod-badge { font-size: 11px; font-weight: bold; padding: 5px 10px; border-radius: 999px; background: #1e293b; color: #94a3b8; white-space: nowrap; }
-  .mod-badge.active { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); }
-  .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
-  select, input[type="text"] { width: 100%; background: #090d16; color: #f8fafc; border: 1px solid #334155; border-radius: 10px; padding: 9px 10px; font-size: 12px; outline: none; }
-  select:focus, input[type="text"]:focus, input[type="number"]:focus { border-color: #f59e0b; }
-  .list { display: flex; flex-direction: column; gap: 7px; max-height: 58vh; overflow-y: auto; }
-  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #090d16; border: 1px solid #1e293b; border-radius: 12px; padding: 10px; }
-  .row.modified { background: rgba(6, 78, 59, 0.35); border-color: rgba(16, 185, 129, 0.55); }
-  .item-info { min-width: 0; flex: 1; }
-  .item-name { margin: 0; font-size: 13px; font-weight: bold; color: #ffffff; }
-  .item-sub { margin: 3px 0 0; font-size: 11px; color: #64748b; }
-  .item-sub.up { color: #fbbf24; font-weight: bold; }
-  .item-sub.down { color: #34d399; font-weight: bold; }
-  .price-box { display: flex; align-items: center; gap: 6px; }
-  .price-input { width: 82px; background: #111827; color: #fcd34d; border: 1px solid #334155; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: bold; text-align: center; outline: none; }
-  .currency { font-size: 11px; color: #94a3b8; }
-  .footer-bar { margin-top: 12px; padding-top: 8px; border-top: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
-  .link-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px 0; font-size: 11px; }
-  .link-btn:hover { color: #fbbf24; }
-  .link-btn.reset:hover { color: #f87171; }
-  .bottom-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: #111827; border-top: 1px solid #1f2937; padding: 10px 12px; }
-  .bottom-inner { max-width: 520px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
-  .btn-copy { background: #1e293b; color: #f8fafc; border: 1px solid #334155; border-radius: 12px; padding: 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
-  .btn-save { background: #059669; color: #ffffff; border: none; border-radius: 12px; padding: 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
-  .btn-save:hover { background: #10b981; }
-  .btn-save:disabled { opacity: 0.65; cursor: not-allowed; }
-  .empty { text-align: center; padding: 28px 12px; color: #64748b; font-size: 12px; background: #090d16; border: 1px solid #1e293b; border-radius: 12px; }
+  * {
+    box-sizing: border-box;
+    font-family: Tahoma, Arial, sans-serif;
+  }
+  body {
+    margin: 0;
+    padding: 0 0 95px 0;
+    background: #090d16;
+    color: #f8fafc;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #111827;
+    border-bottom: 1px solid #1f2937;
+    padding: 12px 16px;
+  }
+  .header-inner {
+    max-width: 520px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: 15px;
+    color: #fbbf24;
+  }
+  .brand p {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: #94a3b8;
+  }
+  .badge {
+    font-size: 11px;
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    white-space: nowrap;
+  }
+  main {
+    max-width: 520px;
+    margin: 14px auto 0;
+    padding: 0 12px;
+  }
+  .card {
+    background: #111827;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 16px;
+    padding: 14px;
+  }
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .card-top h2 {
+    margin: 0;
+    font-size: 15px;
+    color: #fbbf24;
+  }
+  .card-top p {
+    margin: 4px 0 0;
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+  .mod-badge {
+    font-size: 11px;
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #1e293b;
+    color: #94a3b8;
+    white-space: nowrap;
+  }
+  .mod-badge.active {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.45);
+  }
+  .filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  select, input[type="text"] {
+    width: 100%;
+    background: #090d16;
+    color: #f8fafc;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 9px 10px;
+    font-size: 12px;
+    outline: none;
+  }
+  select:focus, input[type="text"]:focus, input[type="number"]:focus {
+    border-color: #f59e0b;
+  }
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    max-height: 58vh;
+    overflow-y: auto;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #090d16;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    padding: 10px;
+  }
+  .row.modified {
+    background: rgba(6, 78, 59, 0.35);
+    border-color: rgba(16, 185, 129, 0.55);
+  }
+  .item-info {
+    min-width: 0;
+    flex: 1;
+  }
+  .item-name {
+    margin: 0;
+    font-size: 13px;
+    font-weight: bold;
+    color: #ffffff;
+  }
+  .item-sub {
+    margin: 3px 0 0;
+    font-size: 11px;
+    color: #64748b;
+  }
+  .item-sub.up {
+    color: #fbbf24;
+    font-weight: bold;
+  }
+  .item-sub.down {
+    color: #34d399;
+    font-weight: bold;
+  }
+  .price-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .price-input {
+    width: 82px;
+    background: #111827;
+    color: #fcd34d;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: center;
+    outline: none;
+  }
+  .currency {
+    font-size: 11px;
+    color: #94a3b8;
+  }
+  .footer-bar {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .link-btn {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px 0;
+    font-size: 11px;
+  }
+  .link-btn:hover {
+    color: #fbbf24;
+  }
+  .link-btn.reset:hover {
+    color: #f87171;
+  }
+  .bottom-actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    background: #111827;
+    border-top: 1px solid #1f2937;
+    padding: 10px 12px;
+  }
+  .bottom-inner {
+    max-width: 520px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .btn-copy {
+    background: #1e293b;
+    color: #f8fafc;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 11px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .btn-wa {
+    background: #059669;
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    padding: 11px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .btn-wa:hover {
+    background: #10b981;
+  }
+  .empty {
+    text-align: center;
+    padding: 28px 12px;
+    color: #64748b;
+    font-size: 12px;
+    background: #090d16;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+  }
 </style>
 </head>
 <body>
@@ -60,10 +277,10 @@
       <div class="brand-icon">🏷️</div>
       <div>
         <h1>SMOKE SHOP</h1>
-        <p>تعديل الأسعار والمزامنة الفورية</p>
+        <p>تطبيق تعديل الأسعار السريع</p>
       </div>
     </div>
-    <span id="syncStatusBadge" class="badge">جاهز</span>
+    <span id="itemsCountBadge" class="badge">جاهز</span>
   </div>
 </header>
 
@@ -72,7 +289,7 @@
     <div class="card-top">
       <div>
         <h2>📱 التعديل السريع للأسعار</h2>
-        <p>اختر القسم أو ابحث بالاسم، عدّل السعر مباشرة، ثم اضغط حفظ للمزامنة الفورية مع المتجر.</p>
+        <p>اختر القسم أو ابحث بالاسم، وعدّل السعر مباشرة، ثم أرسل التعديلات على واتساب.</p>
       </div>
       <span id="mobileModifiedBadge" class="mod-badge">0 معدّل</span>
     </div>
@@ -87,7 +304,9 @@
     <div id="mobileQuickPriceList" class="list"></div>
 
     <div class="footer-bar">
-      <span id="autoSyncHint" style="color:#94a3b8;">🔄 مزامنة تلقائية مع Firestore و localStorage</span>
+      <button type="button" id="phoneBtn" class="link-btn">
+        ⚙️ واتساب الإدارة: <strong id="targetPhonePreview" style="color:#fcd34d;">01221143854</strong>
+      </button>
       <button type="button" id="resetBtn" class="link-btn reset">
         ↺ تراجع عن التعديلات
       </button>
@@ -98,30 +317,12 @@
 <div class="bottom-actions">
   <div class="bottom-inner">
     <button type="button" id="copyBtn" class="btn-copy">📋 نسخ التعديلات</button>
-    <button type="button" id="saveBtn" class="btn-save">💾 حفظ ومزامنة</button>
+    <button type="button" id="waBtn" class="btn-wa">📲 إرسال التعديلات واتس</button>
   </div>
 </div>
 
 <script>
 (function () {
-  var firebaseConfig = {
-    apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
-    authDomain: "smokeshop-40107.firebaseapp.com",
-    projectId: "smokeshop-40107",
-    storageBucket: "smokeshop-40107.firebasestorage.app",
-    messagingSenderId: "374658562456",
-    appId: "1:374658562456:web:f88582e223579683a0d3ed",
-    measurementId: "G-R420RTFBFV"
-  };
-
-  var db = null;
-  try {
-    if (window.firebase) {
-      var app = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(firebaseConfig);
-      db = app.firestore();
-    }
-  } catch (e) {}
-
   var CATEGORIES = [
     { id: "all", n: "كل الأقسام" },
     { id: "local", n: "سجائر محلي" },
@@ -131,7 +332,7 @@
     { id: "mol", n: "تبغ وتوباكو" }
   ];
 
-  var DEFAULT_PRODUCTS = [
+  var PRODUCTS = [
     { id: 1, name: "كيلوباترا", c: "local", p: 485 },
     { id: 2, name: "بوكس", c: "local", p: 485 },
     { id: 3, name: "سوبر", c: "local", p: 495 },
@@ -173,50 +374,48 @@
     { id: 39, name: "برج ٥0", c: "mol", p: 950 }
   ];
 
-  function loadLocalProducts() {
-    try {
-      var raw = localStorage.getItem("sp_p");
-      if (raw) {
-        var parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-    return DEFAULT_PRODUCTS.slice();
-  }
-
-  function saveLocalProducts(list) {
-    try {
-      localStorage.setItem("sp_p", JSON.stringify(list));
-    } catch (e) {}
-  }
-
-  var PRODUCTS = loadLocalProducts();
+  var adminPhone = "01221143854";
   var pendingPrices = {};
-  var isSaving = false;
 
   var catSelect = document.getElementById("mobileQuickCatSelect");
   var searchInput = document.getElementById("mobileQuickSearch");
   var listContainer = document.getElementById("mobileQuickPriceList");
   var modBadge = document.getElementById("mobileModifiedBadge");
-  var syncBadge = document.getElementById("syncStatusBadge");
-  var saveBtn = document.getElementById("saveBtn");
+  var phonePreview = document.getElementById("targetPhonePreview");
+  var itemsBadge = document.getElementById("itemsCountBadge");
 
-  function setStatus(text, isWarn) {
-    if (!syncBadge) return;
-    syncBadge.textContent = text;
-    syncBadge.className = isWarn ? "badge warn" : "badge";
-  }
+  try {
+    var savedPhone = localStorage.getItem("sp_price_editor_phone");
+    if (savedPhone) adminPhone = savedPhone;
+  } catch (e) {}
+
+  try {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get("phone")) {
+      adminPhone = params.get("phone").trim();
+      try { localStorage.setItem("sp_price_editor_phone", adminPhone); } catch (e) {}
+    }
+  } catch (e) {}
+
+  phonePreview.textContent = adminPhone;
+  itemsBadge.textContent = PRODUCTS.length + " صنف";
 
   function buildCategoryOptions() {
-    var prev = catSelect.value || "all";
     var html = "";
     for (var i = 0; i < CATEGORIES.length; i++) {
       var cat = CATEGORIES[i];
-      var count = cat.id === "all" ? PRODUCTS.length : PRODUCTS.filter(function (p) { return p.c === cat.id; }).length;
-      html += '<option value="' + cat.id + '">' + cat.n + " (" + count + ")</option>";
+      var count = 0;
+      if (cat.id === "all") {
+        count = PRODUCTS.length;
+      } else {
+        for (var j = 0; j < PRODUCTS.length; j++) {
+          if (PRODUCTS[j].c === cat.id) count++;
+        }
+      }
+      var label = (cat.id === "all" ? "✨ " : "") + cat.n + " (" + count + ")";
+      html += '<option value="' + cat.id + '">' + label + "</option>";
     }
     catSelect.innerHTML = html;
-    catSelect.value = prev;
   }
 
   function getModifiedList() {
@@ -228,7 +427,13 @@
         var oldP = Number(prod.p);
         var newP = Number(pendingPrices[key]);
         if (!isNaN(newP) && newP > 0 && newP !== oldP) {
-          result.push({ id: prod.id, name: prod.name, oldPrice: oldP, newPrice: newP, diff: newP - oldP });
+          result.push({
+            id: prod.id,
+            name: prod.name,
+            oldPrice: oldP,
+            newPrice: newP,
+            diff: newP - oldP
+          });
         }
       }
     }
@@ -237,13 +442,24 @@
 
   function updateBadge() {
     var count = getModifiedList().length;
-    modBadge.textContent = count + " معدّل";
-    modBadge.className = count > 0 ? "mod-badge active" : "mod-badge";
+    if (count > 0) {
+      modBadge.textContent = count + " معدّل";
+      modBadge.className = "mod-badge active";
+    } else {
+      modBadge.textContent = "0 معدّل";
+      modBadge.className = "mod-badge";
+    }
   }
 
   function handlePriceChange(prodId, rawVal) {
     var key = String(prodId);
-    var prod = PRODUCTS.find(function (p) { return String(p.id) === key; });
+    var prod = null;
+    for (var i = 0; i < PRODUCTS.length; i++) {
+      if (String(PRODUCTS[i].id) === key) {
+        prod = PRODUCTS[i];
+        break;
+      }
+    }
     if (!prod) return;
 
     var cleaned = String(rawVal || "").trim();
@@ -260,17 +476,21 @@
     var subEl = document.getElementById("sub-" + key);
     var isMod = pendingPrices[key] !== undefined && pendingPrices[key] > 0;
 
-    if (rowEl) rowEl.className = isMod ? "row modified" : "row";
+    if (rowEl) {
+      rowEl.className = isMod ? "row modified" : "row";
+    }
     if (subEl) {
       if (isMod) {
         var diff = pendingPrices[key] - oldP;
-        subEl.textContent = oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ")";
+        var sign = diff > 0 ? "+" : "";
+        subEl.textContent = oldP + " ← (" + sign + diff + ")";
         subEl.className = diff > 0 ? "item-sub up" : "item-sub down";
       } else {
         subEl.textContent = "الحالي: " + oldP + " ج.م";
         subEl.className = "item-sub";
       }
     }
+
     updateBadge();
   }
 
@@ -282,7 +502,7 @@
     for (var i = 0; i < PRODUCTS.length; i++) {
       var p = PRODUCTS[i];
       var matchCat = (selectedCat === "all" || p.c === selectedCat);
-      var matchQuery = (!query || String(p.name || "").toLowerCase().indexOf(query) !== -1);
+      var matchQuery = (!query || p.name.toLowerCase().indexOf(query) !== -1);
       if (!matchCat || !matchQuery) continue;
 
       var key = String(p.id);
@@ -291,20 +511,24 @@
       var shownVal = hasPending ? pendingPrices[key] : oldP;
       var diff = hasPending ? (pendingPrices[key] - oldP) : 0;
 
-      var subClass = hasPending ? (diff > 0 ? "item-sub up" : "item-sub down") : "item-sub";
-      var subText = hasPending ? (oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ")") : ("الحالي: " + oldP + " ج.م");
+      var subClass = "item-sub";
+      var subText = "الحالي: " + oldP + " ج.م";
+      if (hasPending) {
+        subClass = diff > 0 ? "item-sub up" : "item-sub down";
+        subText = oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ")";
+      }
 
       rowsHtml +=
         '<div id="row-' + key + '" class="' + (hasPending ? "row modified" : "row") + '">' +
           '<div class="item-info">' +
-            '<p class="item-name">' + p.name + '</p>' +
-            '<p id="sub-' + key + '" class="' + subClass + '">' + subText + '</p>' +
-          '</div>' +
+            '<p class="item-name">' + p.name + "</p>" +
+            '<p id="sub-' + key + '" class="' + subClass + '">' + subText + "</p>" +
+          "</div>" +
           '<div class="price-box">' +
-            '<input type="number" inputmode="numeric" class="price-input" data-id="' + key + '" value="' + shownVal + '">' +
+            '<input type="number" class="price-input" data-id="' + key + '" value="' + shownVal + '">' +
             '<span class="currency">ج.م</span>' +
-          '</div>' +
-        '</div>';
+          "</div>" +
+        "</div>";
     }
 
     if (!rowsHtml) {
@@ -325,123 +549,42 @@
     }
   }
 
-  async function saveAndSync(silent) {
-    if (isSaving) return;
+  function buildMessage() {
     var mods = getModifiedList();
-    if (!mods.length) {
-      if (!silent) alert("عدّل سعراً واحداً على الأقل قبل الحفظ.");
+    if (!mods.length) return "";
+    var lines = ["📋 *تحديث أسعار - Smoke Shop*"];
+    for (var i = 0; i < mods.length; i++) {
+      lines.push(mods[i].name + " " + mods[i].newPrice);
+    }
+    return lines.join("
+");
+  }
+
+  document.getElementById("waBtn").addEventListener("click", function () {
+    var msg = buildMessage();
+    if (!msg) {
+      alert("عدّل سعراً واحداً على الأقل أولاً.");
       return;
     }
-
-    isSaving = true;
-    if (saveBtn) saveBtn.disabled = true;
-    setStatus("جاري الحفظ...", true);
-
-    var updatedItems = [];
-    for (var i = 0; i < mods.length; i++) {
-      var m = mods[i];
-      var found = PRODUCTS.find(function (p) { return String(p.id) === String(m.id); });
-      if (found) {
-        found.p = m.newPrice;
-        updatedItems.push(found);
-      }
-    }
-
-    pendingPrices = {};
-    saveLocalProducts(PRODUCTS);
-
-    var syncedCloud = false;
-    if (db && updatedItems.length > 0) {
-      try {
-        var batch = db.batch();
-        for (var j = 0; j < updatedItems.length; j++) {
-          var item = updatedItems[j];
-          var ref = db.collection("products").doc(String(item.id));
-          batch.set(ref, { p: item.p }, { merge: true });
-        }
-        await batch.commit();
-        syncedCloud = true;
-      } catch (err) {
-        syncedCloud = false;
-      }
-    }
-
-    buildCategoryOptions();
-    renderList();
-    updateBadge();
-
-    if (syncedCloud) {
-      setStatus("تمت المزامنة ✅", false);
-      if (!silent) alert("تم حفظ (" + updatedItems.length + ") سعر ومزامنته مع المتجر.");
-    } else {
-      setStatus("محلي فقط ⚠️", true);
-      if (!silent) alert("تم حفظ (" + updatedItems.length + ") سعر محلياً على الجهاز.");
-    }
-
-    isSaving = false;
-    if (saveBtn) saveBtn.disabled = false;
-  }
-
-  function startAutoSyncListener() {
-    if (!db) return;
-    try {
-      db.collection("products").onSnapshot(function (snap) {
-        if (snap.empty || isSaving) return;
-        var cloudList = [];
-        snap.forEach(function (doc) {
-          if (doc.id.indexOf("_") !== 0) {
-            var d = doc.data();
-            if (d && d.name && d.p !== undefined) {
-              cloudList.push({
-                id: isNaN(Number(doc.id)) ? doc.id : Number(doc.id),
-                name: d.name,
-                c: d.c || "oth",
-                p: Number(d.p)
-              });
-            }
-          }
-        });
-        if (cloudList.length > 0) {
-          cloudList.sort(function (a, b) { return (Number(a.id) || 0) - (Number(b.id) || 0); });
-          PRODUCTS = cloudList;
-          saveLocalProducts(PRODUCTS);
-          buildCategoryOptions();
-          renderList();
-          updateBadge();
-          setStatus("مزامنة تلقائية ✅", false);
-        }
-      }, function () {
-        setStatus("وضع محلي", true);
-      });
-    } catch (e) {}
-  }
-
-  function buildCopyText() {
-    var mods = getModifiedList();
-    var target = mods.length ? mods : PRODUCTS.map(function (p) {
-      return { name: p.name, newPrice: p.p };
-    });
-    var lines = ["تحديث أسعار Smoke Shop"];
-    for (var i = 0; i < target.length; i++) {
-      lines.push(target[i].name + ": " + target[i].newPrice + " ج.م");
-    }
-    return lines.join("\n");
-  }
-
-  saveBtn.addEventListener("click", function () {
-    saveAndSync(false);
+    var digits = String(adminPhone || "01221143854").replace(/\D/g, "");
+    if (digits.indexOf("01") === 0) digits = "2" + digits;
+    window.open("https://wa.me/" + digits + "?text=" + encodeURIComponent(msg), "_blank");
   });
 
   document.getElementById("copyBtn").addEventListener("click", function () {
-    var text = buildCopyText();
+    var msg = buildMessage();
+    if (!msg) {
+      alert("عدّل سعراً واحداً على الأقل أولاً.");
+      return;
+    }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () {
-        alert("تم نسخ قائمة الأسعار.");
+      navigator.clipboard.writeText(msg).then(function () {
+        alert("تم نسخ التعديلات.");
       }, function () {
-        prompt("انسخ النص التالي:", text);
+        prompt("انسخ النص التالي:", msg);
       });
     } else {
-      prompt("انسخ النص التالي:", text);
+      prompt("انسخ النص التالي:", msg);
     }
   });
 
@@ -451,13 +594,21 @@
     updateBadge();
   });
 
+  document.getElementById("phoneBtn").addEventListener("click", function () {
+    var nextPhone = prompt("أدخل رقم واتساب الإدارة:", adminPhone);
+    if (nextPhone && nextPhone.trim()) {
+      adminPhone = nextPhone.trim();
+      phonePreview.textContent = adminPhone;
+      try { localStorage.setItem("sp_price_editor_phone", adminPhone); } catch (e) {}
+    }
+  });
+
   catSelect.addEventListener("change", renderList);
   searchInput.addEventListener("input", renderList);
 
   buildCategoryOptions();
   renderList();
   updateBadge();
-  startAutoSyncListener();
 })();
 </script>
 </body>
