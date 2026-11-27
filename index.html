@@ -170,7 +170,7 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
 
     <!-- شريط البحث -->
     <div class="relative">
-      <input type="text" id="srchInput" oninput="renderProducts()" placeholder="ابحث باسم الصنف (سجائر، معسل، ولاعات...)" class="w-full bg-slate-900/90 border border-slate-800 text-white rounded-xl py-2.5 px-3 pr-8 text-xs focus:outline-none focus:border-amber-500 transition shadow-sm">
+      <input type="search" id="srchInput" name="productSearchField" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="clearShopPhoneFromSearch(); renderProducts()" placeholder="ابحث باسم الصنف (سجائر، معسل، ولاعات...)" class="w-full bg-slate-900/90 border border-slate-800 text-white rounded-xl py-2.5 px-3 pr-8 text-xs focus:outline-none focus:border-amber-500 transition shadow-sm">
       <span class="absolute right-2.5 top-2.5 text-slate-500 text-xs">🔍</span>
     </div>
 
@@ -930,6 +930,22 @@ localStorage.setItem('sp_p', JSON.stringify(products));
 let cart = JSON.parse(localStorage.getItem('sp_c') || '{}');
 let selectedWeights = {};
 let shopPhone = localStorage.getItem('sp_ph') || '01221143854';
+
+// Prevent the store phone number from being restored into the product search field.
+function clearShopPhoneFromSearch() {
+  const searchInput = document.getElementById('srchInput');
+  if (!searchInput) return;
+  const searchValue = String(searchInput.value || '').replace(/[\s+()-]/g, '');
+  const configuredPhone = String(shopPhone || '').replace(/[\s+()-]/g, '');
+  const defaultPhone = '01221143854';
+  if (searchValue && (searchValue === configuredPhone || searchValue === defaultPhone)) {
+    searchInput.value = '';
+  }
+}
+
+// Clear a restored/autofilled phone number when the page is opened or restored.
+window.addEventListener('pageshow', clearShopPhoneFromSearch);
+window.addEventListener('load', clearShopPhoneFromSearch);
 let ownerPin = localStorage.getItem('sp_pin') || '1234';
 let staffList = JSON.parse(localStorage.getItem('sp_staff') || '[]');
 let dailyOffer = normalizeDailyOffer(JSON.parse(localStorage.getItem('sp_daily_offer') || 'null'));
@@ -942,6 +958,13 @@ let restockActiveProductId = null;
 let customerGpsLink = '';
 let isOwner = false;
 let currentCat = 'all';
+
+// Run once during startup in case the browser restored the previous search value.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', clearShopPhoneFromSearch, { once: true });
+} else {
+  clearShopPhoneFromSearch();
+}
 let activeOrderFilter = 'all';
 let editTargetId = null;
 let isCreatingProduct = false;
