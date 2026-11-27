@@ -111,15 +111,12 @@
   };
 
   var db = null;
-  var fbInitError = "";
   try {
     if (window.firebase) {
       var fbApp = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(firebaseConfig);
       db = fbApp.firestore();
     }
-  } catch (e) {
-    fbInitError = e && e.message ? e.message : String(e);
-  }
+  } catch (e) {}
 
   var CATEGORIES = [
     { id: "all", n: "كل الأقسام" },
@@ -172,7 +169,6 @@
     { id: 39, name: "برج ٥0", c: "mol", p: 950 }
   ];
 
-  // إضافة 5 جنيه لسجائر محلي و20 جنيه لباقي الأقسام عند الإرسال للتطبيق
   function getCategoryMarkup(catId) {
     return String(catId) === "local" ? 5 : 20;
   }
@@ -195,7 +191,7 @@
   }
 
   var PRODUCTS = loadInitialProducts();
-  var pendingPrices = {}; // يحفظ السعر المدخل من المستخدم فقط
+  var pendingPrices = {};
   var isSaving = false;
 
   var catSelect = document.getElementById("mobileQuickCatSelect");
@@ -204,6 +200,7 @@
   var modBadge = document.getElementById("mobileModifiedBadge");
   var itemsBadge = document.getElementById("itemsCountBadge");
   var saveBtn = document.getElementById("saveBtn");
+  var copyBtn = document.getElementById("copyBtn");
 
   function setStatusBadge(text, isWarn) {
     if (!itemsBadge) return;
@@ -335,7 +332,8 @@
     if (isSaving) return;
     var mods = getModifiedList();
     if (!mods.length) {
-      alert("عدّل سعراً واحداً على الأقل قبل الحفظ.");
+      setStatusBadge("لا يوجد تعديل", true);
+      setTimeout(function () { setStatusBadge(PRODUCTS.length + " صنف", false); }, 1500);
       return;
     }
 
@@ -357,8 +355,6 @@
     saveLocalProducts(PRODUCTS);
 
     var synced = false;
-    var cloudErrMsg = fbInitError || "";
-
     if (db && updatedItems.length > 0) {
       try {
         var batch = db.batch();
@@ -376,20 +372,13 @@
         synced = true;
       } catch (err) {
         synced = false;
-        cloudErrMsg = err && err.message ? err.message : String(err);
       }
     }
 
     buildCategoryOptions();
     renderList();
     updateBadge();
-    setStatusBadge(synced ? (PRODUCTS.length + " صنف ✅") : (PRODUCTS.length + " صنف ⚠️"), !synced);
-
-    if (synced) {
-      alert("تم حفظ (" + updatedItems.length + ") تعديل ومزامنته مع التطبيق.");
-    } else {
-      alert("تم الحفظ محلياً، لكن تعذرت المزامنة السحابية:\n" + (cloudErrMsg || "تحقق من اتصال الإنترنت وقواعد Firestore"));
-    }
+    setStatusBadge(synced ? ("تم الحفظ ✅") : ("محلي فقط ⚠️"), !synced);
 
     isSaving = false;
     if (saveBtn) saveBtn.disabled = false;
@@ -444,16 +433,13 @@
 
   saveBtn.addEventListener("click", saveChanges);
 
-  document.getElementById("copyBtn").addEventListener("click", function () {
+  copyBtn.addEventListener("click", function () {
     var text = buildCopyText();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () {
-        alert("تم نسخ قائمة الأسعار.");
-      }, function () {
-        prompt("انسخ النص التالي:", text);
-      });
-    } else {
-      prompt("انسخ النص التالي:", text);
+        setStatusBadge("تم النسخ 📋", false);
+        setTimeout(function () { setStatusBadge(PRODUCTS.length + " صنف", false); }, 1500);
+      }, function () {});
     }
   });
 
