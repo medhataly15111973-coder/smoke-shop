@@ -1510,10 +1510,15 @@ async function submitStockNotifyRequest(alsoSendWhatsappToShop) {
   if (alsoSendWhatsappToShop) {
     let dest = shopPhone.trim();
     if (dest.startsWith('01')) dest = '2' + dest;
-    const msg = `🔔 *طلب إشعار بتوفر صنف - Smoke Shop*\nمرحباً، برجاء إعلامي على هذا الرقم فور توفر الصنف التالي:\n📦 الصنف: *${p.name}*\n👤 الاسم: ${name}\n📱 الواتساب: ${phone}`;
+    const msg = `🔔 *طلب إشعار بتوفر صنف - Smoke Shop*
+مرحباً، برجاء إعلامي على هذا الرقم فور توفر الصنف التالي:
+📦 الصنف: *${p.name}*
+👤 الاسم: ${name}
+📱 الواتساب: ${phone}`;
     window.open(`https://wa.me/${dest}?text=${encodeURIComponent(msg)}`, '_blank');
   } else {
-    alert(`تم تسجيل طلبك بنجاح! 🔔\nسنرسل لك رسالة على واتساب (${phone}) فور توفر "${p.name}".`);
+    alert(`تم تسجيل طلبك بنجاح! 🔔
+سنرسل لك رسالة على واتساب (${phone}) فور توفر "${p.name}".`);
   }
 }
 
@@ -1552,7 +1557,14 @@ function sendRestockWhatsappToCustomer(prodId, waiterIdx) {
   if (dest.startsWith('01')) dest = '2' + dest;
 
   const storeUrl = window.location.origin + window.location.pathname;
-  const msg = `🎉 *بشرى سارة من Smoke Shop!*\nأهلاً أ/ *${w.name}*، الصنف اللي طلبت إشعارك بيه توفر الآن في المتجر:\n\n📦 الصنف: *${p.name}*\n💰 السعر الحالي: *${Math.round(p.p)} ج.م*\n\n🛒 اطلبه الآن من خلال الرابط قبل نفاذ الكمية:\n${storeUrl}`;
+  const msg = `🎉 *بشرى سارة من Smoke Shop!*
+أهلاً أ/ *${w.name}*، الصنف اللي طلبت إشعارك بيه توفر الآن في المتجر:
+
+📦 الصنف: *${p.name}*
+💰 السعر الحالي: *${Math.round(p.p)} ج.م*
+
+🛒 اطلبه الآن من خلال الرابط قبل نفاذ الكمية:
+${storeUrl}`;
 
   window.open(`https://wa.me/${dest}?text=${encodeURIComponent(msg)}`, '_blank');
 }
@@ -2102,19 +2114,30 @@ function renderCategories() {
   const container = document.getElementById('catsBar');
   if (!container) return;
 
-  const activeObj = categories.find(c => c.id === currentCat);
+  if (!Array.isArray(categories) || categories.length === 0) {
+    categories = DEFAULT_CATEGORIES.slice();
+    localStorage.setItem('sp_cats', JSON.stringify(categories));
+  }
+
+  const validCats = categories.filter(c => c && c.id && c.n);
+  if (!validCats.some(c => String(c.id) === String(currentCat))) {
+    currentCat = 'all';
+  }
+
+  const activeObj = validCats.find(c => String(c.id) === String(currentCat));
   const labelEl = document.getElementById('activeCatLabel');
   if (labelEl && activeObj) {
     labelEl.innerText = activeObj.id === 'all' ? `عرض الكل (${products.length} صنف)` : `قسم: ${activeObj.n}`;
   }
 
-  container.innerHTML = categories.map((c, idx) => {
-    const isSelected = currentCat === c.id;
+  container.innerHTML = validCats.map((c, idx) => {
+    const isSelected = String(currentCat) === String(c.id);
     const vis = getCategoryVisuals(c, idx);
-    const count = c.id === 'all' ? products.length : products.filter(p => p.c === c.id).length;
+    const count = c.id === 'all' ? products.length : products.filter(p => String(p.c) === String(c.id)).length;
+    const safeCatId = String(c.id).replace(/'/g, "\'");
 
     return `
-      <button onclick="setCategory('${c.id}')" class="relative flex flex-col items-center justify-center p-2.5 rounded-2xl border bg-gradient-to-br transition-all duration-200 active:scale-95 ${isSelected ? vis.active + ' scale-[1.02] font-black' : vis.idle + ' hover:brightness-110 font-bold'}">
+      <button type="button" onclick="setCategory('${safeCatId}')" class="relative flex flex-col items-center justify-center p-2.5 rounded-2xl border bg-gradient-to-br transition-all duration-200 active:scale-95 ${isSelected ? vis.active + ' scale-[1.02] font-black' : vis.idle + ' hover:brightness-110 font-bold'}">
         <span class="text-xl leading-none mb-1 drop-shadow">${vis.icon}</span>
         <span class="text-[11px] leading-tight text-center line-clamp-1">${c.n}</span>
         <span class="mt-1 text-[9px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-black/25 text-current font-black' : vis.badge}">
@@ -2128,7 +2151,9 @@ function renderCategories() {
 }
 
 function setCategory(catId) {
-  currentCat = catId;
+  currentCat = String(catId || 'all');
+  const srchEl = document.getElementById('srchInput');
+  if (srchEl) srchEl.value = '';
   renderCategories();
   renderProducts();
 }
@@ -2140,7 +2165,11 @@ function selectTobaccoWeight(prodId, weightKey) {
 
 function renderProducts() {
   const searchQ = (document.getElementById('srchInput')?.value || '').trim().toLowerCase();
-  const filtered = products.filter(p => (currentCat === 'all' || p.c === currentCat) && p.name.toLowerCase().includes(searchQ));
+  const filtered = products.filter(p =>
+    p &&
+    (String(currentCat) === 'all' || String(p.c) === String(currentCat)) &&
+    String(p.name || '').toLowerCase().includes(searchQ)
+  );
   const grid = document.getElementById('productsGrid');
   const myNotifs = JSON.parse(localStorage.getItem('sp_my_notifs') || '[]');
 
@@ -2397,23 +2426,34 @@ function submitOrderViaWhatsapp() {
     try { db.collection("orders").add(orderPayload); } catch(err) { console.error("Firebase sync error:", err); }
   }
 
-  let msg = `🧾 *طلب شراء جديد - Smoke Shop*\n`;
-  msg += `🔢 رقم الطلب: #${orderPayload.id}\n`;
-  msg += `👤 العميل: ${name} (${phone})\n`;
-  msg += `📍 الاستلام: ${orderPayload.type}\n`;
+  let msg = `🧾 *طلب شراء جديد - Smoke Shop*
+`;
+  msg += `🔢 رقم الطلب: #${orderPayload.id}
+`;
+  msg += `👤 العميل: ${name} (${phone})
+`;
+  msg += `📍 الاستلام: ${orderPayload.type}
+`;
   if(isDel) {
-    msg += `🏠 العنوان: ${address}\n`;
-    if(gpsUrl) msg += `🗺️ لوكيشن الخريطة: ${gpsUrl}\n`;
+    msg += `🏠 العنوان: ${address}
+`;
+    if(gpsUrl) msg += `🗺️ لوكيشن الخريطة: ${gpsUrl}
+`;
   }
   if(notes) {
-    msg += `📝 ملاحظات: ${notes}\n`;
+    msg += `📝 ملاحظات: ${notes}
+`;
   }
-  msg += `-----------------------------\n`;
-  msg += `📦 الأصناف المطلوبة:\n`;
+  msg += `-----------------------------
+`;
+  msg += `📦 الأصناف المطلوبة:
+`;
   items.forEach((i, idx) => {
-    msg += `${idx + 1}. ${i.q} × ${i.name} = ${Math.round(i.p * i.q)} ج.م\n`;
+    msg += `${idx + 1}. ${i.q} × ${i.name} = ${Math.round(i.p * i.q)} ج.م
+`;
   });
-  msg += `-----------------------------\n`;
+  msg += `-----------------------------
+`;
   msg += `💵 إجمالي الفاتورة: *${subTotal} ج.م*`;
 
   let dest = shopPhone.trim();
@@ -2550,17 +2590,26 @@ async function dispatchOrderToStaff(docId, orderNum) {
     }
   }
 
-  let msg = `📦 *أمر تجهيز طلب جديد - Smoke Shop*\n`;
-  msg += `👷 الموظف: ${staffMember.name}\n`;
-  msg += `🔢 رقم الطلب: #${order.id}\n`;
-  msg += `📍 النوع: ${order.type}\n`;
-  if (order.notes) msg += `📝 ملاحظات: ${order.notes}\n`;
-  msg += `-----------------------------\n`;
-  msg += `📋 الأصناف المطلوب تحضيرها:\n`;
+  let msg = `📦 *أمر تجهيز طلب جديد - Smoke Shop*
+`;
+  msg += `👷 الموظف: ${staffMember.name}
+`;
+  msg += `🔢 رقم الطلب: #${order.id}
+`;
+  msg += `📍 النوع: ${order.type}
+`;
+  if (order.notes) msg += `📝 ملاحظات: ${order.notes}
+`;
+  msg += `-----------------------------
+`;
+  msg += `📋 الأصناف المطلوب تحضيرها:
+`;
   order.items.forEach((i, idx) => {
-    msg += `${idx + 1}. (${i.q}) × ${i.name}\n`;
+    msg += `${idx + 1}. (${i.q}) × ${i.name}
+`;
   });
-  msg += `-----------------------------\n`;
+  msg += `-----------------------------
+`;
   msg += `⚡ برجاء التجهيز الفوري وإبلاغ الإدارة.`;
 
   let dest = staffMember.phone.trim();
@@ -2593,7 +2642,6 @@ async function updateOrderStatus(docId, newStatus) {
 }
 
 async function clearAllOrders() {
-  // 1. التأكيد الأول: تنبيه بعدد الطلبات التي سيتم حذفها
   const totalCount = incomingOrders.length;
   if (totalCount === 0) {
     alert('لا توجد طلبات حالياً لمسحها.');
@@ -2601,22 +2649,21 @@ async function clearAllOrders() {
   }
 
   const firstConfirm = confirm(
-    `⚠️ تحذير: أنت على وشك مسح (${totalCount}) طلب نهائياً من قاعدة البيانات!\nلا يمكن التراجع عن هذه العملية. هل تريد المتابعة؟`
+    `⚠️ تحذير: أنت على وشك مسح (${totalCount}) طلب نهائياً من قاعدة البيانات!
+لا يمكن التراجع عن هذه العملية. هل تريد المتابعة؟`
   );
   if (!firstConfirm) return;
 
-  // 2. التأكيد الثاني: طلب إدخال رمز PIN الخاص بالإدارة لمنع الضغط بالخطأ
   const pinCheck = prompt(
     `🔒 لتأكيد المسح النهائي لجميع الطلبات، أدخل رمز PIN الخاص بالإدارة:`
   );
-  if (pinCheck === null) return; // إلغاء العملية
+  if (pinCheck === null) return;
 
   if (pinCheck.trim() !== ownerPin) {
     alert('❌ رمز PIN غير صحيح! تم إلغاء عملية المسح.');
     return;
   }
 
-  // 3. تنفيذ الحذف الفعلي من Firestore والواجهة
   try {
     if (db) {
       const snapshot = await db.collection("orders").get();
@@ -2891,7 +2938,7 @@ async function handleImageFile(event) {
 
 // ==================== محرر الأسعار السريع باللمس للجوال (آيفون وأندرويد) ====================
 
-let mobilePendingPrices = {}; // { [productId]: newNumericPrice }
+let mobilePendingPrices = {};
 
 function populateMobileQuickCategories() {
   const select = document.getElementById('mobileQuickCatSelect');
@@ -2964,7 +3011,6 @@ function onMobileQuickPriceInput(prodId, rawVal) {
     }
   }
 
-  // تحديث مظهر الصف والشارة لحظياً بدون إعادة رسم القائمة بالكامل حتى لا يفقد الجوال التركيز (Focus)
   const rowEl = document.getElementById(`mq-row-${pid}`);
   const diffEl = document.getElementById(`mq-diff-${pid}`);
   const isModified = mobilePendingPrices[pid] !== undefined && mobilePendingPrices[pid] > 0;
@@ -3076,7 +3122,9 @@ function sendMobileQuickChangesWhatsapp() {
   }
 
   const lines = modified.map(m => `${m.name} ${m.newPrice}`);
-  const msg = `📋 *تحديث أسعار - Smoke Shop*\n` + lines.join('\n');
+  const msg = `📋 *تحديث أسعار - Smoke Shop*
+` + lines.join('
+');
 
   let dest = (shopPhone || '01221143854').replace(/\D/g, '');
   if (dest.startsWith('01')) dest = '2' + dest;
@@ -3119,7 +3167,6 @@ function exportProductsToExcel() {
   const addedIds = new Set();
 
   if (selectedCatId === 'all') {
-    // ترتيب الأقسام حسب ترتيب التبويبات المعروضة في المتجر (بعد تبويب الكل)
     const orderedCats = categories.filter(c => c.id !== 'all');
     orderedCats.forEach(cat => {
       const catProducts = products
@@ -3154,7 +3201,6 @@ function exportProductsToExcel() {
     : '_الكل';
   const fileName = `SmokeShop_Prices${catSlug}_${dateStr}.xlsx`;
 
-  // تجهيز رقم واتساب المتجر بصيغة دولية صحيحة للرابط المباشر
   let waPhone = (shopPhone || '01221143854').replace(/\D/g, '');
   if (waPhone.startsWith('01')) waPhone = '2' + waPhone;
 
@@ -3181,7 +3227,6 @@ function exportProductsToExcel() {
       right: { style: 'medium', color: { argb: 'FF15803D' } }
     };
 
-    // عناوين الجدول الأساسي (A1:D1)
     const headers = [
       { col: 1, title: 'ID' },
       { col: 2, title: 'اسم الصنف' },
@@ -3200,8 +3245,6 @@ function exportProductsToExcel() {
     });
 
     const lastRow = sortedProducts.length + 1;
-
-    // صف بذرة مخفي (Y1) لتجميع السطور دون الاعتماد على TEXTJOIN (يعمل على كل نسخ Excel وLibreOffice وWPS)
     ws.getCell('Y1').value = '';
 
     sortedProducts.forEach((p, idx) => {
@@ -3234,7 +3277,6 @@ function exportProductsToExcel() {
       cPrice.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
       cPrice.border = thinBorder;
 
-      // عرض "معدّل: [اسم الصنف] [السعر الجديد]" مباشرة عند تغيّر السعر عن المرجع Z
       const cStatus = ws.getCell(r, 4);
       cStatus.value = {
         formula: `IF(AND(B${r}<>"",ROUND(C${r},0)<>ROUND(Z${r},0)),"معدّل: "&TRIM(B${r})&" "&ROUND(C${r},0),"")`
@@ -3244,26 +3286,20 @@ function exportProductsToExcel() {
       cStatus.alignment = { horizontal: 'right', vertical: 'middle', readingOrder: 'rightToLeft' };
       cStatus.border = thinBorder;
 
-      // عمود مرجعي مخفي (Z): يحفظ السعر الأصلي عند التصدير
       const cRef = ws.getCell(r, 26);
       cRef.value = basePrice;
       cRef.numFmt = '0';
 
-      // عمود تراكمي مخفي (Y): يجمع السطور المعدّلة بفاصل سطر حقيقي CHAR(10) بدون الحاجة لـ TEXTJOIN
       const cAcc = ws.getCell(r, 25);
       cAcc.value = {
         formula: `IF(AND(B${r}<>"",ROUND(C${r},0)<>ROUND(Z${r},0)),IF(Y${r - 1}="",TRIM(B${r})&" "&ROUND(C${r},0),Y${r - 1}&CHAR(10)&TRIM(B${r})&" "&ROUND(C${r},0)),Y${r - 1})`
       };
     });
 
-    // الخلية X2 تحتوي على النص النهائي المتراكم لجميع الأصناف المعدّلة مفصولة بـ CHAR(10)
     ws.getCell('X2').value = { formula: `Y${lastRow}` };
-    // ترميز النص بالكامل باستخدام ENCODEURL حتى لا تتعطل الروابط بسبب الحروف العربية أو الرموز أو الفواصل
     ws.getCell('W2').value = { formula: 'ENCODEURL(X2)' };
-    // عداد الأصناف المعدّلة باستخدام دالة قياسية متوافقة مع كل نسخ Excel
     ws.getCell('V2').value = { formula: `COUNTIF(D2:D${lastRow},"معدّل:*")` };
 
-    // لوحة إرسال التعديلات عبر واتساب في الأعمدة F و G
     ws.mergeCells('F1:G1');
     const titleCell = ws.getCell('F1');
     titleCell.value = '📲 إرسال التعديلات عبر واتساب';
@@ -3273,7 +3309,6 @@ function exportProductsToExcel() {
     titleCell.border = thinBorder;
     ws.getCell('G1').border = thinBorder;
 
-    // خلية مفردة غير مدمجة (F2) لضمان استجابة النقر على HYPERLINK في جميع إصدارات Excel و WPS و LibreOffice
     ws.getRow(2).height = 34;
     const waBtnCell = ws.getCell('F2');
     waBtnCell.value = {
@@ -3308,7 +3343,6 @@ function exportProductsToExcel() {
     copyHintCell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
     copyHintCell.border = thinBorder;
 
-    // صندوق معاينة الأصناف والأسعار المستخرجة (F4:G11)
     ws.mergeCells('F4:G4');
     const previewHeader = ws.getCell('F4');
     previewHeader.value = '📝 معاينة النص الجاهز للواتساب';
@@ -3333,11 +3367,10 @@ function exportProductsToExcel() {
       }
     }
 
-    // حساب عرض مناسب ومتوازن للأعمدة
     const calcDisplayWidth = (str) => {
       let w = 0;
       for (const ch of String(str)) {
-        w += /[\u0600-\u06FF]/.test(ch) ? 1.25 : 1.05;
+        w += /[؀-ۿ]/.test(ch) ? 1.25 : 1.05;
       }
       return Math.ceil(w);
     };
@@ -3383,7 +3416,8 @@ function exportProductsToExcel() {
       const rowVals = [p.id, p.name, Math.round(Number(p.p) || 0)];
       csvLines.push(rowVals.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
     });
-    const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['﻿' + csvLines.join('
+')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -3403,7 +3437,9 @@ async function handleExcelImport(event) {
 
     if (fileNameLower.endsWith('.csv')) {
       const text = await file.text();
-      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+      const lines = text.replace(/^﻿/, '').split(/
+?
+/).filter(l => l.trim());
       if (lines.length > 1) {
         const parseCsvLine = (line) => {
           const res = [];
@@ -3496,13 +3532,11 @@ async function handleExcelImport(event) {
         return;
       }
 
-      // 1. البحث بالـ ID أولاً (أعلى دقة 100%)
       let targetProd = null;
       if (rawId) {
         targetProd = products.find(p => String(p.id).trim() === rawId);
       }
 
-      // 2. إذا لم يوجد ID، نبحث بالمطابقة التامة للاسم
       if (!targetProd && rawName) {
         const normName = normalizeArabicText(rawName);
         targetProd = products.find(p => normalizeArabicText(p.name) === normName);
@@ -3539,11 +3573,17 @@ async function handleExcelImport(event) {
       updateDailyOfferUI();
     }
 
-    let summary = `🎉 تمت معالجة ملف الإكسل ومزامنته سحابياً بنجاح!\n`;
-    summary += `✅ أصناف تم تحديثها: ${updatedCount}\n`;
-    if (addedCount > 0) summary += `➕ أصناف جديدة تمت إضافتها: ${addedCount}\n`;
+    let summary = `🎉 تمت معالجة ملف الإكسل ومزامنته سحابياً بنجاح!
+`;
+    summary += `✅ أصناف تم تحديثها: ${updatedCount}
+`;
+    if (addedCount > 0) summary += `➕ أصناف جديدة تمت إضافتها: ${addedCount}
+`;
     if (skippedRows.length > 0) {
-      summary += `\n⚠️ ملاحظات (${skippedRows.length}):\n- ` + skippedRows.slice(0, 8).join('\n- ');
+      summary += `
+⚠️ ملاحظات (${skippedRows.length}):
+- ` + skippedRows.slice(0, 8).join('
+- ');
     }
     alert(summary);
   } catch (err) {
@@ -3558,7 +3598,8 @@ function exportProductsToTextArea() {
   const textarea = document.getElementById('wpImportText');
   if (!textarea) return;
   const lines = products.map(p => `${p.name} ${Math.round(Number(p.p))}`);
-  textarea.value = lines.join('\n');
+  textarea.value = lines.join('
+');
   textarea.focus();
 }
 
@@ -3581,17 +3622,11 @@ function copyExportedText() {
 function normalizeArabicText(str) {
   if (!str) return '';
   return str
-    // تحويل الأرقام العربية/الهندية إلى إنجليزية
     .replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
-    // توحيد الألف والهمزات
     .replace(/[أإآٱ]/g, 'ا')
-    // توحيد التاء المربوطة والهاء
     .replace(/ة/g, 'ه')
-    // توحيد الياء والألف اللينة
     .replace(/ى/g, 'ي')
-    // إزالة التشكيل والرموز غير الضرورية
-    .replace(/[\u064B-\u065F\-_:=\/\\]/g, ' ')
-    // توحيد المسافات المتعددة
+    .replace(/[ً-ٟ\-_:=\/\]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
@@ -3604,20 +3639,18 @@ async function processPriceImport() {
     return;
   }
 
-  const lines = text.split('\n');
+  const lines = text.split('
+');
   let updatedCount = 0;
   let skippedLines = [];
 
   lines.forEach(rawLine => {
     const line = rawLine.trim();
     if (!line) return;
-    // تجاهل أسطر العناوين التوضيحية والفواصل إذا تم نسخ الرسالة كاملة من الإكسل أو الواتساب
     if (line.startsWith('📋') || line.startsWith('---') || line.startsWith('===')) return;
 
-    // تحويل الأرقام العربية إلى إنجليزية في السطر بالكامل
     const normalizedLine = line.replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
 
-    // استخراج الاسم والسعر (حتى لو كان بينهما = أو : أو -)
     const match = normalizedLine.match(/^(.+?)\s*[:=\-]?\s*(\d+(?:\.\d+)?)\s*(?:ج\.?م|جنيه|ج)?$/);
     if (!match) {
       skippedLines.push(`${line} (تنسيق غير مفهوم)`);
@@ -3635,7 +3668,6 @@ async function processPriceImport() {
     const normInput = normalizeArabicText(rawName);
     const inputTokens = normInput.split(' ').filter(Boolean);
 
-    // تجهيز قائمة الأصناف مع أسمائها المطبّعة
     const indexedProducts = products.map(p => {
       const normProd = normalizeArabicText(p.name);
       return {
@@ -3647,13 +3679,11 @@ async function processPriceImport() {
 
     let matchedProduct = null;
 
-    // المستوى 1: مطابقة تامة 100% بعد التطبيع (يمنع خلط مارلبورو مع مارلبورو كرافتد)
     const exactMatch = indexedProducts.find(item => item.normName === normInput);
     if (exactMatch) {
       matchedProduct = exactMatch.prod;
     }
 
-    // المستوى 2: مطابقة نفس الكلمات بالضبط حتى لو اختلف ترتيبها (مثل: احمر ال ام = ال ام احمر)
     if (!matchedProduct) {
       const sameTokensMatch = indexedProducts.find(item =>
         item.tokens.length === inputTokens.length &&
@@ -3664,7 +3694,6 @@ async function processPriceImport() {
       }
     }
 
-    // المستوى 3: مطابقة جزئية آمنة (بشرط أن تكون النتيجة وحيدة وغير غامضة)
     if (!matchedProduct && normInput.length >= 3) {
       const partialMatches = indexedProducts.filter(item =>
         inputTokens.every(t => item.tokens.includes(t))
@@ -3694,7 +3723,11 @@ async function processPriceImport() {
 
   let report = `✅ تم تحديث ومزامنة أسعار (${updatedCount}) صنفاً بدقة!`;
   if (skippedLines.length > 0) {
-    report += `\n\n⚠️ سطور لم يتم تحديثها (${skippedLines.length}):\n- ` + skippedLines.join('\n- ');
+    report += `
+
+⚠️ سطور لم يتم تحديثها (${skippedLines.length}):
+- ` + skippedLines.join('
+- ');
   }
   alert(report);
 }
@@ -3702,7 +3735,8 @@ async function processPriceImport() {
 function populateSettingsFields() {
   document.getElementById('settingShopPhone').value = shopPhone;
   document.getElementById('settingPin').value = ownerPin;
-  document.getElementById('settingStaffText').value = staffList.map(s => `${s.name}: ${s.phone}`).join('\n');
+  document.getElementById('settingStaffText').value = staffList.map(s => `${s.name}: ${s.phone}`).join('
+');
 }
 
 function saveOwnerSettings() {
@@ -3710,7 +3744,8 @@ function saveOwnerSettings() {
   ownerPin = document.getElementById('settingPin').value.trim() || ownerPin;
   
   const staffRaw = document.getElementById('settingStaffText').value.trim();
-  staffList = staffRaw.split('\n').map(line => {
+  staffList = staffRaw.split('
+').map(line => {
     const parts = line.split(':');
     if(parts.length >= 2) {
       return { name: parts[0].trim(), phone: parts[1].trim() };
