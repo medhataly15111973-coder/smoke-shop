@@ -20,8 +20,8 @@ body { background: #090d16; color: #f8fafc; padding-bottom: 95px; }
 <header class="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40">
   <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
     <div class="flex items-center gap-2.5">
-      <div class="w-9 h-9 rounded-xl overflow-hidden border border-amber-500/40 bg-slate-800 flex items-center justify-center p-0.5 shadow">
-        <img id="headerLogoImg" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" onerror="this.style.display='none'" class="w-full h-full object-cover rounded-lg">
+      <div class="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-center text-base shadow">
+        🏷️
       </div>
       <div>
         <h1 class="font-black text-sm text-amber-400 leading-none">SMOKE SHOP</h1>
@@ -33,7 +33,7 @@ body { background: #090d16; color: #f8fafc; padding-bottom: 95px; }
       <span id="cloudSyncStatus" class="text-[10px] px-2 py-1 rounded-lg font-bold bg-slate-800 text-slate-400">
         ⏳ جاري المزامنة...
       </span>
-      <button onclick="refreshFromCloud()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs transition" title="تحديث القائمة من السحابة">
+      <button type="button" onclick="refreshFromCloud()" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs transition" title="تحديث القائمة الكاملة من السحابة">
         🔄
       </button>
     </div>
@@ -48,7 +48,7 @@ body { background: #090d16; color: #f8fafc; padding-bottom: 95px; }
       <div>
         <h2 class="font-black text-sm text-amber-400 flex items-center gap-1.5">📱 التعديل السريع للأسعار</h2>
         <p class="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-          اضغط على السعر بجانب أي صنف وعدّله، ثم اضغط <b>إرسال التعديلات واتس</b> لإرسالها للإدارة.
+          اختر القسم أو ابحث بالاسم، وعدّل السعر مباشرة، ثم أرسل التعديلات على واتساب.
         </p>
       </div>
       <span id="mobileModifiedBadge" class="shrink-0 text-[10px] px-2.5 py-1 rounded-full font-black bg-slate-800 text-slate-400">
@@ -69,11 +69,11 @@ body { background: #090d16; color: #f8fafc; padding-bottom: 95px; }
 
     <!-- أزرار التحكم السريعة -->
     <div class="flex justify-between items-center pt-1 text-[10px]">
-      <button onclick="openRecipientSettings()" class="text-slate-400 hover:text-amber-400 transition flex items-center gap-1">
+      <button type="button" onclick="openRecipientSettings()" class="text-slate-400 hover:text-amber-400 transition flex items-center gap-1">
         <span>⚙️ رقم واتساب الإدارة:</span>
         <span id="targetPhonePreview" class="font-mono text-amber-300 font-bold">01221143854</span>
       </button>
-      <button onclick="resetMobileQuickEdits()" class="text-slate-400 hover:text-red-400 transition">
+      <button type="button" onclick="resetMobileQuickEdits()" class="text-slate-400 hover:text-red-400 transition">
         ↺ تراجع عن التعديلات
       </button>
     </div>
@@ -84,10 +84,10 @@ body { background: #090d16; color: #f8fafc; padding-bottom: 95px; }
 <!-- شريط الإجراءات السفلي الثابت -->
 <div class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-3 z-40">
   <div class="max-w-md mx-auto grid grid-cols-2 gap-2">
-    <button onclick="copyModifiedText()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-black py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition active:scale-95">
+    <button type="button" onclick="copyModifiedText()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-black py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition active:scale-95">
       <span>📋 نسخ التعديلات</span>
     </button>
-    <button onclick="sendMobileQuickChangesWhatsapp()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950 transition active:scale-95">
+    <button type="button" onclick="sendMobileQuickChangesWhatsapp()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950 transition active:scale-95">
       <span>📲 إرسال التعديلات واتس</span>
     </button>
   </div>
@@ -105,15 +105,15 @@ const firebaseConfig = {
 };
 
 const DEFAULT_CATEGORIES = [
-  { id: 'all', n: 'الكل' },
+  { id: 'all', n: 'كل الأقسام' },
   { id: 'local', n: 'سجائر محلي' },
   { id: 'for', n: 'سجائر أجنبي' },
   { id: 'oth', n: 'متنوع وبحري' },
-  { id: 'mol', n: 'تبغ وتوباكو' },
-  { id: 'acc', n: 'ولاعات وبفرة' }
+  { id: 'acc', n: 'ولاعات وبفرة' },
+  { id: 'mol', n: 'تبغ وتوباكو' }
 ];
 
-const INITIAL_PRODUCTS = [
+const FALLBACK_PRODUCTS = [
   { id: 1, name: "كيلوباترا", c: "local", p: 485 },
   { id: 2, name: "بوكس", c: "local", p: 485 },
   { id: 3, name: "سوبر", c: "local", p: 495 },
@@ -156,42 +156,35 @@ const INITIAL_PRODUCTS = [
 ];
 
 let db = null;
-let categories = JSON.parse(localStorage.getItem('sp_price_editor_cats') || 'null') || DEFAULT_CATEGORIES;
-let products = JSON.parse(localStorage.getItem('sp_price_editor_prods') || 'null') || INITIAL_PRODUCTS;
-let adminPhone = localStorage.getItem('sp_price_editor_phone') || '01221143854';
+let categories = [...DEFAULT_CATEGORIES];
+let products = FALLBACK_PRODUCTS.map(x => ({ ...x }));
+let adminPhone = '01221143854';
 let mobilePendingPrices = {};
 
+try {
+  const savedCats = JSON.parse(localStorage.getItem('sp_price_editor_cats') || 'null');
+  if (Array.isArray(savedCats) && savedCats.length > 0) categories = savedCats;
+
+  const savedProds = JSON.parse(localStorage.getItem('sp_price_editor_prods') || 'null');
+  if (Array.isArray(savedProds) && savedProds.length > 0) products = savedProds;
+
+  const savedPhone = localStorage.getItem('sp_price_editor_phone');
+  if (savedPhone) adminPhone = savedPhone;
+} catch (e) {}
+
 function initFirebaseSafe() {
-  if (typeof firebase === 'undefined') {
-    setCloudStatus('وضع محلي', 'warn');
-    return;
-  }
+  if (typeof firebase === 'undefined') return null;
   try {
     if (!firebase.apps || firebase.apps.length === 0) {
       firebase.initializeApp(firebaseConfig);
     }
     db = firebase.firestore();
+    return db;
   } catch (e) {
     console.warn("Firebase init notice:", e);
-    setCloudStatus('وضع محلي', 'warn');
+    return null;
   }
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('phone')) {
-    adminPhone = params.get('phone').trim();
-    localStorage.setItem('sp_price_editor_phone', adminPhone);
-  }
-  document.getElementById('targetPhonePreview').innerText = adminPhone;
-
-  populateMobileQuickCategories();
-  renderMobileQuickPriceList();
-  updateMobileModifiedBadge();
-
-  initFirebaseSafe();
-  subscribeToCloudProducts();
-});
 
 function setCloudStatus(text, type) {
   const el = document.getElementById('cloudSyncStatus');
@@ -210,7 +203,6 @@ function extractCategoriesFromDoc(data) {
   if (!data || typeof data !== 'object') return null;
   if (Array.isArray(data.list) && data.list.length > 0) return data.list;
   if (Array.isArray(data.categories) && data.categories.length > 0) return data.categories;
-  // دعم إذا كان المستند مخزناً ككائن مفاتيح أو مصفوفة داخل حقل آخر
   for (const k of Object.keys(data)) {
     if (Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === 'object' && data[k][0].id) {
       return data[k];
@@ -219,9 +211,24 @@ function extractCategoriesFromDoc(data) {
   return null;
 }
 
+function normalizeProductDoc(docId, data) {
+  if (!data || typeof data !== 'object') return null;
+  const name = data.name || data.title || data.n || data.productName || '';
+  const rawPrice = data.p !== undefined ? data.p : (data.price !== undefined ? data.price : (data.cost !== undefined ? data.cost : null));
+  const numPrice = Number(rawPrice);
+  if (!name || rawPrice === null || isNaN(numPrice)) return null;
+
+  return {
+    id: data.id !== undefined ? data.id : docId,
+    name: String(name).trim(),
+    c: String(data.c || data.cat || data.category || 'oth').trim(),
+    p: numPrice
+  };
+}
+
 function applySnapshotDocs(snapshot) {
   if (!snapshot || snapshot.empty) {
-    setCloudStatus(`محلي (${products.length} صنف)`, 'warn');
+    setCloudStatus(`${products.length} صنف`, 'warn');
     return;
   }
 
@@ -236,73 +243,64 @@ function applySnapshotDocs(snapshot) {
       const parsed = extractCategoriesFromDoc(data);
       if (parsed) foundCloudCats = parsed;
     } else if (!docId.startsWith("_")) {
-      const prodName = data.name || data.title || data.n || '';
-      const prodPrice = data.p !== undefined ? data.p : (data.price !== undefined ? data.price : null);
-      if (prodName && prodPrice !== null && !isNaN(Number(prodPrice))) {
-        loadedProds.push({
-          id: data.id !== undefined ? data.id : docId,
-          name: String(prodName),
-          c: data.c || data.cat || data.category || 'oth',
-          p: Number(prodPrice)
-        });
-      }
+      const item = normalizeProductDoc(docId, data);
+      if (item) loadedProds.push(item);
     }
   });
 
   if (foundCloudCats) {
     categories = foundCloudCats;
-    localStorage.setItem('sp_price_editor_cats', JSON.stringify(categories));
+    try { localStorage.setItem('sp_price_editor_cats', JSON.stringify(categories)); } catch (e) {}
   }
 
   if (loadedProds.length > 0) {
-    products = loadedProds.sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
-    localStorage.setItem('sp_price_editor_prods', JSON.stringify(products));
+    products = loadedProds.sort((a, b) => {
+      const na = Number(a.id);
+      const nb = Number(b.id);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return String(a.name).localeCompare(String(b.name), 'ar');
+    });
+    try { localStorage.setItem('sp_price_editor_prods', JSON.stringify(products)); } catch (e) {}
   }
 
   populateMobileQuickCategories();
   renderMobileQuickPriceList();
   updateMobileModifiedBadge();
-  setCloudStatus(`متصل (${products.length} صنف)`, 'ok');
-}
-
-function subscribeToCloudProducts() {
-  if (!db) {
-    setCloudStatus('وضع محلي', 'warn');
-    return;
-  }
-  try {
-    db.collection("products").onSnapshot(
-      (snapshot) => applySnapshotDocs(snapshot),
-      (err) => {
-        console.warn("Firestore snapshot error:", err);
-        setCloudStatus(`محلي (${products.length} صنف)`, 'warn');
-      }
-    );
-  } catch (e) {
-    console.warn("Firestore subscribe exception:", e);
-    setCloudStatus(`محلي (${products.length} صنف)`, 'warn');
-  }
+  setCloudStatus(`${products.length} صنف ☁️`, 'ok');
 }
 
 async function refreshFromCloud() {
-  if (!db) {
-    initFirebaseSafe();
-  }
-  if (!db) {
-    populateMobileQuickCategories();
-    renderMobileQuickPriceList();
-    setCloudStatus(`محلي (${products.length} صنف)`, 'warn');
+  const firestore = db || initFirebaseSafe();
+  if (!firestore) {
+    setCloudStatus(`${products.length} صنف`, 'warn');
     return;
   }
-  setCloudStatus('⏳ جاري التحديث...', 'idle');
+  setCloudStatus('⏳ تحديث...', 'idle');
   try {
-    const snapshot = await db.collection("products").get();
+    const snapshot = await firestore.collection("products").get();
     applySnapshotDocs(snapshot);
   } catch (e) {
-    console.warn("Firestore get error:", e);
-    populateMobileQuickCategories();
-    renderMobileQuickPriceList();
-    setCloudStatus(`محلي (${products.length} صنف)`, 'warn');
+    console.warn("Firestore refresh error:", e);
+    setCloudStatus(`${products.length} صنف`, 'warn');
+  }
+}
+
+function subscribeToCloudProducts() {
+  const firestore = db || initFirebaseSafe();
+  if (!firestore) {
+    setCloudStatus(`${products.length} صنف`, 'warn');
+    return;
+  }
+  try {
+    firestore.collection("products").onSnapshot(
+      (snapshot) => applySnapshotDocs(snapshot),
+      (err) => {
+        console.warn("Firestore snapshot notice:", err);
+        setCloudStatus(`${products.length} صنف`, 'warn');
+      }
+    );
+  } catch (e) {
+    setCloudStatus(`${products.length} صنف`, 'warn');
   }
 }
 
@@ -322,7 +320,7 @@ function populateMobileQuickCategories() {
     mergedCats.push({ id: idStr, n: c.n || c.name || idStr });
   };
 
-  addCat({ id: 'all', n: 'الكل' });
+  addCat({ id: 'all', n: 'كل الأقسام' });
   categories.forEach(addCat);
   DEFAULT_CATEGORIES.forEach(addCat);
 
@@ -330,8 +328,8 @@ function populateMobileQuickCategories() {
     local: 'سجائر محلي',
     for: 'سجائر أجنبي',
     oth: 'متنوع وبحري',
-    mol: 'تبغ وتوباكو',
-    acc: 'ولاعات وبفرة'
+    acc: 'ولاعات وبفرة',
+    mol: 'تبغ وتوباكو'
   };
 
   products.forEach(p => {
@@ -342,14 +340,11 @@ function populateMobileQuickCategories() {
 
   select.innerHTML = mergedCats.map(c => {
     const count = c.id === 'all' ? products.length : products.filter(p => String(p.c) === c.id).length;
-    return `<option value="${c.id}">${c.n} (${count})</option>`;
+    const prefix = c.id === 'all' ? '✨ ' : '';
+    return `<option value="${c.id}">${prefix}${c.n} (${count})</option>`;
   }).join('');
 
-  if (seenIds.has(String(currentVal))) {
-    select.value = String(currentVal);
-  } else {
-    select.value = 'all';
-  }
+  select.value = seenIds.has(String(currentVal)) ? String(currentVal) : 'all';
 }
 
 function getMobileModifiedEntries() {
@@ -510,11 +505,15 @@ function copyModifiedText() {
     alert('لا توجد تعديلات حالية لنسخها! عدّل سعراً واحداً على الأقل أولاً.');
     return;
   }
-  navigator.clipboard?.writeText(msg).then(() => {
-    alert('✅ تم نسخ نص التعديلات بنجاح! يمكنك لصقه في واتساب.');
-  }).catch(() => {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(msg).then(() => {
+      alert('✅ تم نسخ نص التعديلات بنجاح! يمكنك لصقه في واتساب.');
+    }).catch(() => {
+      prompt('انسخ النص التالي:', msg);
+    });
+  } else {
     prompt('انسخ النص التالي:', msg);
-  });
+  }
 }
 
 function resetMobileQuickEdits() {
@@ -529,10 +528,26 @@ function openRecipientSettings() {
   const newPhone = prompt('أدخل رقم واتساب الإدارة الذي ستُرسل إليه التعديلات:', adminPhone);
   if (newPhone && newPhone.trim()) {
     adminPhone = newPhone.trim();
-    localStorage.setItem('sp_price_editor_phone', adminPhone);
+    try { localStorage.setItem('sp_price_editor_phone', adminPhone); } catch (e) {}
     document.getElementById('targetPhonePreview').innerText = adminPhone;
   }
 }
+
+(function boot() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('phone')) {
+    adminPhone = params.get('phone').trim();
+    try { localStorage.setItem('sp_price_editor_phone', adminPhone); } catch (e) {}
+  }
+  const phoneEl = document.getElementById('targetPhonePreview');
+  if (phoneEl) phoneEl.innerText = adminPhone;
+
+  setCloudStatus(`${products.length} صنف`, 'warn');
+  populateMobileQuickCategories();
+  renderMobileQuickPriceList();
+  updateMobileModifiedBadge();
+  subscribeToCloudProducts();
+})();
 </script>
 </body>
 </html>
