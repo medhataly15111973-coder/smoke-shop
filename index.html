@@ -8,7 +8,7 @@
 <!-- مكتبات Firebase الأساسية -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<!-- مكتبة ExcelJS لاستخراج واستيراد ملفات الإكسل مباشرة -->
+<!-- مكتبة Excel (SheetJS) لاستخراج واستيراد ملفات الإكسل مباشرة -->
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <style>
@@ -126,7 +126,7 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
     <!-- النقر السري 4 مرات على اللوجو يفتح نافذة إدخال PIN المالك -->
     <div class="flex items-center gap-2 cursor-pointer select-none" onclick="handleLogoClick()">
       <div class="w-9 h-9 rounded-xl overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center p-0.5 shadow-sm">
-        <img id="storeLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230f172a%22/><text x=%2232%22 y=%2242%22 font-size=%2228%22 text-anchor=%22middle%22 fill=%22%23fbbf24%22>💨</text></svg>'" alt="Smoke Shop Logo" class="w-full h-full object-cover rounded-lg">
+        <img id="storeLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" class="w-full h-full object-cover rounded-lg">
       </div>
       <div>
         <h1 class="font-black text-sm tracking-wide text-amber-400 leading-none">SMOKE SHOP</h1>
@@ -716,12 +716,8 @@ const firebaseConfig = {
 
 let db = null;
 try {
-  if (typeof firebase !== 'undefined' && firebase.apps) {
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
-    db = firebase.firestore();
-  }
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
 } catch(e) {
   console.warn("Firebase Notice:", e);
 }
@@ -779,6 +775,7 @@ const DEFAULT_CATEGORIES = [
   {id:'acc', n:'ولاعات وبفرة', icon:'🔥'}
 ];
 
+// أنماط الألوان والأيقونات الجذابة للأقسام
 const CATEGORY_STYLES = {
   all: {
     icon: '✨',
@@ -839,35 +836,6 @@ const EXTRA_PALETTES = [
   }
 ];
 
-function safeStorageGet(key, fallback = null) {
-  try {
-    return localStorage.getItem(key) ?? fallback;
-  } catch (e) {
-    return fallback;
-  }
-}
-
-function safeStorageSet(key, val) {
-  try {
-    localStorage.setItem(key, val);
-  } catch (e) {}
-}
-
-function safeStorageRemove(key) {
-  try {
-    localStorage.removeItem(key);
-  } catch (e) {}
-}
-
-function safeParseJson(raw, fallback) {
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    return fallback;
-  }
-}
-
 function getCategoryVisuals(cat, index) {
   const baseStyle = CATEGORY_STYLES[cat.id] || EXTRA_PALETTES[index % EXTRA_PALETTES.length];
   return {
@@ -876,6 +844,7 @@ function getCategoryVisuals(cat, index) {
   };
 }
 
+// خيارات التجزئة لقسم تبغ وتوباكو فقط (مقربة لأقرب عدد صحيح بدون كسور)
 const TOBACCO_WEIGHT_OPTIONS = [
   { key: '1', label: 'كيلو', divisor: 1 },
   { key: '0.5', label: 'نص كيلو', divisor: 2 },
@@ -893,6 +862,7 @@ function getTobaccoUnitPrice(kiloPrice, weightKey) {
   return Math.round(Number(kiloPrice) / opt.divisor);
 }
 
+// توحيد بنية عروض اليوم لدعم منتج واحد أو عدة منتجات بسلاسة
 function normalizeDailyOffer(raw) {
   if (!raw) return { active: false, items: [] };
   if (Array.isArray(raw.items)) {
@@ -917,21 +887,22 @@ function normalizeDailyOffer(raw) {
   return { active: false, items: [] };
 }
 
-let categories = safeParseJson(safeStorageGet('sp_cats'), null) || DEFAULT_CATEGORIES;
-if (!safeStorageGet('sp_cats')) safeStorageSet('sp_cats', JSON.stringify(DEFAULT_CATEGORIES));
+// المتغيرات العامة للحالة
+let categories = JSON.parse(localStorage.getItem('sp_cats') || 'null') || DEFAULT_CATEGORIES;
+if(!localStorage.getItem('sp_cats')) localStorage.setItem('sp_cats', JSON.stringify(DEFAULT_CATEGORIES));
 
-let products = safeParseJson(safeStorageGet('sp_p'), null) || INITIAL_PRODUCTS;
-if (!safeStorageGet('sp_p')) safeStorageSet('sp_p', JSON.stringify(INITIAL_PRODUCTS));
+let products = JSON.parse(localStorage.getItem('sp_p') || 'null') || INITIAL_PRODUCTS;
+if(!localStorage.getItem('sp_p')) localStorage.setItem('sp_p', JSON.stringify(INITIAL_PRODUCTS));
 
-let cart = safeParseJson(safeStorageGet('sp_c'), {});
+let cart = JSON.parse(localStorage.getItem('sp_c') || '{}');
 let selectedWeights = {};
-let shopPhone = safeStorageGet('sp_ph', '01221143854') || '01221143854';
-let ownerPin = safeStorageGet('sp_pin', '1234') || '1234';
-let staffList = safeParseJson(safeStorageGet('sp_staff'), []);
-let dailyOffer = normalizeDailyOffer(safeParseJson(safeStorageGet('sp_daily_offer'), null));
-let stockWaitlist = safeParseJson(safeStorageGet('sp_waitlist'), {});
-let customWelcomeAudioData = safeStorageGet('sp_welcome_mp3', '') || '';
-let customWelcomeAudioName = safeStorageGet('sp_welcome_mp3_name', '') || '';
+let shopPhone = localStorage.getItem('sp_ph') || '01221143854';
+let ownerPin = localStorage.getItem('sp_pin') || '1234';
+let staffList = JSON.parse(localStorage.getItem('sp_staff') || '[]');
+let dailyOffer = normalizeDailyOffer(JSON.parse(localStorage.getItem('sp_daily_offer') || 'null'));
+let stockWaitlist = JSON.parse(localStorage.getItem('sp_waitlist') || '{}');
+let customWelcomeAudioData = localStorage.getItem('sp_welcome_mp3') || '';
+let customWelcomeAudioName = localStorage.getItem('sp_welcome_mp3_name') || '';
 
 let notifyTargetProductId = null;
 let restockActiveProductId = null;
@@ -948,23 +919,20 @@ let isInitialOrdersLoad = true;
 let logoClickCount = 0;
 let logoTimer = null;
 
+// حالة الصوت الترحيبي
 let isWelcomePlaying = false;
 let hasPlayedAutoWelcome = false;
 
+// حالة حركة الزر العائم العشوائية
 let floatingOfferInterval = null;
 let isFloatingOfferPaused = false;
 
-if (document.readyState === 'loading') {
-  document.addEventListener("DOMContentLoaded", function() {
-    initApp();
-    initAutoEnglishWelcome();
-  });
-} else {
+document.addEventListener("DOMContentLoaded", function() {
   initApp();
   initAutoEnglishWelcome();
-}
+});
 
-// ==================== الصوت الترحيبي ====================
+// ==================== الصوت الترحيبي المتوافق مع الموبايل (MP3 مخصص أو صوت سينمائي إنجليزي) ====================
 
 function initAutoEnglishWelcome() {
   const params = new URLSearchParams(window.location.search);
@@ -1090,7 +1058,7 @@ function playCinematicIntroSwell(isAutoAttempt) {
 }
 
 function playCinematicWelcome(isAutoAttempt = false) {
-  const savedMp3 = customWelcomeAudioData || safeStorageGet('sp_welcome_mp3', '') || '';
+  const savedMp3 = customWelcomeAudioData || localStorage.getItem('sp_welcome_mp3') || '';
   if (savedMp3 && savedMp3.startsWith('data:audio')) {
     const audioEl = document.getElementById('customWelcomeAudio');
     if (audioEl) {
@@ -1170,8 +1138,8 @@ async function handleWelcomeMp3Upload(event) {
     customWelcomeAudioData = base64Audio;
     customWelcomeAudioName = file.name;
 
-    safeStorageSet('sp_welcome_mp3', customWelcomeAudioData);
-    safeStorageSet('sp_welcome_mp3_name', customWelcomeAudioName);
+    localStorage.setItem('sp_welcome_mp3', customWelcomeAudioData);
+    localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
 
     if (db) {
       try {
@@ -1204,8 +1172,8 @@ async function resetCustomWelcomeAudio() {
   stopCinematicWelcome();
   customWelcomeAudioData = '';
   customWelcomeAudioName = '';
-  safeStorageRemove('sp_welcome_mp3');
-  safeStorageRemove('sp_welcome_mp3_name');
+  localStorage.removeItem('sp_welcome_mp3');
+  localStorage.removeItem('sp_welcome_mp3_name');
 
   const inputEl = document.getElementById('welcomeMp3Input');
   if (inputEl) inputEl.value = '';
@@ -1242,12 +1210,9 @@ async function initApp() {
   updateCartBadge();
   updateDailyOfferUI();
   
-  const cName = safeStorageGet('sp_cname');
-  const cPhone = safeStorageGet('sp_cphone');
-  const cAddr = safeStorageGet('sp_caddr');
-  if (cName && document.getElementById('custName')) document.getElementById('custName').value = cName;
-  if (cPhone && document.getElementById('custPhone')) document.getElementById('custPhone').value = cPhone;
-  if (cAddr && document.getElementById('custAddress')) document.getElementById('custAddress').value = cAddr;
+  if(localStorage.getItem('sp_cname')) document.getElementById('custName').value = localStorage.getItem('sp_cname');
+  if(localStorage.getItem('sp_cphone')) document.getElementById('custPhone').value = localStorage.getItem('sp_cphone');
+  if(localStorage.getItem('sp_caddr')) document.getElementById('custAddress').value = localStorage.getItem('sp_caddr');
 
   window.addEventListener('resize', () => {
     const btn = document.getElementById('floatingOfferBtn');
@@ -1258,7 +1223,7 @@ async function initApp() {
 
   await loadProductsFromCloud();
 
-  if (db) {
+  if(db) {
     try {
       db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
         let hasBrandNewOrder = false;
@@ -1278,7 +1243,7 @@ async function initApp() {
         }
 
         updateOwnerOrderBadges();
-        if (isOwner) renderOwnerOrders();
+        if(isOwner) renderOwnerOrders();
         renderCustomerOrders();
       }, (e) => console.warn("Firestore Read Notice:", e));
 
@@ -1289,25 +1254,25 @@ async function initApp() {
           snapshot.forEach(doc => {
             if (doc.id === "_daily_offer_config_") {
               dailyOffer = normalizeDailyOffer(doc.data());
-              safeStorageSet('sp_daily_offer', JSON.stringify(dailyOffer));
+              localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
             } else if (doc.id === "_categories_config_") {
               const data = doc.data();
               if (data && Array.isArray(data.list) && data.list.length > 0) {
                 categories = data.list;
-                safeStorageSet('sp_cats', JSON.stringify(categories));
+                localStorage.setItem('sp_cats', JSON.stringify(categories));
               }
             } else if (doc.id === "_stock_waitlist_config_") {
               const data = doc.data();
               stockWaitlist = (data && data.list) ? data.list : {};
-              safeStorageSet('sp_waitlist', JSON.stringify(stockWaitlist));
+              localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
             } else if (doc.id === "_welcome_audio_config_") {
               foundAudioDoc = true;
               const data = doc.data();
               if (data && data.audioData) {
                 customWelcomeAudioData = data.audioData;
                 customWelcomeAudioName = data.fileName || 'ملف صوتي مخصص';
-                safeStorageSet('sp_welcome_mp3', customWelcomeAudioData);
-                safeStorageSet('sp_welcome_mp3_name', customWelcomeAudioName);
+                localStorage.setItem('sp_welcome_mp3', customWelcomeAudioData);
+                localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
               }
             } else {
               loadedProds.push({ id: doc.id, ...doc.data() });
@@ -1316,18 +1281,17 @@ async function initApp() {
           if (!foundAudioDoc && customWelcomeAudioData) {
             customWelcomeAudioData = '';
             customWelcomeAudioName = '';
-            safeStorageRemove('sp_welcome_mp3');
-            safeStorageRemove('sp_welcome_mp3_name');
+            localStorage.removeItem('sp_welcome_mp3');
+            localStorage.removeItem('sp_welcome_mp3_name');
           }
           if (loadedProds.length > 0) {
             products = loadedProds;
-            safeStorageSet('sp_p', JSON.stringify(products));
+            localStorage.setItem('sp_p', JSON.stringify(products));
           }
           renderCategories();
           renderProducts();
           updateDailyOfferUI();
-          const offerModal = document.getElementById('dailyOfferShowModal');
-          if (offerModal && !offerModal.classList.contains('hidden')) {
+          if (!document.getElementById('dailyOfferShowModal').classList.contains('hidden')) {
             renderOfferShowModalItems();
           }
           if (isOwner) {
@@ -1342,7 +1306,7 @@ async function initApp() {
   }
 
   const params = new URLSearchParams(window.location.search);
-  if (params.get('admin') === '1') {
+  if(params.get('admin') === '1') {
     requestOwnerAuth();
   }
 }
@@ -1397,24 +1361,24 @@ async function loadProductsFromCloud() {
       snapshot.forEach(doc => {
         if (doc.id === "_daily_offer_config_") {
           dailyOffer = normalizeDailyOffer(doc.data());
-          safeStorageSet('sp_daily_offer', JSON.stringify(dailyOffer));
+          localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
         } else if (doc.id === "_categories_config_") {
           const data = doc.data();
           if (data && Array.isArray(data.list) && data.list.length > 0) {
             categories = data.list;
-            safeStorageSet('sp_cats', JSON.stringify(categories));
+            localStorage.setItem('sp_cats', JSON.stringify(categories));
           }
         } else if (doc.id === "_stock_waitlist_config_") {
           const data = doc.data();
           stockWaitlist = (data && data.list) ? data.list : {};
-          safeStorageSet('sp_waitlist', JSON.stringify(stockWaitlist));
+          localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
         } else if (doc.id === "_welcome_audio_config_") {
           const data = doc.data();
           if (data && data.audioData) {
             customWelcomeAudioData = data.audioData;
             customWelcomeAudioName = data.fileName || 'ملف صوتي مخصص';
-            safeStorageSet('sp_welcome_mp3', customWelcomeAudioData);
-            safeStorageSet('sp_welcome_mp3_name', customWelcomeAudioName);
+            localStorage.setItem('sp_welcome_mp3', customWelcomeAudioData);
+            localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
           }
         } else {
           loadedProds.push({ id: doc.id, ...doc.data() });
@@ -1422,12 +1386,12 @@ async function loadProductsFromCloud() {
       });
       if (loadedProds.length > 0) {
         products = loadedProds;
-        safeStorageSet('sp_p', JSON.stringify(products));
+        localStorage.setItem('sp_p', JSON.stringify(products));
       }
       renderCategories();
       renderProducts();
       updateDailyOfferUI();
-      if (isOwner) {
+      if(isOwner) {
         renderOwnerCategories();
         renderOwnerProducts();
         populateOfferAdminForm();
@@ -1454,7 +1418,7 @@ async function saveProductsToCloud() {
 }
 
 async function saveCategoriesToCloud() {
-  safeStorageSet('sp_cats', JSON.stringify(categories));
+  localStorage.setItem('sp_cats', JSON.stringify(categories));
   if (!db) return;
   try {
     await db.collection("products").doc("_categories_config_").set({
@@ -1467,7 +1431,7 @@ async function saveCategoriesToCloud() {
 }
 
 async function saveWaitlistToCloud() {
-  safeStorageSet('sp_waitlist', JSON.stringify(stockWaitlist));
+  localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
   if (!db) return;
   try {
     await db.collection("products").doc("_stock_waitlist_config_").set({
@@ -1479,7 +1443,7 @@ async function saveWaitlistToCloud() {
   }
 }
 
-// ==================== إشعارات التوفر على الواتساب ====================
+// ==================== إشعارات التوفر على الواتساب (للعميل والمالك) ====================
 
 function openStockNotifyModal(prodId) {
   const p = products.find(x => String(x.id) === String(prodId));
@@ -1489,8 +1453,8 @@ function openStockNotifyModal(prodId) {
   document.getElementById('notifyProdImg').src = p.i || DEFAULT_LOGO;
   document.getElementById('notifyProdName').innerText = p.name;
 
-  document.getElementById('notifyCustName').value = safeStorageGet('sp_cname', '');
-  document.getElementById('notifyCustPhone').value = safeStorageGet('sp_cphone', '');
+  document.getElementById('notifyCustName').value = localStorage.getItem('sp_cname') || '';
+  document.getElementById('notifyCustPhone').value = localStorage.getItem('sp_cphone') || '';
 
   document.getElementById('stockNotifyModal').classList.remove('hidden');
 }
@@ -1513,8 +1477,8 @@ async function submitStockNotifyRequest(alsoSendWhatsappToShop) {
     return;
   }
 
-  safeStorageSet('sp_cname', name);
-  safeStorageSet('sp_cphone', phone);
+  localStorage.setItem('sp_cname', name);
+  localStorage.setItem('sp_cphone', phone);
 
   if (!stockWaitlist[notifyTargetProductId]) {
     stockWaitlist[notifyTargetProductId] = [];
@@ -1533,10 +1497,10 @@ async function submitStockNotifyRequest(alsoSendWhatsappToShop) {
     stockWaitlist[notifyTargetProductId].push(entry);
   }
 
-  const myNotifs = safeParseJson(safeStorageGet('sp_my_notifs'), []);
+  const myNotifs = JSON.parse(localStorage.getItem('sp_my_notifs') || '[]');
   if (!myNotifs.includes(notifyTargetProductId)) {
     myNotifs.push(notifyTargetProductId);
-    safeStorageSet('sp_my_notifs', JSON.stringify(myNotifs));
+    localStorage.setItem('sp_my_notifs', JSON.stringify(myNotifs));
   }
 
   await saveWaitlistToCloud();
@@ -1607,7 +1571,7 @@ function closeOwnerRestockModal() {
   restockActiveProductId = null;
 }
 
-// ==================== إدارة الأقسام ====================
+// ==================== إدارة الأقسام (إضافة وتعديل وحذف) ====================
 
 function renderOwnerCategories() {
   const container = document.getElementById('ownerCategoriesList');
@@ -1686,7 +1650,7 @@ async function deleteCategory(catId) {
 
   await saveCategoriesToCloud();
   if (moved) {
-    safeStorageSet('sp_p', JSON.stringify(products));
+    localStorage.setItem('sp_p', JSON.stringify(products));
     await saveProductsToCloud();
   }
 
@@ -1696,7 +1660,7 @@ async function deleteCategory(catId) {
   renderOwnerProducts();
 }
 
-// ==================== عروض اليوم ====================
+// ==================== وظائف عروض اليوم المتعددة والزر العائم المتحرك عشوائياً ====================
 
 function getValidActiveOffers() {
   if (!dailyOffer || !dailyOffer.active || !Array.isArray(dailyOffer.items)) return [];
@@ -1976,7 +1940,7 @@ function onOfferProductChange() {
 }
 
 async function persistDailyOfferCloud() {
-  safeStorageSet('sp_daily_offer', JSON.stringify(dailyOffer));
+  localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
   if (db) {
     try {
       await db.collection("products").doc("_daily_offer_config_").set(dailyOffer);
@@ -2060,19 +2024,19 @@ function handleLogoClick() {
   logoClickCount++;
   clearTimeout(logoTimer);
   logoTimer = setTimeout(() => { logoClickCount = 0; }, 1500);
-  if (logoClickCount >= 4) {
+  if(logoClickCount >= 4) {
     logoClickCount = 0;
     requestOwnerAuth();
   }
 }
 
 function requestOwnerAuth() {
-  if (isOwner) {
+  if(isOwner) {
     switchTab('owner-orders');
     return;
   }
   const input = prompt('أدخل رمز PIN الخاص بإدارة المتجر:');
-  if (input === ownerPin) {
+  if(input === ownerPin) {
     stopCinematicWelcome();
     isOwner = true;
     document.body.classList.add('owner-mode');
@@ -2082,7 +2046,7 @@ function requestOwnerAuth() {
     renderOwnerProducts();
     renderOwnerOrders();
     updateOwnerOrderBadges();
-  } else if (input !== null) {
+  } else if(input !== null) {
     alert('رمز PIN غير صحيح!');
   }
 }
@@ -2095,13 +2059,13 @@ function exitOwnerMode() {
 }
 
 function switchTab(tabId) {
-  if (!isOwner && tabId.startsWith('owner-')) {
+  if(!isOwner && tabId.startsWith('owner-')) {
     tabId = 'products';
   }
 
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   const target = document.getElementById('tab-' + tabId);
-  if (target) target.classList.add('active');
+  if(target) target.classList.add('active');
 
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.remove('text-amber-400', 'font-bold');
@@ -2109,24 +2073,24 @@ function switchTab(tabId) {
   });
 
   const activeNavBtn = document.getElementById('navBtn-' + tabId);
-  if (activeNavBtn) {
+  if(activeNavBtn) {
     activeNavBtn.classList.remove('text-slate-400');
     activeNavBtn.classList.add('text-amber-400', 'font-bold');
   }
 
-  if (tabId === 'cart') renderCartItems();
-  if (tabId === 'track') renderCustomerOrders();
-  if (tabId === 'owner-orders') renderOwnerOrders();
-  if (tabId === 'owner-products') {
+  if(tabId === 'cart') renderCartItems();
+  if(tabId === 'track') renderCustomerOrders();
+  if(tabId === 'owner-orders') renderOwnerOrders();
+  if(tabId === 'owner-products') {
     renderOwnerCategories();
     renderOwnerProducts();
   }
-  if (tabId === 'owner-offer') populateOfferAdminForm();
-  if (tabId === 'owner-update') {
+  if(tabId === 'owner-offer') populateOfferAdminForm();
+  if(tabId === 'owner-update') {
     populateExcelExportCategories();
     initMobileQuickPriceEditor();
   }
-  if (tabId === 'owner-settings') {
+  if(tabId === 'owner-settings') {
     populateSettingsFields();
     updateWelcomeAudioSettingsBadge();
   }
@@ -2175,12 +2139,10 @@ function selectTobaccoWeight(prodId, weightKey) {
 }
 
 function renderProducts() {
-  const grid = document.getElementById('productsGrid');
-  if (!grid) return;
-
   const searchQ = (document.getElementById('srchInput')?.value || '').trim().toLowerCase();
-  const filtered = products.filter(p => (currentCat === 'all' || p.c === currentCat) && String(p.name || '').toLowerCase().includes(searchQ));
-  const myNotifs = safeParseJson(safeStorageGet('sp_my_notifs'), []);
+  const filtered = products.filter(p => (currentCat === 'all' || p.c === currentCat) && p.name.toLowerCase().includes(searchQ));
+  const grid = document.getElementById('productsGrid');
+  const myNotifs = JSON.parse(localStorage.getItem('sp_my_notifs') || '[]');
 
   if (!filtered.length) {
     grid.innerHTML = '<div class="col-span-2 text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-400 text-xs">لا توجد أصناف مطابقة للبحث في هذا القسم 🔍</div>';
@@ -2196,12 +2158,12 @@ function renderProducts() {
     
     const cartKey = isTobacco ? `${p.id}_${activeWeightKey}` : String(p.id);
     const inCartQty = cart[cartKey] ? cart[cartKey].q : 0;
-    const displayPrice = isTobacco ? getTobaccoUnitPrice(p.p, activeWeightKey) : Math.round(Number(p.p) || 0);
+    const displayPrice = isTobacco ? getTobaccoUnitPrice(p.p, activeWeightKey) : Math.round(Number(p.p));
     const displayUnit = isTobacco ? activeWeightObj.label : (p.u || '');
 
     return `
       <div class="bg-slate-900 border ${isOut ? 'border-amber-500/40' : 'border-slate-800'} rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
-        <div onclick="${isOut ? `openStockNotifyModal('${p.id}')` : ''}" class="w-full aspect-square bg-[#090d16] rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/80 relative ${isOut ? 'cursor-pointer' : ''}">
+        <div onclick="${isOut ? `openStockNotifyModal(${p.id})` : ''}" class="w-full aspect-square bg-[#090d16] rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/80 relative ${isOut ? 'cursor-pointer' : ''}">
           <img src="${p.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-contain ${isOut ? 'grayscale opacity-45' : ''}">
           ${isOut ? `
             <div class="absolute inset-0 bg-black/55 flex flex-col items-center justify-center p-1.5 text-center">
@@ -2223,7 +2185,7 @@ function renderProducts() {
           ${!isOut && isTobacco ? `
             <div class="grid grid-cols-3 gap-1 mb-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
               ${TOBACCO_WEIGHT_OPTIONS.map(w => `
-                <button onclick="selectTobaccoWeight('${p.id}', '${w.key}')" class="py-1 rounded-lg text-[9px] font-black transition ${activeWeightKey === w.key ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'}">
+                <button onclick="selectTobaccoWeight(${p.id}, '${w.key}')" class="py-1 rounded-lg text-[9px] font-black transition ${activeWeightKey === w.key ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'}">
                   ${w.label}
                 </button>
               `).join('')}
@@ -2236,11 +2198,11 @@ function renderProducts() {
           </div>
 
           ${isOut ? `
-            <button onclick="openStockNotifyModal('${p.id}')" class="w-full ${isSubscribed ? 'bg-emerald-950/60 border-emerald-600/50 text-emerald-300' : 'bg-gradient-to-r from-amber-500/20 to-red-500/20 hover:from-amber-500/30 hover:to-red-500/30 border-amber-500/50 text-amber-300'} border font-black py-1.5 rounded-xl text-[10px] transition active:scale-95">
+            <button onclick="openStockNotifyModal(${p.id})" class="w-full ${isSubscribed ? 'bg-emerald-950/60 border-emerald-600/50 text-emerald-300' : 'bg-gradient-to-r from-amber-500/20 to-red-500/20 hover:from-amber-500/30 hover:to-red-500/30 border-amber-500/50 text-amber-300'} border font-black py-1.5 rounded-xl text-[10px] transition active:scale-95">
               ${isSubscribed ? '✅ سيتم إعلامك على واتساب' : '🔔 أعلمني عند التوفر (واتساب)'}
             </button>
           ` : (inCartQty === 0 ? `
-            <button onclick="addToCart('${p.id}', '${isTobacco ? activeWeightKey : ''}')" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold py-1.5 rounded-xl text-xs transition">
+            <button onclick="addToCart(${p.id}, '${isTobacco ? activeWeightKey : ''}')" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold py-1.5 rounded-xl text-xs transition">
               + أضف للسلة
             </button>
           ` : `
@@ -2257,8 +2219,8 @@ function renderProducts() {
 }
 
 function addToCart(id, weightKey = '') {
-  const p = products.find(x => String(x.id) === String(id));
-  if (!p || p.outOfStock) return;
+  const p = products.find(x => x.id == id);
+  if(!p || p.outOfStock) return;
 
   const isTobacco = isTobaccoCategory(p.c);
   if (isTobacco) {
@@ -2276,7 +2238,7 @@ function addToCart(id, weightKey = '') {
     };
   } else {
     const cartKey = String(p.id);
-    cart[cartKey] = { key: cartKey, id: p.id, name: p.name, p: Math.round(Number(p.p) || 0), q: 1 };
+    cart[cartKey] = { key: cartKey, id: p.id, name: p.name, p: Math.round(Number(p.p)), q: 1 };
   }
 
   persistCart();
@@ -2284,11 +2246,11 @@ function addToCart(id, weightKey = '') {
 
 function changeCartQty(cartKey, delta) {
   const key = String(cartKey);
-  if (!cart[key]) return;
+  if(!cart[key]) return;
   cart[key].q += delta;
-  if (cart[key].q <= 0) delete cart[key];
+  if(cart[key].q <= 0) delete cart[key];
   persistCart();
-  if (document.getElementById('tab-cart').classList.contains('active')) {
+  if(document.getElementById('tab-cart').classList.contains('active')) {
     renderCartItems();
   }
 }
@@ -2300,7 +2262,7 @@ function clearCart() {
 }
 
 function persistCart() {
-  safeStorageSet('sp_c', JSON.stringify(cart));
+  localStorage.setItem('sp_c', JSON.stringify(cart));
   updateCartBadge();
   renderProducts();
 }
@@ -2308,8 +2270,7 @@ function persistCart() {
 function updateCartBadge() {
   const count = Object.values(cart).reduce((sum, item) => sum + item.q, 0);
   const badge = document.getElementById('cartCountBadge');
-  if (!badge) return;
-  if (count > 0) {
+  if(count > 0) {
     badge.innerText = count;
     badge.classList.remove('hidden');
   } else {
@@ -2319,10 +2280,9 @@ function updateCartBadge() {
 
 function renderCartItems() {
   const container = document.getElementById('cartItemsList');
-  if (!container) return;
   const entries = Object.entries(cart);
 
-  if (!entries.length) {
+  if(!entries.length) {
     container.innerHTML = '<div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500 text-xs">سلة الطلبات فارغة حالياً 🛒</div>';
     calculateTotals();
     return;
@@ -2346,7 +2306,7 @@ function renderCartItems() {
 }
 
 function toggleDeliveryBox() {
-  const isDel = document.querySelector('input[name="delOpt"]:checked')?.value === 'del';
+  const isDel = document.querySelector('input[name="delOpt"]:checked').value === 'del';
   document.getElementById('deliveryBox').classList.toggle('hidden', !isDel);
 }
 
@@ -2383,13 +2343,12 @@ function captureCustomerGPS() {
 
 function calculateTotals() {
   const subTotal = Math.round(Object.values(cart).reduce((s, i) => s + (i.p * i.q), 0));
-  const totalEl = document.getElementById('grandTotalTxt');
-  if (totalEl) totalEl.innerText = subTotal + ' ج.م';
+  document.getElementById('grandTotalTxt').innerText = subTotal + ' ج.م';
 }
 
 function submitOrderViaWhatsapp() {
   const items = Object.values(cart);
-  if (!items.length) {
+  if(!items.length) {
     alert('السلة فارغة! اختر بعض الأصناف أولاً.');
     return;
   }
@@ -2398,24 +2357,24 @@ function submitOrderViaWhatsapp() {
   const phone = document.getElementById('custPhone').value.trim();
   const notes = document.getElementById('custNotes').value.trim();
 
-  if (!name || !phone) {
+  if(!name || !phone) {
     alert('من فضلك أدخل الاسم ورقم الهاتف لإتمام الطلب.');
     return;
   }
 
-  const isDel = document.querySelector('input[name="delOpt"]:checked')?.value === 'del';
+  const isDel = document.querySelector('input[name="delOpt"]:checked').value === 'del';
   const address = isDel ? (document.getElementById('custAddress').value.trim() || 'بدون عنوان مفصل') : 'استلام من المحل';
   const gpsUrl = isDel ? customerGpsLink : '';
   const subTotal = Math.round(items.reduce((s, i) => s + (i.p * i.q), 0));
 
-  safeStorageSet('sp_cname', name);
-  safeStorageSet('sp_cphone', phone);
-  if (isDel) safeStorageSet('sp_caddr', address);
+  localStorage.setItem('sp_cname', name);
+  localStorage.setItem('sp_cphone', phone);
+  if(isDel) localStorage.setItem('sp_caddr', address);
 
   const orderPayload = {
     id: Math.floor(1000 + Math.random() * 9000),
     time: new Date().toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}),
-    timestamp: (firebase?.firestore?.FieldValue?.serverTimestamp) ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+    timestamp: firebase.firestore.FieldValue.serverTimestamp ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
     name,
     ph: phone,
     type: isDel ? 'دليفري' : 'استلام',
@@ -2430,11 +2389,11 @@ function submitOrderViaWhatsapp() {
     items
   };
 
-  let myOrders = safeParseJson(safeStorageGet('sp_my_orders'), []);
+  let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
   myOrders.unshift(orderPayload);
-  safeStorageSet('sp_my_orders', JSON.stringify(myOrders));
+  localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
 
-  if (db) {
+  if(db) {
     try { db.collection("orders").add(orderPayload); } catch(err) { console.error("Firebase sync error:", err); }
   }
 
@@ -2442,11 +2401,11 @@ function submitOrderViaWhatsapp() {
   msg += `🔢 رقم الطلب: #${orderPayload.id}\n`;
   msg += `👤 العميل: ${name} (${phone})\n`;
   msg += `📍 الاستلام: ${orderPayload.type}\n`;
-  if (isDel) {
+  if(isDel) {
     msg += `🏠 العنوان: ${address}\n`;
-    if (gpsUrl) msg += `🗺️ لوكيشن الخريطة: ${gpsUrl}\n`;
+    if(gpsUrl) msg += `🗺️ لوكيشن الخريطة: ${gpsUrl}\n`;
   }
-  if (notes) {
+  if(notes) {
     msg += `📝 ملاحظات: ${notes}\n`;
   }
   msg += `-----------------------------\n`;
@@ -2458,7 +2417,7 @@ function submitOrderViaWhatsapp() {
   msg += `💵 إجمالي الفاتورة: *${subTotal} ج.م*`;
 
   let dest = shopPhone.trim();
-  if (dest.startsWith('01')) dest = '2' + dest;
+  if(dest.startsWith('01')) dest = '2' + dest;
 
   document.getElementById('custNotes').value = '';
   clearCart();
@@ -2468,17 +2427,16 @@ function submitOrderViaWhatsapp() {
 
 function renderCustomerOrders() {
   const container = document.getElementById('customerOrdersList');
-  if (!container) return;
-  let localOrders = safeParseJson(safeStorageGet('sp_my_orders'), []);
+  let localOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
 
-  if (incomingOrders.length > 0) {
+  if(incomingOrders.length > 0) {
     localOrders = localOrders.map(localOrd => {
       const match = incomingOrders.find(o => o.id === localOrd.id);
       return match ? { ...localOrd, status: match.status } : localOrd;
     });
   }
 
-  if (!localOrders.length) {
+  if(!localOrders.length) {
     container.innerHTML = '<div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500 text-xs">لم تقم بإجراء أي طلبات بعد 📦</div>';
     return;
   }
@@ -2513,10 +2471,9 @@ function renderCustomerOrders() {
 
 function renderOwnerOrders() {
   const container = document.getElementById('incomingOrdersList');
-  if (!container) return;
   const filtered = incomingOrders.filter(o => activeOrderFilter === 'all' || o.status === activeOrderFilter);
 
-  if (!filtered.length) {
+  if(!filtered.length) {
     container.innerHTML = '<div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500 text-xs">لا توجد طلبات مطابقة لهذا الفلتر 📋</div>';
     return;
   }
@@ -2615,7 +2572,7 @@ async function dispatchOrderToStaff(docId, orderNum) {
 function setOrderFilter(filter) {
   activeOrderFilter = filter;
   document.querySelectorAll('.ord-filter-btn').forEach(btn => {
-    if (btn.dataset.filter === filter) {
+    if(btn.dataset.filter === filter) {
       btn.className = "ord-filter-btn px-2.5 py-1 rounded-lg font-bold bg-amber-500 text-slate-950";
     } else {
       btn.className = "ord-filter-btn px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800";
@@ -2625,7 +2582,7 @@ function setOrderFilter(filter) {
 }
 
 async function updateOrderStatus(docId, newStatus) {
-  if (db && docId) {
+  if(db && docId) {
     try {
       await db.collection("orders").doc(docId).update({ status: newStatus });
     } catch(e) {
@@ -2636,6 +2593,7 @@ async function updateOrderStatus(docId, newStatus) {
 }
 
 async function clearAllOrders() {
+  // 1. التأكيد الأول: تنبيه بعدد الطلبات التي سيتم حذفها
   const totalCount = incomingOrders.length;
   if (totalCount === 0) {
     alert('لا توجد طلبات حالياً لمسحها.');
@@ -2647,16 +2605,18 @@ async function clearAllOrders() {
   );
   if (!firstConfirm) return;
 
+  // 2. التأكيد الثاني: طلب إدخال رمز PIN الخاص بالإدارة لمنع الضغط بالخطأ
   const pinCheck = prompt(
     `🔒 لتأكيد المسح النهائي لجميع الطلبات، أدخل رمز PIN الخاص بالإدارة:`
   );
-  if (pinCheck === null) return;
+  if (pinCheck === null) return; // إلغاء العملية
 
   if (pinCheck.trim() !== ownerPin) {
     alert('❌ رمز PIN غير صحيح! تم إلغاء عملية المسح.');
     return;
   }
 
+  // 3. تنفيذ الحذف الفعلي من Firestore والواجهة
   try {
     if (db) {
       const snapshot = await db.collection("orders").get();
@@ -2686,7 +2646,6 @@ async function clearAllOrders() {
 
 function renderOwnerProducts() {
   const grid = document.getElementById('ownerProductsGrid');
-  if (!grid) return;
   grid.innerHTML = products.map(p => {
     const isOut = Boolean(p.outOfStock);
     const waiters = stockWaitlist[String(p.id)] || [];
@@ -2698,12 +2657,12 @@ function renderOwnerProducts() {
         <div class="w-full aspect-square bg-[#090d16] rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/85 relative group">
           <img src="${p.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-contain ${isOut ? 'grayscale opacity-50' : ''}">
           <span class="absolute top-1.5 right-1.5 bg-slate-950/85 border border-slate-700 text-slate-300 text-[9px] px-1.5 py-0.5 rounded-md">${catLabel}</span>
-          <button onclick="openImageModal('${p.id}')" class="absolute inset-0 bg-black/70 flex items-center justify-center text-amber-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold">📷 تغيير الصورة</button>
+          <button onclick="openImageModal(${p.id})" class="absolute inset-0 bg-black/70 flex items-center justify-center text-amber-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold">📷 تغيير الصورة</button>
         </div>
         <div>
           <h3 class="font-bold text-xs text-white truncate mb-1">${p.name}</h3>
           <div class="flex justify-between items-center text-[11px] mb-1.5">
-            <span onclick="promptEditProduct('${p.id}')" class="text-amber-400 font-black cursor-pointer hover:underline">${Math.round(p.p)} ج.م ✏️</span>
+            <span onclick="promptEditProduct(${p.id})" class="text-amber-400 font-black cursor-pointer hover:underline">${Math.round(p.p)} ج.م ✏️</span>
             <span class="text-slate-400 text-[10px]">${isTobacco ? 'كيلو' : (p.u || '')}</span>
           </div>
           ${isTobacco ? `
@@ -2713,11 +2672,11 @@ function renderOwnerProducts() {
             </div>
           ` : ''}
           ${waiters.length > 0 ? `
-            <button onclick="openOwnerRestockModal('${p.id}')" class="w-full mb-1.5 py-1 px-1.5 rounded-lg text-[9px] font-black bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 transition">
+            <button onclick="openOwnerRestockModal(${p.id})" class="w-full mb-1.5 py-1 px-1.5 rounded-lg text-[9px] font-black bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 transition">
               🔔 ${waiters.length} بانتظار التوفر
             </button>
           ` : ''}
-          <button onclick="toggleProductStock('${p.id}')" class="w-full py-1 rounded-lg text-[10px] font-bold border transition ${isOut ? 'bg-red-950/70 border-red-700/60 text-red-300 hover:bg-red-900/70' : 'bg-emerald-950/50 border-emerald-700/40 text-emerald-300 hover:bg-emerald-900/50'}">
+          <button onclick="toggleProductStock(${p.id})" class="w-full py-1 rounded-lg text-[10px] font-bold border transition ${isOut ? 'bg-red-950/70 border-red-700/60 text-red-300 hover:bg-red-900/70' : 'bg-emerald-950/50 border-emerald-700/40 text-emerald-300 hover:bg-emerald-900/50'}">
             ${isOut ? '⛔ نفذ (اضغط للإتاحة)' : '✅ متاح بالمخزن'}
           </button>
         </div>
@@ -2727,12 +2686,12 @@ function renderOwnerProducts() {
 }
 
 async function toggleProductStock(id) {
-  const p = products.find(x => String(x.id) === String(id));
+  const p = products.find(x => x.id == id);
   if (!p) return;
   const wasOut = Boolean(p.outOfStock);
   p.outOfStock = !wasOut;
 
-  safeStorageSet('sp_p', JSON.stringify(products));
+  localStorage.setItem('sp_p', JSON.stringify(products));
   await saveProductsToCloud();
   renderProducts();
   renderOwnerProducts();
@@ -2776,8 +2735,8 @@ function onModalCatChange() {
 }
 
 function promptEditProduct(id) {
-  const p = products.find(x => String(x.id) === String(id));
-  if (!p) return;
+  const p = products.find(x => x.id == id);
+  if(!p) return;
   isCreatingProduct = false;
   editTargetId = id;
   document.getElementById('editModalTitle').innerText = 'تعديل المنتج';
@@ -2809,14 +2768,14 @@ function closeProductEditModal() {
 
 async function deleteProductFromModal() {
   if (!editTargetId) return;
-  const p = products.find(x => String(x.id) === String(editTargetId));
+  const p = products.find(x => x.id == editTargetId);
   if (!p) return;
 
   if (!confirm(`هل أنت متأكد من حذف صنف "${p.name}" نهائياً؟`)) return;
 
   const targetIdStr = String(editTargetId);
   products = products.filter(x => String(x.id) !== targetIdStr);
-  safeStorageSet('sp_p', JSON.stringify(products));
+  localStorage.setItem('sp_p', JSON.stringify(products));
 
   if (db) {
     try {
@@ -2840,7 +2799,7 @@ async function saveProductModalEdit() {
   const isTobacco = isTobaccoCategory(newCat);
   const newUnit = isTobacco ? 'كيلو' : (document.getElementById('editProdUnit').value.trim() || 'خرطوشة');
   
-  if (!newName || isNaN(newPrice)) {
+  if(!newName || isNaN(newPrice)) {
     alert('من فضلك أدخل اسم الصنف والسعر بشكل صحيح.');
     return;
   }
@@ -2849,8 +2808,8 @@ async function saveProductModalEdit() {
     const newId = products.length ? Math.max(...products.map(x => Number(x.id) || 0)) + 1 : 1;
     products.unshift({ id: newId, name: newName, c: newCat, p: newPrice, u: newUnit, outOfStock: false });
   } else if (editTargetId) {
-    const p = products.find(x => String(x.id) === String(editTargetId));
-    if (p) {
+    const p = products.find(x => x.id == editTargetId);
+    if(p) {
       p.name = newName;
       p.p = newPrice;
       p.c = newCat;
@@ -2858,7 +2817,7 @@ async function saveProductModalEdit() {
     }
   }
 
-  safeStorageSet('sp_p', JSON.stringify(products));
+  localStorage.setItem('sp_p', JSON.stringify(products));
   await saveProductsToCloud();
   renderCategories();
   renderProducts();
@@ -2910,14 +2869,14 @@ function compressImageToDataURL(file, maxSize = 500, quality = 0.82) {
 
 async function handleImageFile(event) {
   const file = event.target.files[0];
-  if (!file || !imageTargetId) return;
+  if(!file || !imageTargetId) return;
 
   try {
     const compressedBase64 = await compressImageToDataURL(file, 500, 0.82);
-    const p = products.find(x => String(x.id) === String(imageTargetId));
-    if (p) {
+    const p = products.find(x => x.id == imageTargetId);
+    if(p) {
       p.i = compressedBase64;
-      safeStorageSet('sp_p', JSON.stringify(products));
+      localStorage.setItem('sp_p', JSON.stringify(products));
       await saveProductsToCloud();
       renderProducts();
       renderOwnerProducts();
@@ -2929,9 +2888,10 @@ async function handleImageFile(event) {
   closeImageModal();
 }
 
-// ==================== محرر الأسعار السريع باللمس للجوال ====================
 
-let mobilePendingPrices = {};
+// ==================== محرر الأسعار السريع باللمس للجوال (آيفون وأندرويد) ====================
+
+let mobilePendingPrices = {}; // { [productId]: newNumericPrice }
 
 function populateMobileQuickCategories() {
   const select = document.getElementById('mobileQuickCatSelect');
@@ -3004,6 +2964,7 @@ function onMobileQuickPriceInput(prodId, rawVal) {
     }
   }
 
+  // تحديث مظهر الصف والشارة لحظياً بدون إعادة رسم القائمة بالكامل حتى لا يفقد الجوال التركيز (Focus)
   const rowEl = document.getElementById(`mq-row-${pid}`);
   const diffEl = document.getElementById(`mq-diff-${pid}`);
   const isModified = mobilePendingPrices[pid] !== undefined && mobilePendingPrices[pid] > 0;
@@ -3040,7 +3001,7 @@ function renderMobileQuickPriceList() {
 
   const list = products.filter(p => {
     const matchCat = (catId === 'all' || p.c === catId);
-    const matchName = !query || String(p.name || '').toLowerCase().includes(query);
+    const matchName = !query || p.name.toLowerCase().includes(query);
     return matchCat && matchName;
   });
 
@@ -3095,7 +3056,7 @@ async function saveMobileQuickPrices() {
   });
 
   mobilePendingPrices = {};
-  safeStorageSet('sp_p', JSON.stringify(products));
+  localStorage.setItem('sp_p', JSON.stringify(products));
   await saveProductsToCloud();
 
   renderProducts();
@@ -3158,6 +3119,7 @@ function exportProductsToExcel() {
   const addedIds = new Set();
 
   if (selectedCatId === 'all') {
+    // ترتيب الأقسام حسب ترتيب التبويبات المعروضة في المتجر (بعد تبويب الكل)
     const orderedCats = categories.filter(c => c.id !== 'all');
     orderedCats.forEach(cat => {
       const catProducts = products
@@ -3192,6 +3154,7 @@ function exportProductsToExcel() {
     : '_الكل';
   const fileName = `SmokeShop_Prices${catSlug}_${dateStr}.xlsx`;
 
+  // تجهيز رقم واتساب المتجر بصيغة دولية صحيحة للرابط المباشر
   let waPhone = (shopPhone || '01221143854').replace(/\D/g, '');
   if (waPhone.startsWith('01')) waPhone = '2' + waPhone;
 
@@ -3218,6 +3181,7 @@ function exportProductsToExcel() {
       right: { style: 'medium', color: { argb: 'FF15803D' } }
     };
 
+    // عناوين الجدول الأساسي (A1:D1)
     const headers = [
       { col: 1, title: 'ID' },
       { col: 2, title: 'اسم الصنف' },
@@ -3236,6 +3200,8 @@ function exportProductsToExcel() {
     });
 
     const lastRow = sortedProducts.length + 1;
+
+    // صف بذرة مخفي (Y1) لتجميع السطور دون الاعتماد على TEXTJOIN (يعمل على كل نسخ Excel وLibreOffice وWPS)
     ws.getCell('Y1').value = '';
 
     sortedProducts.forEach((p, idx) => {
@@ -3268,6 +3234,7 @@ function exportProductsToExcel() {
       cPrice.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
       cPrice.border = thinBorder;
 
+      // عرض "معدّل: [اسم الصنف] [السعر الجديد]" مباشرة عند تغيّر السعر عن المرجع Z
       const cStatus = ws.getCell(r, 4);
       cStatus.value = {
         formula: `IF(AND(B${r}<>"",ROUND(C${r},0)<>ROUND(Z${r},0)),"معدّل: "&TRIM(B${r})&" "&ROUND(C${r},0),"")`
@@ -3277,20 +3244,26 @@ function exportProductsToExcel() {
       cStatus.alignment = { horizontal: 'right', vertical: 'middle', readingOrder: 'rightToLeft' };
       cStatus.border = thinBorder;
 
+      // عمود مرجعي مخفي (Z): يحفظ السعر الأصلي عند التصدير
       const cRef = ws.getCell(r, 26);
       cRef.value = basePrice;
       cRef.numFmt = '0';
 
+      // عمود تراكمي مخفي (Y): يجمع السطور المعدّلة بفاصل سطر حقيقي CHAR(10) بدون الحاجة لـ TEXTJOIN
       const cAcc = ws.getCell(r, 25);
       cAcc.value = {
         formula: `IF(AND(B${r}<>"",ROUND(C${r},0)<>ROUND(Z${r},0)),IF(Y${r - 1}="",TRIM(B${r})&" "&ROUND(C${r},0),Y${r - 1}&CHAR(10)&TRIM(B${r})&" "&ROUND(C${r},0)),Y${r - 1})`
       };
     });
 
+    // الخلية X2 تحتوي على النص النهائي المتراكم لجميع الأصناف المعدّلة مفصولة بـ CHAR(10)
     ws.getCell('X2').value = { formula: `Y${lastRow}` };
+    // ترميز النص بالكامل باستخدام ENCODEURL حتى لا تتعطل الروابط بسبب الحروف العربية أو الرموز أو الفواصل
     ws.getCell('W2').value = { formula: 'ENCODEURL(X2)' };
+    // عداد الأصناف المعدّلة باستخدام دالة قياسية متوافقة مع كل نسخ Excel
     ws.getCell('V2').value = { formula: `COUNTIF(D2:D${lastRow},"معدّل:*")` };
 
+    // لوحة إرسال التعديلات عبر واتساب في الأعمدة F و G
     ws.mergeCells('F1:G1');
     const titleCell = ws.getCell('F1');
     titleCell.value = '📲 إرسال التعديلات عبر واتساب';
@@ -3300,6 +3273,7 @@ function exportProductsToExcel() {
     titleCell.border = thinBorder;
     ws.getCell('G1').border = thinBorder;
 
+    // خلية مفردة غير مدمجة (F2) لضمان استجابة النقر على HYPERLINK في جميع إصدارات Excel و WPS و LibreOffice
     ws.getRow(2).height = 34;
     const waBtnCell = ws.getCell('F2');
     waBtnCell.value = {
@@ -3334,6 +3308,7 @@ function exportProductsToExcel() {
     copyHintCell.alignment = { horizontal: 'center', vertical: 'middle', readingOrder: 'rightToLeft' };
     copyHintCell.border = thinBorder;
 
+    // صندوق معاينة الأصناف والأسعار المستخرجة (F4:G11)
     ws.mergeCells('F4:G4');
     const previewHeader = ws.getCell('F4');
     previewHeader.value = '📝 معاينة النص الجاهز للواتساب';
@@ -3358,6 +3333,7 @@ function exportProductsToExcel() {
       }
     }
 
+    // حساب عرض مناسب ومتوازن للأعمدة
     const calcDisplayWidth = (str) => {
       let w = 0;
       for (const ch of String(str)) {
@@ -3520,11 +3496,13 @@ async function handleExcelImport(event) {
         return;
       }
 
+      // 1. البحث بالـ ID أولاً (أعلى دقة 100%)
       let targetProd = null;
       if (rawId) {
         targetProd = products.find(p => String(p.id).trim() === rawId);
       }
 
+      // 2. إذا لم يوجد ID، نبحث بالمطابقة التامة للاسم
       if (!targetProd && rawName) {
         const normName = normalizeArabicText(rawName);
         targetProd = products.find(p => normalizeArabicText(p.name) === normName);
@@ -3552,7 +3530,7 @@ async function handleExcelImport(event) {
     });
 
     if (updatedCount > 0 || addedCount > 0) {
-      safeStorageSet('sp_p', JSON.stringify(products));
+      localStorage.setItem('sp_p', JSON.stringify(products));
       await saveProductsToCloud();
       renderCategories();
       renderProducts();
@@ -3603,11 +3581,17 @@ function copyExportedText() {
 function normalizeArabicText(str) {
   if (!str) return '';
   return str
+    // تحويل الأرقام العربية/الهندية إلى إنجليزية
     .replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
+    // توحيد الألف والهمزات
     .replace(/[أإآٱ]/g, 'ا')
+    // توحيد التاء المربوطة والهاء
     .replace(/ة/g, 'ه')
+    // توحيد الياء والألف اللينة
     .replace(/ى/g, 'ي')
+    // إزالة التشكيل والرموز غير الضرورية
     .replace(/[\u064B-\u065F\-_:=\/\\]/g, ' ')
+    // توحيد المسافات المتعددة
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
@@ -3627,10 +3611,13 @@ async function processPriceImport() {
   lines.forEach(rawLine => {
     const line = rawLine.trim();
     if (!line) return;
+    // تجاهل أسطر العناوين التوضيحية والفواصل إذا تم نسخ الرسالة كاملة من الإكسل أو الواتساب
     if (line.startsWith('📋') || line.startsWith('---') || line.startsWith('===')) return;
 
+    // تحويل الأرقام العربية إلى إنجليزية في السطر بالكامل
     const normalizedLine = line.replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)]);
 
+    // استخراج الاسم والسعر (حتى لو كان بينهما = أو : أو -)
     const match = normalizedLine.match(/^(.+?)\s*[:=\-]?\s*(\d+(?:\.\d+)?)\s*(?:ج\.?م|جنيه|ج)?$/);
     if (!match) {
       skippedLines.push(`${line} (تنسيق غير مفهوم)`);
@@ -3648,6 +3635,7 @@ async function processPriceImport() {
     const normInput = normalizeArabicText(rawName);
     const inputTokens = normInput.split(' ').filter(Boolean);
 
+    // تجهيز قائمة الأصناف مع أسمائها المطبّعة
     const indexedProducts = products.map(p => {
       const normProd = normalizeArabicText(p.name);
       return {
@@ -3659,11 +3647,13 @@ async function processPriceImport() {
 
     let matchedProduct = null;
 
+    // المستوى 1: مطابقة تامة 100% بعد التطبيع (يمنع خلط مارلبورو مع مارلبورو كرافتد)
     const exactMatch = indexedProducts.find(item => item.normName === normInput);
     if (exactMatch) {
       matchedProduct = exactMatch.prod;
     }
 
+    // المستوى 2: مطابقة نفس الكلمات بالضبط حتى لو اختلف ترتيبها (مثل: احمر ال ام = ال ام احمر)
     if (!matchedProduct) {
       const sameTokensMatch = indexedProducts.find(item =>
         item.tokens.length === inputTokens.length &&
@@ -3674,6 +3664,7 @@ async function processPriceImport() {
       }
     }
 
+    // المستوى 3: مطابقة جزئية آمنة (بشرط أن تكون النتيجة وحيدة وغير غامضة)
     if (!matchedProduct && normInput.length >= 3) {
       const partialMatches = indexedProducts.filter(item =>
         inputTokens.every(t => item.tokens.includes(t))
@@ -3695,7 +3686,7 @@ async function processPriceImport() {
   });
 
   if (updatedCount > 0) {
-    safeStorageSet('sp_p', JSON.stringify(products));
+    localStorage.setItem('sp_p', JSON.stringify(products));
     await saveProductsToCloud();
     renderProducts();
     renderOwnerProducts();
@@ -3721,15 +3712,15 @@ function saveOwnerSettings() {
   const staffRaw = document.getElementById('settingStaffText').value.trim();
   staffList = staffRaw.split('\n').map(line => {
     const parts = line.split(':');
-    if (parts.length >= 2) {
+    if(parts.length >= 2) {
       return { name: parts[0].trim(), phone: parts[1].trim() };
     }
     return null;
   }).filter(Boolean);
 
-  safeStorageSet('sp_ph', shopPhone);
-  safeStorageSet('sp_pin', ownerPin);
-  safeStorageSet('sp_staff', JSON.stringify(staffList));
+  localStorage.setItem('sp_ph', shopPhone);
+  localStorage.setItem('sp_pin', ownerPin);
+  localStorage.setItem('sp_staff', JSON.stringify(staffList));
 
   alert('تم حفظ كافة إعدادات المتجر وطاقم العمل بنجاح!');
 }
