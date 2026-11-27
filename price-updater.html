@@ -402,16 +402,26 @@
       db.collection("products").onSnapshot(function (snap) {
         if (snap.empty || isSaving) return;
         var cloudProds = [];
+        var migrationBatch = db.batch();
+        var migrationCount = 0;
         snap.forEach(function (doc) {
           if (doc.id.indexOf("_") !== 0) {
             var d = doc.data();
             if (d && d.name && d.p !== undefined) {
               var localMatch = PRODUCTS.find(function (lp) { return String(lp.id) === String(doc.id); });
-              var baseVal = (d._updaterBaseP !== undefined && !isNaN(Number(d._updaterBaseP)))
-                ? Number(d._updaterBaseP)
-                : (localMatch && localMatch._updaterBaseP !== undefined && !isNaN(Number(localMatch._updaterBaseP))
-                    ? Number(localMatch._updaterBaseP)
-                    : Number(d.p));
+              var hasCloudBase = d._updaterBaseP !== undefined && Number.isFinite(Number(d._updaterBaseP)) && Number(d._updaterBaseP) > 0;
+              var hasLocalBase = localMatch && localMatch._updaterBaseP !== undefined && Number.isFinite(Number(localMatch._updaterBaseP)) && Number(localMatch._updaterBaseP) > 0;
+              // التطبيق يعرض p كسعر أساسي للمنتج القديم عند غياب الحقل؛ احفظ نفس القيمة
+              // في Firestore مرة واحدة حتى يستطيع التطبيق الأساسي قراءتها من أي جهاز.
+              var baseVal = hasCloudBase ? Number(d._updaterBaseP)
+                : (hasLocalBase ? Number(localMatch._updaterBaseP) : Number(d.p));
+
+              if (!hasCloudBase && Number.isFinite(baseVal) && baseVal > 0) {
+                migrationBatch.set(db.collection("products").doc(String(doc.id)), {
+                  _updaterBaseP: baseVal
+                }, { merge: true });
+                migrationCount++;
+              }
 
               cloudProds.push({
                 id: isNaN(Number(doc.id)) ? doc.id : Number(doc.id),
@@ -423,6 +433,14 @@
             }
           }
         });
+        if (migrationCount > 0) {
+          migrationBatch.commit().then(function () {
+            setStatusBadge("تم تأمين الأسعار الأساسية ✅", false);
+          }).catch(function (migrationError) {
+            console.warn("Base price migration failed:", migrationError);
+            setStatusBadge("تعذر حفظ الأسعار الأساسية ⚠️", true);
+          });
+        }
         if (cloudProds.length >= DEFAULT_PRODUCTS.length) {
           cloudProds.sort(function (a, b) { return (Number(a.id) || 0) - (Number(b.id) || 0); });
           PRODUCTS = cloudProds;
