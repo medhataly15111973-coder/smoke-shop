@@ -104,14 +104,6 @@ const firebaseConfig = {
   measurementId: "G-R420RTFBFV"
 };
 
-let db = null;
-try {
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.firestore();
-} catch (e) {
-  console.warn("Firebase Notice:", e);
-}
-
 const DEFAULT_CATEGORIES = [
   { id: 'all', n: 'الكل' },
   { id: 'local', n: 'سجائر محلي' },
@@ -163,10 +155,27 @@ const INITIAL_PRODUCTS = [
   { id: 39, name: "برج ٥0", c: "mol", p: 950 }
 ];
 
+let db = null;
 let categories = JSON.parse(localStorage.getItem('sp_price_editor_cats') || 'null') || DEFAULT_CATEGORIES;
 let products = JSON.parse(localStorage.getItem('sp_price_editor_prods') || 'null') || INITIAL_PRODUCTS;
 let adminPhone = localStorage.getItem('sp_price_editor_phone') || '01221143854';
 let mobilePendingPrices = {};
+
+function initFirebaseSafe() {
+  if (typeof firebase === 'undefined') {
+    setCloudStatus('وضع محلي', 'warn');
+    return;
+  }
+  try {
+    if (!firebase.apps || firebase.apps.length === 0) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    db = firebase.firestore();
+  } catch (e) {
+    console.warn("Firebase init notice:", e);
+    setCloudStatus('وضع محلي', 'warn');
+  }
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   const params = new URLSearchParams(window.location.search);
@@ -179,6 +188,8 @@ document.addEventListener("DOMContentLoaded", () => {
   populateMobileQuickCategories();
   renderMobileQuickPriceList();
   updateMobileModifiedBadge();
+
+  initFirebaseSafe();
   subscribeToCloudProducts();
 });
 
@@ -195,11 +206,63 @@ function setCloudStatus(text, type) {
   }
 }
 
-function parseCategoriesDoc(data) {
-  if (!data) return null;
+function extractCategoriesFromDoc(data) {
+  if (!data || typeof data !== 'object') return null;
   if (Array.isArray(data.list) && data.list.length > 0) return data.list;
   if (Array.isArray(data.categories) && data.categories.length > 0) return data.categories;
+  // دعم إذا كان المستند مخزناً ككائن مفاتيح أو مصفوفة داخل حقل آخر
+  for (const k of Object.keys(data)) {
+    if (Array.isArray(data[k]) && data[k].length > 0 && typeof data[k][0] === 'object' && data[k][0].id) {
+      return data[k];
+    }
+  }
   return null;
+}
+
+function applySnapshotDocs(snapshot) {
+  if (!snapshot || snapshot.empty) {
+    setCloudStatus(`محلي (${products.length} صنف)`, 'warn');
+    return;
+  }
+
+  const loadedProds = [];
+  let foundCloudCats = null;
+
+  snapshot.forEach(doc => {
+    const docId = String(doc.id);
+    const data = doc.data() || {};
+
+    if (docId === "_categories_config_" || docId === "categories_config" || docId === "categories") {
+      const parsed = extractCategoriesFromDoc(data);
+      if (parsed) foundCloudCats = parsed;
+    } else if (!docId.startsWith("_")) {
+      const prodName = data.name || data.title || data.n || '';
+      const prodPrice = data.p !== undefined ? data.p : (data.price !== undefined ? data.price : null);
+      if (prodName && prodPrice !== null && !isNaN(Number(prodPrice))) {
+        loadedProds.push({
+          id: data.id !== undefined ? data.id : docId,
+          name: String(prodName),
+          c: data.c || data.cat || data.category || 'oth',
+          p: Number(prodPrice)
+        });
+      }
+    }
+  });
+
+  if (foundCloudCats) {
+    categories = foundCloudCats;
+    localStorage.setItem('sp_price_editor_cats', JSON.stringify(categories));
+  }
+
+  if (loadedProds.length > 0) {
+    products = loadedProds.sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+    localStorage.setItem('sp_price_editor_prods', JSON.stringify(products));
+  }
+
+  populateMobileQuickCategories();
+  renderMobileQuickPriceList();
+  updateMobileModifiedBadge();
+  setCloudStatus(`متصل (${products.length} صنف)`, 'ok');
 }
 
 function subscribeToCloudProducts() {
@@ -208,75 +271,38 @@ function subscribeToCloudProducts() {
     return;
   }
   try {
-    db.collection("products").onSnapshot((snapshot) => {
-      if (!snapshot.empty) {
-        const loadedProds = [];
-        snapshot.forEach(doc => {
-          if (doc.id === "_categories_config_") {
-            const parsedCats = parseCategoriesDoc(doc.data());
-            if (parsedCats) {
-              categories = parsedCats;
-              localStorage.setItem('sp_price_editor_cats', JSON.stringify(categories));
-            }
-          } else if (!doc.id.startsWith("_")) {
-            const d = doc.data() || {};
-            if (d.name) {
-              loadedProds.push({ id: doc.id, ...d });
-            }
-          }
-        });
-        if (loadedProds.length > 0) {
-          products = loadedProds.sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
-          localStorage.setItem('sp_price_editor_prods', JSON.stringify(products));
-        }
-        populateMobileQuickCategories();
-        renderMobileQuickPriceList();
-        updateMobileModifiedBadge();
-        setCloudStatus(`متصل (${products.length} صنف)`, 'ok');
-      } else {
-        setCloudStatus('قائمة افتراضية', 'warn');
+    db.collection("products").onSnapshot(
+      (snapshot) => applySnapshotDocs(snapshot),
+      (err) => {
+        console.warn("Firestore snapshot error:", err);
+        setCloudStatus(`محلي (${products.length} صنف)`, 'warn');
       }
-    }, (err) => {
-      console.warn("Cloud read notice:", err);
-      setCloudStatus('غير متصل (محلي)', 'warn');
-    });
+    );
   } catch (e) {
-    setCloudStatus('غير متصل (محلي)', 'warn');
+    console.warn("Firestore subscribe exception:", e);
+    setCloudStatus(`محلي (${products.length} صنف)`, 'warn');
   }
 }
 
 async function refreshFromCloud() {
-  if (!db) return;
+  if (!db) {
+    initFirebaseSafe();
+  }
+  if (!db) {
+    populateMobileQuickCategories();
+    renderMobileQuickPriceList();
+    setCloudStatus(`محلي (${products.length} صنف)`, 'warn');
+    return;
+  }
   setCloudStatus('⏳ جاري التحديث...', 'idle');
   try {
     const snapshot = await db.collection("products").get();
-    if (!snapshot.empty) {
-      const loadedProds = [];
-      snapshot.forEach(doc => {
-        if (doc.id === "_categories_config_") {
-          const parsedCats = parseCategoriesDoc(doc.data());
-          if (parsedCats) {
-            categories = parsedCats;
-            localStorage.setItem('sp_price_editor_cats', JSON.stringify(categories));
-          }
-        } else if (!doc.id.startsWith("_")) {
-          const d = doc.data() || {};
-          if (d.name) {
-            loadedProds.push({ id: doc.id, ...d });
-          }
-        }
-      });
-      if (loadedProds.length > 0) {
-        products = loadedProds.sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
-        localStorage.setItem('sp_price_editor_prods', JSON.stringify(products));
-      }
-      populateMobileQuickCategories();
-      renderMobileQuickPriceList();
-      updateMobileModifiedBadge();
-      setCloudStatus(`محدّث (${products.length} صنف)`, 'ok');
-    }
+    applySnapshotDocs(snapshot);
   } catch (e) {
-    setCloudStatus('تعذر التحديث', 'warn');
+    console.warn("Firestore get error:", e);
+    populateMobileQuickCategories();
+    renderMobileQuickPriceList();
+    setCloudStatus(`محلي (${products.length} صنف)`, 'warn');
   }
 }
 
@@ -285,11 +311,20 @@ function populateMobileQuickCategories() {
   if (!select) return;
   const currentVal = select.value || 'all';
 
-  // دمج الأقسام الموجودة في المنتجات حتى لو لم يكن هناك وثيقة _categories_config_ منفصلة
-  const mergedCats = [...categories];
-  if (!mergedCats.some(c => c.id === 'all')) {
-    mergedCats.unshift({ id: 'all', n: 'الكل' });
-  }
+  const mergedCats = [];
+  const seenIds = new Set();
+
+  const addCat = (c) => {
+    if (!c || !c.id) return;
+    const idStr = String(c.id);
+    if (seenIds.has(idStr)) return;
+    seenIds.add(idStr);
+    mergedCats.push({ id: idStr, n: c.n || c.name || idStr });
+  };
+
+  addCat({ id: 'all', n: 'الكل' });
+  categories.forEach(addCat);
+  DEFAULT_CATEGORIES.forEach(addCat);
 
   const labelMap = {
     local: 'سجائر محلي',
@@ -300,18 +335,18 @@ function populateMobileQuickCategories() {
   };
 
   products.forEach(p => {
-    if (p.c && !mergedCats.some(c => c.id === p.c)) {
-      mergedCats.push({ id: p.c, n: labelMap[p.c] || p.c });
+    if (p.c) {
+      addCat({ id: String(p.c), n: labelMap[p.c] || String(p.c) });
     }
   });
 
   select.innerHTML = mergedCats.map(c => {
-    const count = c.id === 'all' ? products.length : products.filter(p => p.c === c.id).length;
+    const count = c.id === 'all' ? products.length : products.filter(p => String(p.c) === c.id).length;
     return `<option value="${c.id}">${c.n} (${count})</option>`;
   }).join('');
 
-  if (mergedCats.some(c => c.id === currentVal)) {
-    select.value = currentVal;
+  if (seenIds.has(String(currentVal))) {
+    select.value = String(currentVal);
   } else {
     select.value = 'all';
   }
@@ -404,7 +439,7 @@ function renderMobileQuickPriceList() {
   const query = (document.getElementById('mobileQuickSearch')?.value || '').trim().toLowerCase();
 
   const list = products.filter(p => {
-    const matchCat = (catId === 'all' || p.c === catId);
+    const matchCat = (catId === 'all' || String(p.c) === String(catId));
     const matchName = !query || (p.name && p.name.toLowerCase().includes(query));
     return matchCat && matchName;
   });
