@@ -21,7 +21,7 @@ body { background: #090d16; color: #f8fafc; padding-bottom: 95px; }
   <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
     <div class="flex items-center gap-2.5">
       <div class="w-9 h-9 rounded-xl overflow-hidden border border-amber-500/40 bg-slate-800 flex items-center justify-center p-0.5 shadow">
-        <img src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" class="w-full h-full object-cover rounded-lg">
+        <img id="headerLogoImg" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" onerror="this.style.display='none'" class="w-full h-full object-cover rounded-lg">
       </div>
       <div>
         <h1 class="font-black text-sm text-amber-400 leading-none">SMOKE SHOP</h1>
@@ -94,7 +94,6 @@ body { background: #090d16; color: #f8fafc; padding-bottom: 95px; }
 </div>
 
 <script>
-// إعدادات الاتصال بقاعدة بيانات المتجر السحابية (للقراءة فقط وجلب أحدث الأصناف والأسعار)
 const firebaseConfig = {
   apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
   authDomain: "smokeshop-40107.firebaseapp.com",
@@ -167,10 +166,9 @@ const INITIAL_PRODUCTS = [
 let categories = JSON.parse(localStorage.getItem('sp_price_editor_cats') || 'null') || DEFAULT_CATEGORIES;
 let products = JSON.parse(localStorage.getItem('sp_price_editor_prods') || 'null') || INITIAL_PRODUCTS;
 let adminPhone = localStorage.getItem('sp_price_editor_phone') || '01221143854';
-let mobilePendingPrices = {}; // { [productId]: newNumericPrice }
+let mobilePendingPrices = {};
 
 document.addEventListener("DOMContentLoaded", () => {
-  // دعم تمرير رقم الإدارة في الرابط إن وُجد مثل ?phone=010xxxxxxxx
   const params = new URLSearchParams(window.location.search);
   if (params.get('phone')) {
     adminPhone = params.get('phone').trim();
@@ -197,6 +195,13 @@ function setCloudStatus(text, type) {
   }
 }
 
+function parseCategoriesDoc(data) {
+  if (!data) return null;
+  if (Array.isArray(data.list) && data.list.length > 0) return data.list;
+  if (Array.isArray(data.categories) && data.categories.length > 0) return data.categories;
+  return null;
+}
+
 function subscribeToCloudProducts() {
   if (!db) {
     setCloudStatus('وضع محلي', 'warn');
@@ -208,13 +213,16 @@ function subscribeToCloudProducts() {
         const loadedProds = [];
         snapshot.forEach(doc => {
           if (doc.id === "_categories_config_") {
-            const data = doc.data();
-            if (data && Array.isArray(data.list) && data.list.length > 0) {
-              categories = data.list;
+            const parsedCats = parseCategoriesDoc(doc.data());
+            if (parsedCats) {
+              categories = parsedCats;
               localStorage.setItem('sp_price_editor_cats', JSON.stringify(categories));
             }
           } else if (!doc.id.startsWith("_")) {
-            loadedProds.push({ id: doc.id, ...doc.data() });
+            const d = doc.data() || {};
+            if (d.name) {
+              loadedProds.push({ id: doc.id, ...d });
+            }
           }
         });
         if (loadedProds.length > 0) {
@@ -225,6 +233,8 @@ function subscribeToCloudProducts() {
         renderMobileQuickPriceList();
         updateMobileModifiedBadge();
         setCloudStatus(`متصل (${products.length} صنف)`, 'ok');
+      } else {
+        setCloudStatus('قائمة افتراضية', 'warn');
       }
     }, (err) => {
       console.warn("Cloud read notice:", err);
@@ -244,13 +254,16 @@ async function refreshFromCloud() {
       const loadedProds = [];
       snapshot.forEach(doc => {
         if (doc.id === "_categories_config_") {
-          const data = doc.data();
-          if (data && Array.isArray(data.list) && data.list.length > 0) {
-            categories = data.list;
+          const parsedCats = parseCategoriesDoc(doc.data());
+          if (parsedCats) {
+            categories = parsedCats;
             localStorage.setItem('sp_price_editor_cats', JSON.stringify(categories));
           }
         } else if (!doc.id.startsWith("_")) {
-          loadedProds.push({ id: doc.id, ...doc.data() });
+          const d = doc.data() || {};
+          if (d.name) {
+            loadedProds.push({ id: doc.id, ...d });
+          }
         }
       });
       if (loadedProds.length > 0) {
@@ -271,12 +284,36 @@ function populateMobileQuickCategories() {
   const select = document.getElementById('mobileQuickCatSelect');
   if (!select) return;
   const currentVal = select.value || 'all';
-  select.innerHTML = categories.map(c => {
+
+  // دمج الأقسام الموجودة في المنتجات حتى لو لم يكن هناك وثيقة _categories_config_ منفصلة
+  const mergedCats = [...categories];
+  if (!mergedCats.some(c => c.id === 'all')) {
+    mergedCats.unshift({ id: 'all', n: 'الكل' });
+  }
+
+  const labelMap = {
+    local: 'سجائر محلي',
+    for: 'سجائر أجنبي',
+    oth: 'متنوع وبحري',
+    mol: 'تبغ وتوباكو',
+    acc: 'ولاعات وبفرة'
+  };
+
+  products.forEach(p => {
+    if (p.c && !mergedCats.some(c => c.id === p.c)) {
+      mergedCats.push({ id: p.c, n: labelMap[p.c] || p.c });
+    }
+  });
+
+  select.innerHTML = mergedCats.map(c => {
     const count = c.id === 'all' ? products.length : products.filter(p => p.c === c.id).length;
     return `<option value="${c.id}">${c.n} (${count})</option>`;
   }).join('');
-  if (categories.some(c => c.id === currentVal)) {
+
+  if (mergedCats.some(c => c.id === currentVal)) {
     select.value = currentVal;
+  } else {
+    select.value = 'all';
   }
 }
 
@@ -368,7 +405,7 @@ function renderMobileQuickPriceList() {
 
   const list = products.filter(p => {
     const matchCat = (catId === 'all' || p.c === catId);
-    const matchName = !query || p.name.toLowerCase().includes(query);
+    const matchName = !query || (p.name && p.name.toLowerCase().includes(query));
     return matchCat && matchName;
   });
 
