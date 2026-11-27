@@ -2538,6 +2538,67 @@ function renderCustomerOrders() {
 
 // ==================== وظائف لوحة التحكم (المالك) ====================
 
+
+// إرسال فاتورة داخلية إلى سلامة باستخدام السعر الأساسي من أداة تعديل الأسعار
+function sendOrderInvoiceToSalama(docId, orderNum) {
+  const order = incomingOrders.find(o => o.docId === docId || String(o.id) === String(orderNum));
+  if (!order || !Array.isArray(order.items) || !order.items.length) {
+    alert('تعذر العثور على تفاصيل الطلب.');
+    return;
+  }
+
+  const invoiceLines = [];
+  let baseTotal = 0;
+  const missingBasePrices = [];
+
+  order.items.forEach((item, index) => {
+    const product = products.find(p => String(p.id) === String(item.id));
+    if (!product || product._updaterBaseP === undefined || !Number.isFinite(Number(product._updaterBaseP)) || Number(product._updaterBaseP) <= 0) {
+      missingBasePrices.push(item.name || ('الصنف ' + (index + 1)));
+      return;
+    }
+
+    let unitBasePrice = Math.round(Number(product._updaterBaseP));
+    // منتجات التبغ المباعة بالأوزان: استخدم نفس وزن الصنف الموجود في مفتاح السلة.
+    if (isTobaccoCategory(product.c)) {
+      const itemKey = String(item.key || '');
+      const weightMatch = itemKey.match(/_(0\.5|0\.25)$/);
+      const weightKey = weightMatch ? weightMatch[1] : '1';
+      unitBasePrice = getTobaccoUnitPrice(unitBasePrice, weightKey);
+    }
+
+    const quantity = Math.max(0, Number(item.q) || 0);
+    const lineTotal = Math.round(unitBasePrice * quantity);
+    baseTotal += lineTotal;
+    invoiceLines.push(`${index + 1}. ${quantity} × ${item.name} — ${unitBasePrice} ج.م = ${lineTotal} ج.م`);
+  });
+
+  if (missingBasePrices.length) {
+    alert('لم يتم إرسال الفاتورة؛ لأن السعر الأساسي غير متوفر من تطبيق تعديل الأسعار لهذه الأصناف:\n- ' + missingBasePrices.join('\n- ') + '\n\nافتح تطبيق تعديل الأسعار وتأكد من مزامنة هذه الأصناف أولاً.');
+    return;
+  }
+
+  let msg = `🧾 *فاتورة الأسعار الأساسية إلى سلامة - SMOKE SHOP*\n`;
+  msg += `🔢 رقم الطلب: #${order.id}\n`;
+  msg += `👤 العميل: ${order.name || 'غير محدد'}\n`;
+  msg += `📞 هاتف العميل: ${order.ph || 'غير مسجل'}\n`;
+  msg += `📍 الاستلام: ${order.type || 'غير محدد'}\n`;
+  if (order.type === 'دليفري' && order.addr) msg += `🏠 العنوان: ${order.addr}\n`;
+  if (order.gps) msg += `🗺️ الموقع: ${order.gps}\n`;
+  if (order.notes) msg += `📝 ملاحظات: ${order.notes}\n`;
+  msg += `------------------------------\n`;
+  msg += `📦 *الأصناف بالأسعار الأساسية (بدون الزيادة الثابتة):*\n`;
+  msg += invoiceLines.join('\n') + '\n';
+  msg += `------------------------------\n`;
+  msg += `💵 *إجمالي الأسعار الأساسية: ${Math.round(baseTotal)} ج.م*\n`;
+  msg += `ℹ️ هذه الفاتورة محسوبة من السعر الأساسي المحفوظ في تطبيق تعديل الأسعار، وليست من سعر البيع المضاف إليه هامش الزيادة.`;
+
+  // رقم سلامة: 01110222142 بصيغة واتساب الدولية المصرية.
+  const salamaPhone = '201110222142';
+  const whatsappUrl = `https://wa.me/${salamaPhone}?text=${encodeURIComponent(msg)}`;
+  window.open(whatsappUrl, '_blank');
+}
+
 function renderOwnerOrders() {
   const container = document.getElementById('incomingOrdersList');
   const filtered = incomingOrders.filter(o => activeOrderFilter === 'all' || o.status === activeOrderFilter);
@@ -2584,6 +2645,10 @@ function renderOwnerOrders() {
         <span class="text-slate-300">إجمالي الأصناف: <span class="text-amber-400">${Math.round(o.subTot)} ج.م</span></span>
         ${o.assignedStaff ? `<span class="text-[10px] text-emerald-400">👷 المسؤول: ${o.assignedStaff}</span>` : ''}
       </div>
+
+      <button onclick="sendOrderInvoiceToSalama('${o.docId}', ${o.id})" class="w-full py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-[11px] font-black shadow transition">
+        📲 إرسال فاتورة الأسعار الأساسية إلى سلامة عبر واتساب
+      </button>
 
       <div class="flex gap-1.5 pt-2 border-t border-slate-800">
         <button onclick="updateOrderStatus('${o.docId}', 'pending')" class="flex-1 py-1.5 rounded-lg bg-slate-800 text-amber-400 hover:bg-slate-700 text-[10px] font-bold">انتظار ⏳</button>
