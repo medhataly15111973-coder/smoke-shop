@@ -33,8 +33,6 @@
   .item-info { min-width: 0; flex: 1; }
   .item-name { margin: 0; font-size: 13px; font-weight: bold; color: #ffffff; }
   .item-sub { margin: 3px 0 0; font-size: 11px; color: #64748b; }
-  .item-sub.up { color: #fbbf24; font-weight: bold; }
-  .item-sub.down { color: #34d399; font-weight: bold; }
   .price-box { display: flex; align-items: center; gap: 6px; }
   .price-input { width: 84px; background: #111827; color: #fcd34d; border: 1px solid #334155; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: bold; text-align: center; outline: none; }
   .currency { font-size: 11px; color: #94a3b8; }
@@ -70,7 +68,7 @@
     <div class="card-top">
       <div>
         <h2>📱 التعديل السريع للأسعار</h2>
-        <p>عدّل السعر مباشرة؛ يُضاف <b>+5 ج.م</b> تلقائياً للسجائر المحلي و<b>+20 ج.م</b> لباقي الأقسام عند الحفظ.</p>
+        <p>اختر القسم أو ابحث بالاسم، عدّل السعر مباشرة، ثم اضغط حفظ ومزامنة لتحديث المتجر فوراً.</p>
       </div>
       <span id="mobileModifiedBadge" class="mod-badge">0 معدّل</span>
     </div>
@@ -85,7 +83,7 @@
     <div id="mobileQuickPriceList" class="list"></div>
 
     <div class="footer-bar">
-      <span style="color:#94a3b8;">🔄 +5 محلي / +20 باقي الأقسام</span>
+      <span style="color:#94a3b8;">🔄 مزامنة تلقائية مع Firestore و localStorage</span>
       <button type="button" id="resetBtn" class="link-btn reset">
         ↺ تراجع عن التعديلات
       </button>
@@ -174,6 +172,7 @@
     { id: 39, name: "برج ٥0", c: "mol", p: 950 }
   ];
 
+  // إضافة 5 جنيه لسجائر محلي و20 جنيه لباقي الأقسام عند الإرسال للتطبيق
   function getCategoryMarkup(catId) {
     return String(catId) === "local" ? 5 : 20;
   }
@@ -196,7 +195,7 @@
   }
 
   var PRODUCTS = loadInitialProducts();
-  var pendingPrices = {};
+  var pendingPrices = {}; // يحفظ السعر المدخل من المستخدم فقط
   var isSaving = false;
 
   var catSelect = document.getElementById("mobileQuickCatSelect");
@@ -239,17 +238,14 @@
         var oldP = Math.round(Number(prod.p) || 0);
         var enteredP = Math.round(Number(pendingPrices[key]));
         if (!isNaN(enteredP) && enteredP > 0 && enteredP !== oldP) {
-          var markup = getCategoryMarkup(prod.c);
-          var finalP = enteredP + markup;
+          var finalP = enteredP + getCategoryMarkup(prod.c);
           result.push({
             id: prod.id,
             name: prod.name,
             c: prod.c,
             oldPrice: oldP,
             enteredPrice: enteredP,
-            markup: markup,
-            newPrice: finalP,
-            diff: finalP - oldP
+            finalPrice: finalP
           });
         }
       }
@@ -282,22 +278,9 @@
     }
 
     var rowEl = document.getElementById("row-" + key);
-    var subEl = document.getElementById("sub-" + key);
     var isMod = pendingPrices[key] !== undefined && pendingPrices[key] > 0 && pendingPrices[key] !== oldP;
-
     if (rowEl) rowEl.className = isMod ? "row modified" : "row";
-    if (subEl) {
-      if (isMod) {
-        var markup = getCategoryMarkup(prod.c);
-        var finalP = pendingPrices[key] + markup;
-        var diff = finalP - oldP;
-        subEl.textContent = oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ") | النهائي: " + finalP + " ج.م (+" + markup + ")";
-        subEl.className = diff > 0 ? "item-sub up" : "item-sub down";
-      } else {
-        subEl.textContent = "الحالي: " + oldP + " ج.م";
-        subEl.className = "item-sub";
-      }
-    }
+
     updateBadge();
   }
 
@@ -316,20 +299,12 @@
       var oldP = Math.round(Number(p.p) || 0);
       var hasPending = pendingPrices[key] !== undefined && pendingPrices[key] > 0 && pendingPrices[key] !== oldP;
       var shownVal = hasPending ? pendingPrices[key] : oldP;
-      var markup = getCategoryMarkup(p.c);
-      var finalP = hasPending ? (pendingPrices[key] + markup) : oldP;
-      var diff = hasPending ? (finalP - oldP) : 0;
-
-      var subClass = hasPending ? (diff > 0 ? "item-sub up" : "item-sub down") : "item-sub";
-      var subText = hasPending
-        ? (oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ") | النهائي: " + finalP + " ج.م (+" + markup + ")")
-        : ("الحالي: " + oldP + " ج.م");
 
       rowsHtml +=
         '<div id="row-' + key + '" class="' + (hasPending ? "row modified" : "row") + '">' +
           '<div class="item-info">' +
             '<p class="item-name">' + p.name + '</p>' +
-            '<p id="sub-' + key + '" class="' + subClass + '">' + subText + '</p>' +
+            '<p class="item-sub">الحالي: ' + oldP + ' ج.م</p>' +
           '</div>' +
           '<div class="price-box">' +
             '<input type="number" inputmode="numeric" class="price-input" data-id="' + key + '" value="' + shownVal + '">' +
@@ -373,7 +348,7 @@
       var m = mods[i];
       var found = PRODUCTS.find(function (p) { return String(p.id) === String(m.id); });
       if (found) {
-        found.p = m.newPrice;
+        found.p = m.finalPrice;
         updatedItems.push(found);
       }
     }
@@ -411,7 +386,7 @@
     setStatusBadge(synced ? (PRODUCTS.length + " صنف ✅") : (PRODUCTS.length + " صنف ⚠️"), !synced);
 
     if (synced) {
-      alert("تم حفظ (" + updatedItems.length + ") تعديل بالسعر النهائي ومزامنته مع المتجر.");
+      alert("تم حفظ (" + updatedItems.length + ") تعديل ومزامنته مع التطبيق.");
     } else {
       alert("تم الحفظ محلياً، لكن تعذرت المزامنة السحابية:\n" + (cloudErrMsg || "تحقق من اتصال الإنترنت وقواعد Firestore"));
     }
@@ -455,12 +430,14 @@
 
   function buildCopyText() {
     var mods = getModifiedList();
-    var target = mods.length ? mods : PRODUCTS.map(function (p) {
-      return { name: p.name, newPrice: p.p };
+    var target = mods.length ? mods.map(function (m) {
+      return { name: m.name, price: m.finalPrice };
+    }) : PRODUCTS.map(function (p) {
+      return { name: p.name, price: p.p };
     });
     var lines = ["تحديث أسعار Smoke Shop"];
     for (var i = 0; i < target.length; i++) {
-      lines.push(target[i].name + ": " + target[i].newPrice + " ج.م");
+      lines.push(target[i].name + ": " + target[i].price + " ج.م");
     }
     return lines.join("\n");
   }
@@ -471,7 +448,7 @@
     var text = buildCopyText();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () {
-        alert("تم نسخ قائمة الأسعار بالسعر النهائي.");
+        alert("تم نسخ قائمة الأسعار.");
       }, function () {
         prompt("انسخ النص التالي:", text);
       });
