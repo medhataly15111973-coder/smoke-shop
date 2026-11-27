@@ -8,7 +8,7 @@
 <!-- مكتبات Firebase الأساسية -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-<!-- مكتبة Excel (SheetJS) لاستخراج واستيراد ملفات الإكسل مباشرة -->
+<!-- مكتبة ExcelJS لاستخراج واستيراد ملفات الإكسل مباشرة -->
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <style>
@@ -126,7 +126,7 @@ body.owner-mode #floatingOfferBtn { display: none !important; }
     <!-- النقر السري 4 مرات على اللوجو يفتح نافذة إدخال PIN المالك -->
     <div class="flex items-center gap-2 cursor-pointer select-none" onclick="handleLogoClick()">
       <div class="w-9 h-9 rounded-xl overflow-hidden border border-slate-700 bg-slate-800 flex items-center justify-center p-0.5 shadow-sm">
-        <img id="storeLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" class="w-full h-full object-cover rounded-lg">
+        <img id="storeLogo" src="https://images.squarespace-cdn.com/content/v1/5c5c84d7a9ab953f93ce0b2d/1550186981156-G4S6039P9Z3V8B60J05T/SmokeShop_Logo.png" onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230f172a%22/><text x=%2232%22 y=%2242%22 font-size=%2228%22 text-anchor=%22middle%22 fill=%22%23fbbf24%22>💨</text></svg>'" alt="Smoke Shop Logo" class="w-full h-full object-cover rounded-lg">
       </div>
       <div>
         <h1 class="font-black text-sm tracking-wide text-amber-400 leading-none">SMOKE SHOP</h1>
@@ -716,8 +716,12 @@ const firebaseConfig = {
 
 let db = null;
 try {
-  firebase.initializeApp(firebaseConfig);
-  db = firebase.firestore();
+  if (typeof firebase !== 'undefined' && firebase.apps) {
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    db = firebase.firestore();
+  }
 } catch(e) {
   console.warn("Firebase Notice:", e);
 }
@@ -775,7 +779,6 @@ const DEFAULT_CATEGORIES = [
   {id:'acc', n:'ولاعات وبفرة', icon:'🔥'}
 ];
 
-// أنماط الألوان والأيقونات الجذابة للأقسام
 const CATEGORY_STYLES = {
   all: {
     icon: '✨',
@@ -836,6 +839,35 @@ const EXTRA_PALETTES = [
   }
 ];
 
+function safeStorageGet(key, fallback = null) {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function safeStorageSet(key, val) {
+  try {
+    localStorage.setItem(key, val);
+  } catch (e) {}
+}
+
+function safeStorageRemove(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (e) {}
+}
+
+function safeParseJson(raw, fallback) {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return fallback;
+  }
+}
+
 function getCategoryVisuals(cat, index) {
   const baseStyle = CATEGORY_STYLES[cat.id] || EXTRA_PALETTES[index % EXTRA_PALETTES.length];
   return {
@@ -844,7 +876,6 @@ function getCategoryVisuals(cat, index) {
   };
 }
 
-// خيارات التجزئة لقسم تبغ وتوباكو فقط (مقربة لأقرب عدد صحيح بدون كسور)
 const TOBACCO_WEIGHT_OPTIONS = [
   { key: '1', label: 'كيلو', divisor: 1 },
   { key: '0.5', label: 'نص كيلو', divisor: 2 },
@@ -862,7 +893,6 @@ function getTobaccoUnitPrice(kiloPrice, weightKey) {
   return Math.round(Number(kiloPrice) / opt.divisor);
 }
 
-// توحيد بنية عروض اليوم لدعم منتج واحد أو عدة منتجات بسلاسة
 function normalizeDailyOffer(raw) {
   if (!raw) return { active: false, items: [] };
   if (Array.isArray(raw.items)) {
@@ -887,22 +917,21 @@ function normalizeDailyOffer(raw) {
   return { active: false, items: [] };
 }
 
-// المتغيرات العامة للحالة
-let categories = JSON.parse(localStorage.getItem('sp_cats') || 'null') || DEFAULT_CATEGORIES;
-if(!localStorage.getItem('sp_cats')) localStorage.setItem('sp_cats', JSON.stringify(DEFAULT_CATEGORIES));
+let categories = safeParseJson(safeStorageGet('sp_cats'), null) || DEFAULT_CATEGORIES;
+if (!safeStorageGet('sp_cats')) safeStorageSet('sp_cats', JSON.stringify(DEFAULT_CATEGORIES));
 
-let products = JSON.parse(localStorage.getItem('sp_p') || 'null') || INITIAL_PRODUCTS;
-if(!localStorage.getItem('sp_p')) localStorage.setItem('sp_p', JSON.stringify(INITIAL_PRODUCTS));
+let products = safeParseJson(safeStorageGet('sp_p'), null) || INITIAL_PRODUCTS;
+if (!safeStorageGet('sp_p')) safeStorageSet('sp_p', JSON.stringify(INITIAL_PRODUCTS));
 
-let cart = JSON.parse(localStorage.getItem('sp_c') || '{}');
+let cart = safeParseJson(safeStorageGet('sp_c'), {});
 let selectedWeights = {};
-let shopPhone = localStorage.getItem('sp_ph') || '01221143854';
-let ownerPin = localStorage.getItem('sp_pin') || '1234';
-let staffList = JSON.parse(localStorage.getItem('sp_staff') || '[]');
-let dailyOffer = normalizeDailyOffer(JSON.parse(localStorage.getItem('sp_daily_offer') || 'null'));
-let stockWaitlist = JSON.parse(localStorage.getItem('sp_waitlist') || '{}');
-let customWelcomeAudioData = localStorage.getItem('sp_welcome_mp3') || '';
-let customWelcomeAudioName = localStorage.getItem('sp_welcome_mp3_name') || '';
+let shopPhone = safeStorageGet('sp_ph', '01221143854') || '01221143854';
+let ownerPin = safeStorageGet('sp_pin', '1234') || '1234';
+let staffList = safeParseJson(safeStorageGet('sp_staff'), []);
+let dailyOffer = normalizeDailyOffer(safeParseJson(safeStorageGet('sp_daily_offer'), null));
+let stockWaitlist = safeParseJson(safeStorageGet('sp_waitlist'), {});
+let customWelcomeAudioData = safeStorageGet('sp_welcome_mp3', '') || '';
+let customWelcomeAudioName = safeStorageGet('sp_welcome_mp3_name', '') || '';
 
 let notifyTargetProductId = null;
 let restockActiveProductId = null;
@@ -919,20 +948,23 @@ let isInitialOrdersLoad = true;
 let logoClickCount = 0;
 let logoTimer = null;
 
-// حالة الصوت الترحيبي
 let isWelcomePlaying = false;
 let hasPlayedAutoWelcome = false;
 
-// حالة حركة الزر العائم العشوائية
 let floatingOfferInterval = null;
 let isFloatingOfferPaused = false;
 
-document.addEventListener("DOMContentLoaded", function() {
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", function() {
+    initApp();
+    initAutoEnglishWelcome();
+  });
+} else {
   initApp();
   initAutoEnglishWelcome();
-});
+}
 
-// ==================== الصوت الترحيبي المتوافق مع الموبايل (MP3 مخصص أو صوت سينمائي إنجليزي) ====================
+// ==================== الصوت الترحيبي ====================
 
 function initAutoEnglishWelcome() {
   const params = new URLSearchParams(window.location.search);
@@ -1058,7 +1090,7 @@ function playCinematicIntroSwell(isAutoAttempt) {
 }
 
 function playCinematicWelcome(isAutoAttempt = false) {
-  const savedMp3 = customWelcomeAudioData || localStorage.getItem('sp_welcome_mp3') || '';
+  const savedMp3 = customWelcomeAudioData || safeStorageGet('sp_welcome_mp3', '') || '';
   if (savedMp3 && savedMp3.startsWith('data:audio')) {
     const audioEl = document.getElementById('customWelcomeAudio');
     if (audioEl) {
@@ -1138,8 +1170,8 @@ async function handleWelcomeMp3Upload(event) {
     customWelcomeAudioData = base64Audio;
     customWelcomeAudioName = file.name;
 
-    localStorage.setItem('sp_welcome_mp3', customWelcomeAudioData);
-    localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
+    safeStorageSet('sp_welcome_mp3', customWelcomeAudioData);
+    safeStorageSet('sp_welcome_mp3_name', customWelcomeAudioName);
 
     if (db) {
       try {
@@ -1172,8 +1204,8 @@ async function resetCustomWelcomeAudio() {
   stopCinematicWelcome();
   customWelcomeAudioData = '';
   customWelcomeAudioName = '';
-  localStorage.removeItem('sp_welcome_mp3');
-  localStorage.removeItem('sp_welcome_mp3_name');
+  safeStorageRemove('sp_welcome_mp3');
+  safeStorageRemove('sp_welcome_mp3_name');
 
   const inputEl = document.getElementById('welcomeMp3Input');
   if (inputEl) inputEl.value = '';
@@ -1210,9 +1242,12 @@ async function initApp() {
   updateCartBadge();
   updateDailyOfferUI();
   
-  if(localStorage.getItem('sp_cname')) document.getElementById('custName').value = localStorage.getItem('sp_cname');
-  if(localStorage.getItem('sp_cphone')) document.getElementById('custPhone').value = localStorage.getItem('sp_cphone');
-  if(localStorage.getItem('sp_caddr')) document.getElementById('custAddress').value = localStorage.getItem('sp_caddr');
+  const cName = safeStorageGet('sp_cname');
+  const cPhone = safeStorageGet('sp_cphone');
+  const cAddr = safeStorageGet('sp_caddr');
+  if (cName && document.getElementById('custName')) document.getElementById('custName').value = cName;
+  if (cPhone && document.getElementById('custPhone')) document.getElementById('custPhone').value = cPhone;
+  if (cAddr && document.getElementById('custAddress')) document.getElementById('custAddress').value = cAddr;
 
   window.addEventListener('resize', () => {
     const btn = document.getElementById('floatingOfferBtn');
@@ -1223,7 +1258,7 @@ async function initApp() {
 
   await loadProductsFromCloud();
 
-  if(db) {
+  if (db) {
     try {
       db.collection("orders").orderBy("timestamp", "desc").onSnapshot((snapshot) => {
         let hasBrandNewOrder = false;
@@ -1243,7 +1278,7 @@ async function initApp() {
         }
 
         updateOwnerOrderBadges();
-        if(isOwner) renderOwnerOrders();
+        if (isOwner) renderOwnerOrders();
         renderCustomerOrders();
       }, (e) => console.warn("Firestore Read Notice:", e));
 
@@ -1254,25 +1289,25 @@ async function initApp() {
           snapshot.forEach(doc => {
             if (doc.id === "_daily_offer_config_") {
               dailyOffer = normalizeDailyOffer(doc.data());
-              localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
+              safeStorageSet('sp_daily_offer', JSON.stringify(dailyOffer));
             } else if (doc.id === "_categories_config_") {
               const data = doc.data();
               if (data && Array.isArray(data.list) && data.list.length > 0) {
                 categories = data.list;
-                localStorage.setItem('sp_cats', JSON.stringify(categories));
+                safeStorageSet('sp_cats', JSON.stringify(categories));
               }
             } else if (doc.id === "_stock_waitlist_config_") {
               const data = doc.data();
               stockWaitlist = (data && data.list) ? data.list : {};
-              localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
+              safeStorageSet('sp_waitlist', JSON.stringify(stockWaitlist));
             } else if (doc.id === "_welcome_audio_config_") {
               foundAudioDoc = true;
               const data = doc.data();
               if (data && data.audioData) {
                 customWelcomeAudioData = data.audioData;
                 customWelcomeAudioName = data.fileName || 'ملف صوتي مخصص';
-                localStorage.setItem('sp_welcome_mp3', customWelcomeAudioData);
-                localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
+                safeStorageSet('sp_welcome_mp3', customWelcomeAudioData);
+                safeStorageSet('sp_welcome_mp3_name', customWelcomeAudioName);
               }
             } else {
               loadedProds.push({ id: doc.id, ...doc.data() });
@@ -1281,17 +1316,18 @@ async function initApp() {
           if (!foundAudioDoc && customWelcomeAudioData) {
             customWelcomeAudioData = '';
             customWelcomeAudioName = '';
-            localStorage.removeItem('sp_welcome_mp3');
-            localStorage.removeItem('sp_welcome_mp3_name');
+            safeStorageRemove('sp_welcome_mp3');
+            safeStorageRemove('sp_welcome_mp3_name');
           }
           if (loadedProds.length > 0) {
             products = loadedProds;
-            localStorage.setItem('sp_p', JSON.stringify(products));
+            safeStorageSet('sp_p', JSON.stringify(products));
           }
           renderCategories();
           renderProducts();
           updateDailyOfferUI();
-          if (!document.getElementById('dailyOfferShowModal').classList.contains('hidden')) {
+          const offerModal = document.getElementById('dailyOfferShowModal');
+          if (offerModal && !offerModal.classList.contains('hidden')) {
             renderOfferShowModalItems();
           }
           if (isOwner) {
@@ -1306,7 +1342,7 @@ async function initApp() {
   }
 
   const params = new URLSearchParams(window.location.search);
-  if(params.get('admin') === '1') {
+  if (params.get('admin') === '1') {
     requestOwnerAuth();
   }
 }
@@ -1361,24 +1397,24 @@ async function loadProductsFromCloud() {
       snapshot.forEach(doc => {
         if (doc.id === "_daily_offer_config_") {
           dailyOffer = normalizeDailyOffer(doc.data());
-          localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
+          safeStorageSet('sp_daily_offer', JSON.stringify(dailyOffer));
         } else if (doc.id === "_categories_config_") {
           const data = doc.data();
           if (data && Array.isArray(data.list) && data.list.length > 0) {
             categories = data.list;
-            localStorage.setItem('sp_cats', JSON.stringify(categories));
+            safeStorageSet('sp_cats', JSON.stringify(categories));
           }
         } else if (doc.id === "_stock_waitlist_config_") {
           const data = doc.data();
           stockWaitlist = (data && data.list) ? data.list : {};
-          localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
+          safeStorageSet('sp_waitlist', JSON.stringify(stockWaitlist));
         } else if (doc.id === "_welcome_audio_config_") {
           const data = doc.data();
           if (data && data.audioData) {
             customWelcomeAudioData = data.audioData;
             customWelcomeAudioName = data.fileName || 'ملف صوتي مخصص';
-            localStorage.setItem('sp_welcome_mp3', customWelcomeAudioData);
-            localStorage.setItem('sp_welcome_mp3_name', customWelcomeAudioName);
+            safeStorageSet('sp_welcome_mp3', customWelcomeAudioData);
+            safeStorageSet('sp_welcome_mp3_name', customWelcomeAudioName);
           }
         } else {
           loadedProds.push({ id: doc.id, ...doc.data() });
@@ -1386,12 +1422,12 @@ async function loadProductsFromCloud() {
       });
       if (loadedProds.length > 0) {
         products = loadedProds;
-        localStorage.setItem('sp_p', JSON.stringify(products));
+        safeStorageSet('sp_p', JSON.stringify(products));
       }
       renderCategories();
       renderProducts();
       updateDailyOfferUI();
-      if(isOwner) {
+      if (isOwner) {
         renderOwnerCategories();
         renderOwnerProducts();
         populateOfferAdminForm();
@@ -1418,7 +1454,7 @@ async function saveProductsToCloud() {
 }
 
 async function saveCategoriesToCloud() {
-  localStorage.setItem('sp_cats', JSON.stringify(categories));
+  safeStorageSet('sp_cats', JSON.stringify(categories));
   if (!db) return;
   try {
     await db.collection("products").doc("_categories_config_").set({
@@ -1431,7 +1467,7 @@ async function saveCategoriesToCloud() {
 }
 
 async function saveWaitlistToCloud() {
-  localStorage.setItem('sp_waitlist', JSON.stringify(stockWaitlist));
+  safeStorageSet('sp_waitlist', JSON.stringify(stockWaitlist));
   if (!db) return;
   try {
     await db.collection("products").doc("_stock_waitlist_config_").set({
@@ -1443,7 +1479,7 @@ async function saveWaitlistToCloud() {
   }
 }
 
-// ==================== إشعارات التوفر على الواتساب (للعميل والمالك) ====================
+// ==================== إشعارات التوفر على الواتساب ====================
 
 function openStockNotifyModal(prodId) {
   const p = products.find(x => String(x.id) === String(prodId));
@@ -1453,8 +1489,8 @@ function openStockNotifyModal(prodId) {
   document.getElementById('notifyProdImg').src = p.i || DEFAULT_LOGO;
   document.getElementById('notifyProdName').innerText = p.name;
 
-  document.getElementById('notifyCustName').value = localStorage.getItem('sp_cname') || '';
-  document.getElementById('notifyCustPhone').value = localStorage.getItem('sp_cphone') || '';
+  document.getElementById('notifyCustName').value = safeStorageGet('sp_cname', '');
+  document.getElementById('notifyCustPhone').value = safeStorageGet('sp_cphone', '');
 
   document.getElementById('stockNotifyModal').classList.remove('hidden');
 }
@@ -1477,8 +1513,8 @@ async function submitStockNotifyRequest(alsoSendWhatsappToShop) {
     return;
   }
 
-  localStorage.setItem('sp_cname', name);
-  localStorage.setItem('sp_cphone', phone);
+  safeStorageSet('sp_cname', name);
+  safeStorageSet('sp_cphone', phone);
 
   if (!stockWaitlist[notifyTargetProductId]) {
     stockWaitlist[notifyTargetProductId] = [];
@@ -1497,10 +1533,10 @@ async function submitStockNotifyRequest(alsoSendWhatsappToShop) {
     stockWaitlist[notifyTargetProductId].push(entry);
   }
 
-  const myNotifs = JSON.parse(localStorage.getItem('sp_my_notifs') || '[]');
+  const myNotifs = safeParseJson(safeStorageGet('sp_my_notifs'), []);
   if (!myNotifs.includes(notifyTargetProductId)) {
     myNotifs.push(notifyTargetProductId);
-    localStorage.setItem('sp_my_notifs', JSON.stringify(myNotifs));
+    safeStorageSet('sp_my_notifs', JSON.stringify(myNotifs));
   }
 
   await saveWaitlistToCloud();
@@ -1510,15 +1546,10 @@ async function submitStockNotifyRequest(alsoSendWhatsappToShop) {
   if (alsoSendWhatsappToShop) {
     let dest = shopPhone.trim();
     if (dest.startsWith('01')) dest = '2' + dest;
-    const msg = `🔔 *طلب إشعار بتوفر صنف - Smoke Shop*
-مرحباً، برجاء إعلامي على هذا الرقم فور توفر الصنف التالي:
-📦 الصنف: *${p.name}*
-👤 الاسم: ${name}
-📱 الواتساب: ${phone}`;
+    const msg = `🔔 *طلب إشعار بتوفر صنف - Smoke Shop*\nمرحباً، برجاء إعلامي على هذا الرقم فور توفر الصنف التالي:\n📦 الصنف: *${p.name}*\n👤 الاسم: ${name}\n📱 الواتساب: ${phone}`;
     window.open(`https://wa.me/${dest}?text=${encodeURIComponent(msg)}`, '_blank');
   } else {
-    alert(`تم تسجيل طلبك بنجاح! 🔔
-سنرسل لك رسالة على واتساب (${phone}) فور توفر "${p.name}".`);
+    alert(`تم تسجيل طلبك بنجاح! 🔔\nسنرسل لك رسالة على واتساب (${phone}) فور توفر "${p.name}".`);
   }
 }
 
@@ -1557,14 +1588,7 @@ function sendRestockWhatsappToCustomer(prodId, waiterIdx) {
   if (dest.startsWith('01')) dest = '2' + dest;
 
   const storeUrl = window.location.origin + window.location.pathname;
-  const msg = `🎉 *بشرى سارة من Smoke Shop!*
-أهلاً أ/ *${w.name}*، الصنف اللي طلبت إشعارك بيه توفر الآن في المتجر:
-
-📦 الصنف: *${p.name}*
-💰 السعر الحالي: *${Math.round(p.p)} ج.م*
-
-🛒 اطلبه الآن من خلال الرابط قبل نفاذ الكمية:
-${storeUrl}`;
+  const msg = `🎉 *بشرى سارة من Smoke Shop!*\nأهلاً أ/ *${w.name}*، الصنف اللي طلبت إشعارك بيه توفر الآن في المتجر:\n\n📦 الصنف: *${p.name}*\n💰 السعر الحالي: *${Math.round(p.p)} ج.م*\n\n🛒 اطلبه الآن من خلال الرابط قبل نفاذ الكمية:\n${storeUrl}`;
 
   window.open(`https://wa.me/${dest}?text=${encodeURIComponent(msg)}`, '_blank');
 }
@@ -1583,7 +1607,7 @@ function closeOwnerRestockModal() {
   restockActiveProductId = null;
 }
 
-// ==================== إدارة الأقسام (إضافة وتعديل وحذف) ====================
+// ==================== إدارة الأقسام ====================
 
 function renderOwnerCategories() {
   const container = document.getElementById('ownerCategoriesList');
@@ -1662,7 +1686,7 @@ async function deleteCategory(catId) {
 
   await saveCategoriesToCloud();
   if (moved) {
-    localStorage.setItem('sp_p', JSON.stringify(products));
+    safeStorageSet('sp_p', JSON.stringify(products));
     await saveProductsToCloud();
   }
 
@@ -1672,7 +1696,7 @@ async function deleteCategory(catId) {
   renderOwnerProducts();
 }
 
-// ==================== وظائف عروض اليوم المتعددة والزر العائم المتحرك عشوائياً ====================
+// ==================== عروض اليوم ====================
 
 function getValidActiveOffers() {
   if (!dailyOffer || !dailyOffer.active || !Array.isArray(dailyOffer.items)) return [];
@@ -1952,7 +1976,7 @@ function onOfferProductChange() {
 }
 
 async function persistDailyOfferCloud() {
-  localStorage.setItem('sp_daily_offer', JSON.stringify(dailyOffer));
+  safeStorageSet('sp_daily_offer', JSON.stringify(dailyOffer));
   if (db) {
     try {
       await db.collection("products").doc("_daily_offer_config_").set(dailyOffer);
@@ -2036,19 +2060,19 @@ function handleLogoClick() {
   logoClickCount++;
   clearTimeout(logoTimer);
   logoTimer = setTimeout(() => { logoClickCount = 0; }, 1500);
-  if(logoClickCount >= 4) {
+  if (logoClickCount >= 4) {
     logoClickCount = 0;
     requestOwnerAuth();
   }
 }
 
 function requestOwnerAuth() {
-  if(isOwner) {
+  if (isOwner) {
     switchTab('owner-orders');
     return;
   }
   const input = prompt('أدخل رمز PIN الخاص بإدارة المتجر:');
-  if(input === ownerPin) {
+  if (input === ownerPin) {
     stopCinematicWelcome();
     isOwner = true;
     document.body.classList.add('owner-mode');
@@ -2058,7 +2082,7 @@ function requestOwnerAuth() {
     renderOwnerProducts();
     renderOwnerOrders();
     updateOwnerOrderBadges();
-  } else if(input !== null) {
+  } else if (input !== null) {
     alert('رمز PIN غير صحيح!');
   }
 }
@@ -2071,13 +2095,13 @@ function exitOwnerMode() {
 }
 
 function switchTab(tabId) {
-  if(!isOwner && tabId.startsWith('owner-')) {
+  if (!isOwner && tabId.startsWith('owner-')) {
     tabId = 'products';
   }
 
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   const target = document.getElementById('tab-' + tabId);
-  if(target) target.classList.add('active');
+  if (target) target.classList.add('active');
 
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.remove('text-amber-400', 'font-bold');
@@ -2085,24 +2109,24 @@ function switchTab(tabId) {
   });
 
   const activeNavBtn = document.getElementById('navBtn-' + tabId);
-  if(activeNavBtn) {
+  if (activeNavBtn) {
     activeNavBtn.classList.remove('text-slate-400');
     activeNavBtn.classList.add('text-amber-400', 'font-bold');
   }
 
-  if(tabId === 'cart') renderCartItems();
-  if(tabId === 'track') renderCustomerOrders();
-  if(tabId === 'owner-orders') renderOwnerOrders();
-  if(tabId === 'owner-products') {
+  if (tabId === 'cart') renderCartItems();
+  if (tabId === 'track') renderCustomerOrders();
+  if (tabId === 'owner-orders') renderOwnerOrders();
+  if (tabId === 'owner-products') {
     renderOwnerCategories();
     renderOwnerProducts();
   }
-  if(tabId === 'owner-offer') populateOfferAdminForm();
-  if(tabId === 'owner-update') {
+  if (tabId === 'owner-offer') populateOfferAdminForm();
+  if (tabId === 'owner-update') {
     populateExcelExportCategories();
     initMobileQuickPriceEditor();
   }
-  if(tabId === 'owner-settings') {
+  if (tabId === 'owner-settings') {
     populateSettingsFields();
     updateWelcomeAudioSettingsBadge();
   }
@@ -2114,30 +2138,19 @@ function renderCategories() {
   const container = document.getElementById('catsBar');
   if (!container) return;
 
-  if (!Array.isArray(categories) || categories.length === 0) {
-    categories = DEFAULT_CATEGORIES.slice();
-    localStorage.setItem('sp_cats', JSON.stringify(categories));
-  }
-
-  const validCats = categories.filter(c => c && c.id && c.n);
-  if (!validCats.some(c => String(c.id) === String(currentCat))) {
-    currentCat = 'all';
-  }
-
-  const activeObj = validCats.find(c => String(c.id) === String(currentCat));
+  const activeObj = categories.find(c => c.id === currentCat);
   const labelEl = document.getElementById('activeCatLabel');
   if (labelEl && activeObj) {
     labelEl.innerText = activeObj.id === 'all' ? `عرض الكل (${products.length} صنف)` : `قسم: ${activeObj.n}`;
   }
 
-  container.innerHTML = validCats.map((c, idx) => {
-    const isSelected = String(currentCat) === String(c.id);
+  container.innerHTML = categories.map((c, idx) => {
+    const isSelected = currentCat === c.id;
     const vis = getCategoryVisuals(c, idx);
-    const count = c.id === 'all' ? products.length : products.filter(p => String(p.c) === String(c.id)).length;
-    const safeCatId = String(c.id).replace(/'/g, "\'");
+    const count = c.id === 'all' ? products.length : products.filter(p => p.c === c.id).length;
 
     return `
-      <button type="button" onclick="setCategory('${safeCatId}')" class="relative flex flex-col items-center justify-center p-2.5 rounded-2xl border bg-gradient-to-br transition-all duration-200 active:scale-95 ${isSelected ? vis.active + ' scale-[1.02] font-black' : vis.idle + ' hover:brightness-110 font-bold'}">
+      <button onclick="setCategory('${c.id}')" class="relative flex flex-col items-center justify-center p-2.5 rounded-2xl border bg-gradient-to-br transition-all duration-200 active:scale-95 ${isSelected ? vis.active + ' scale-[1.02] font-black' : vis.idle + ' hover:brightness-110 font-bold'}">
         <span class="text-xl leading-none mb-1 drop-shadow">${vis.icon}</span>
         <span class="text-[11px] leading-tight text-center line-clamp-1">${c.n}</span>
         <span class="mt-1 text-[9px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-black/25 text-current font-black' : vis.badge}">
@@ -2151,9 +2164,7 @@ function renderCategories() {
 }
 
 function setCategory(catId) {
-  currentCat = String(catId || 'all');
-  const srchEl = document.getElementById('srchInput');
-  if (srchEl) srchEl.value = '';
+  currentCat = catId;
   renderCategories();
   renderProducts();
 }
@@ -2164,14 +2175,12 @@ function selectTobaccoWeight(prodId, weightKey) {
 }
 
 function renderProducts() {
-  const searchQ = (document.getElementById('srchInput')?.value || '').trim().toLowerCase();
-  const filtered = products.filter(p =>
-    p &&
-    (String(currentCat) === 'all' || String(p.c) === String(currentCat)) &&
-    String(p.name || '').toLowerCase().includes(searchQ)
-  );
   const grid = document.getElementById('productsGrid');
-  const myNotifs = JSON.parse(localStorage.getItem('sp_my_notifs') || '[]');
+  if (!grid) return;
+
+  const searchQ = (document.getElementById('srchInput')?.value || '').trim().toLowerCase();
+  const filtered = products.filter(p => (currentCat === 'all' || p.c === currentCat) && String(p.name || '').toLowerCase().includes(searchQ));
+  const myNotifs = safeParseJson(safeStorageGet('sp_my_notifs'), []);
 
   if (!filtered.length) {
     grid.innerHTML = '<div class="col-span-2 text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-400 text-xs">لا توجد أصناف مطابقة للبحث في هذا القسم 🔍</div>';
@@ -2187,12 +2196,12 @@ function renderProducts() {
     
     const cartKey = isTobacco ? `${p.id}_${activeWeightKey}` : String(p.id);
     const inCartQty = cart[cartKey] ? cart[cartKey].q : 0;
-    const displayPrice = isTobacco ? getTobaccoUnitPrice(p.p, activeWeightKey) : Math.round(Number(p.p));
+    const displayPrice = isTobacco ? getTobaccoUnitPrice(p.p, activeWeightKey) : Math.round(Number(p.p) || 0);
     const displayUnit = isTobacco ? activeWeightObj.label : (p.u || '');
 
     return `
       <div class="bg-slate-900 border ${isOut ? 'border-amber-500/40' : 'border-slate-800'} rounded-2xl p-2.5 flex flex-col justify-between shadow-sm">
-        <div onclick="${isOut ? `openStockNotifyModal(${p.id})` : ''}" class="w-full aspect-square bg-[#090d16] rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/80 relative ${isOut ? 'cursor-pointer' : ''}">
+        <div onclick="${isOut ? `openStockNotifyModal('${p.id}')` : ''}" class="w-full aspect-square bg-[#090d16] rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/80 relative ${isOut ? 'cursor-pointer' : ''}">
           <img src="${p.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-contain ${isOut ? 'grayscale opacity-45' : ''}">
           ${isOut ? `
             <div class="absolute inset-0 bg-black/55 flex flex-col items-center justify-center p-1.5 text-center">
@@ -2214,7 +2223,7 @@ function renderProducts() {
           ${!isOut && isTobacco ? `
             <div class="grid grid-cols-3 gap-1 mb-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
               ${TOBACCO_WEIGHT_OPTIONS.map(w => `
-                <button onclick="selectTobaccoWeight(${p.id}, '${w.key}')" class="py-1 rounded-lg text-[9px] font-black transition ${activeWeightKey === w.key ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'}">
+                <button onclick="selectTobaccoWeight('${p.id}', '${w.key}')" class="py-1 rounded-lg text-[9px] font-black transition ${activeWeightKey === w.key ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'}">
                   ${w.label}
                 </button>
               `).join('')}
@@ -2227,11 +2236,11 @@ function renderProducts() {
           </div>
 
           ${isOut ? `
-            <button onclick="openStockNotifyModal(${p.id})" class="w-full ${isSubscribed ? 'bg-emerald-950/60 border-emerald-600/50 text-emerald-300' : 'bg-gradient-to-r from-amber-500/20 to-red-500/20 hover:from-amber-500/30 hover:to-red-500/30 border-amber-500/50 text-amber-300'} border font-black py-1.5 rounded-xl text-[10px] transition active:scale-95">
+            <button onclick="openStockNotifyModal('${p.id}')" class="w-full ${isSubscribed ? 'bg-emerald-950/60 border-emerald-600/50 text-emerald-300' : 'bg-gradient-to-r from-amber-500/20 to-red-500/20 hover:from-amber-500/30 hover:to-red-500/30 border-amber-500/50 text-amber-300'} border font-black py-1.5 rounded-xl text-[10px] transition active:scale-95">
               ${isSubscribed ? '✅ سيتم إعلامك على واتساب' : '🔔 أعلمني عند التوفر (واتساب)'}
             </button>
           ` : (inCartQty === 0 ? `
-            <button onclick="addToCart(${p.id}, '${isTobacco ? activeWeightKey : ''}')" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold py-1.5 rounded-xl text-xs transition">
+            <button onclick="addToCart('${p.id}', '${isTobacco ? activeWeightKey : ''}')" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold py-1.5 rounded-xl text-xs transition">
               + أضف للسلة
             </button>
           ` : `
@@ -2248,8 +2257,8 @@ function renderProducts() {
 }
 
 function addToCart(id, weightKey = '') {
-  const p = products.find(x => x.id == id);
-  if(!p || p.outOfStock) return;
+  const p = products.find(x => String(x.id) === String(id));
+  if (!p || p.outOfStock) return;
 
   const isTobacco = isTobaccoCategory(p.c);
   if (isTobacco) {
@@ -2267,7 +2276,7 @@ function addToCart(id, weightKey = '') {
     };
   } else {
     const cartKey = String(p.id);
-    cart[cartKey] = { key: cartKey, id: p.id, name: p.name, p: Math.round(Number(p.p)), q: 1 };
+    cart[cartKey] = { key: cartKey, id: p.id, name: p.name, p: Math.round(Number(p.p) || 0), q: 1 };
   }
 
   persistCart();
@@ -2275,11 +2284,11 @@ function addToCart(id, weightKey = '') {
 
 function changeCartQty(cartKey, delta) {
   const key = String(cartKey);
-  if(!cart[key]) return;
+  if (!cart[key]) return;
   cart[key].q += delta;
-  if(cart[key].q <= 0) delete cart[key];
+  if (cart[key].q <= 0) delete cart[key];
   persistCart();
-  if(document.getElementById('tab-cart').classList.contains('active')) {
+  if (document.getElementById('tab-cart').classList.contains('active')) {
     renderCartItems();
   }
 }
@@ -2291,7 +2300,7 @@ function clearCart() {
 }
 
 function persistCart() {
-  localStorage.setItem('sp_c', JSON.stringify(cart));
+  safeStorageSet('sp_c', JSON.stringify(cart));
   updateCartBadge();
   renderProducts();
 }
@@ -2299,7 +2308,8 @@ function persistCart() {
 function updateCartBadge() {
   const count = Object.values(cart).reduce((sum, item) => sum + item.q, 0);
   const badge = document.getElementById('cartCountBadge');
-  if(count > 0) {
+  if (!badge) return;
+  if (count > 0) {
     badge.innerText = count;
     badge.classList.remove('hidden');
   } else {
@@ -2309,9 +2319,10 @@ function updateCartBadge() {
 
 function renderCartItems() {
   const container = document.getElementById('cartItemsList');
+  if (!container) return;
   const entries = Object.entries(cart);
 
-  if(!entries.length) {
+  if (!entries.length) {
     container.innerHTML = '<div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500 text-xs">سلة الطلبات فارغة حالياً 🛒</div>';
     calculateTotals();
     return;
@@ -2335,7 +2346,7 @@ function renderCartItems() {
 }
 
 function toggleDeliveryBox() {
-  const isDel = document.querySelector('input[name="delOpt"]:checked').value === 'del';
+  const isDel = document.querySelector('input[name="delOpt"]:checked')?.value === 'del';
   document.getElementById('deliveryBox').classList.toggle('hidden', !isDel);
 }
 
@@ -2372,12 +2383,13 @@ function captureCustomerGPS() {
 
 function calculateTotals() {
   const subTotal = Math.round(Object.values(cart).reduce((s, i) => s + (i.p * i.q), 0));
-  document.getElementById('grandTotalTxt').innerText = subTotal + ' ج.م';
+  const totalEl = document.getElementById('grandTotalTxt');
+  if (totalEl) totalEl.innerText = subTotal + ' ج.م';
 }
 
 function submitOrderViaWhatsapp() {
   const items = Object.values(cart);
-  if(!items.length) {
+  if (!items.length) {
     alert('السلة فارغة! اختر بعض الأصناف أولاً.');
     return;
   }
@@ -2386,24 +2398,24 @@ function submitOrderViaWhatsapp() {
   const phone = document.getElementById('custPhone').value.trim();
   const notes = document.getElementById('custNotes').value.trim();
 
-  if(!name || !phone) {
+  if (!name || !phone) {
     alert('من فضلك أدخل الاسم ورقم الهاتف لإتمام الطلب.');
     return;
   }
 
-  const isDel = document.querySelector('input[name="delOpt"]:checked').value === 'del';
+  const isDel = document.querySelector('input[name="delOpt"]:checked')?.value === 'del';
   const address = isDel ? (document.getElementById('custAddress').value.trim() || 'بدون عنوان مفصل') : 'استلام من المحل';
   const gpsUrl = isDel ? customerGpsLink : '';
   const subTotal = Math.round(items.reduce((s, i) => s + (i.p * i.q), 0));
 
-  localStorage.setItem('sp_cname', name);
-  localStorage.setItem('sp_cphone', phone);
-  if(isDel) localStorage.setItem('sp_caddr', address);
+  safeStorageSet('sp_cname', name);
+  safeStorageSet('sp_cphone', phone);
+  if (isDel) safeStorageSet('sp_caddr', address);
 
   const orderPayload = {
     id: Math.floor(1000 + Math.random() * 9000),
     time: new Date().toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}),
-    timestamp: firebase.firestore.FieldValue.serverTimestamp ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
+    timestamp: (firebase?.firestore?.FieldValue?.serverTimestamp) ? firebase.firestore.FieldValue.serverTimestamp() : new Date(),
     name,
     ph: phone,
     type: isDel ? 'دليفري' : 'استلام',
@@ -2418,46 +2430,35 @@ function submitOrderViaWhatsapp() {
     items
   };
 
-  let myOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
+  let myOrders = safeParseJson(safeStorageGet('sp_my_orders'), []);
   myOrders.unshift(orderPayload);
-  localStorage.setItem('sp_my_orders', JSON.stringify(myOrders));
+  safeStorageSet('sp_my_orders', JSON.stringify(myOrders));
 
-  if(db) {
+  if (db) {
     try { db.collection("orders").add(orderPayload); } catch(err) { console.error("Firebase sync error:", err); }
   }
 
-  let msg = `🧾 *طلب شراء جديد - Smoke Shop*
-`;
-  msg += `🔢 رقم الطلب: #${orderPayload.id}
-`;
-  msg += `👤 العميل: ${name} (${phone})
-`;
-  msg += `📍 الاستلام: ${orderPayload.type}
-`;
-  if(isDel) {
-    msg += `🏠 العنوان: ${address}
-`;
-    if(gpsUrl) msg += `🗺️ لوكيشن الخريطة: ${gpsUrl}
-`;
+  let msg = `🧾 *طلب شراء جديد - Smoke Shop*\n`;
+  msg += `🔢 رقم الطلب: #${orderPayload.id}\n`;
+  msg += `👤 العميل: ${name} (${phone})\n`;
+  msg += `📍 الاستلام: ${orderPayload.type}\n`;
+  if (isDel) {
+    msg += `🏠 العنوان: ${address}\n`;
+    if (gpsUrl) msg += `🗺️ لوكيشن الخريطة: ${gpsUrl}\n`;
   }
-  if(notes) {
-    msg += `📝 ملاحظات: ${notes}
-`;
+  if (notes) {
+    msg += `📝 ملاحظات: ${notes}\n`;
   }
-  msg += `-----------------------------
-`;
-  msg += `📦 الأصناف المطلوبة:
-`;
+  msg += `-----------------------------\n`;
+  msg += `📦 الأصناف المطلوبة:\n`;
   items.forEach((i, idx) => {
-    msg += `${idx + 1}. ${i.q} × ${i.name} = ${Math.round(i.p * i.q)} ج.م
-`;
+    msg += `${idx + 1}. ${i.q} × ${i.name} = ${Math.round(i.p * i.q)} ج.م\n`;
   });
-  msg += `-----------------------------
-`;
+  msg += `-----------------------------\n`;
   msg += `💵 إجمالي الفاتورة: *${subTotal} ج.م*`;
 
   let dest = shopPhone.trim();
-  if(dest.startsWith('01')) dest = '2' + dest;
+  if (dest.startsWith('01')) dest = '2' + dest;
 
   document.getElementById('custNotes').value = '';
   clearCart();
@@ -2467,16 +2468,17 @@ function submitOrderViaWhatsapp() {
 
 function renderCustomerOrders() {
   const container = document.getElementById('customerOrdersList');
-  let localOrders = JSON.parse(localStorage.getItem('sp_my_orders') || '[]');
+  if (!container) return;
+  let localOrders = safeParseJson(safeStorageGet('sp_my_orders'), []);
 
-  if(incomingOrders.length > 0) {
+  if (incomingOrders.length > 0) {
     localOrders = localOrders.map(localOrd => {
       const match = incomingOrders.find(o => o.id === localOrd.id);
       return match ? { ...localOrd, status: match.status } : localOrd;
     });
   }
 
-  if(!localOrders.length) {
+  if (!localOrders.length) {
     container.innerHTML = '<div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500 text-xs">لم تقم بإجراء أي طلبات بعد 📦</div>';
     return;
   }
@@ -2511,9 +2513,10 @@ function renderCustomerOrders() {
 
 function renderOwnerOrders() {
   const container = document.getElementById('incomingOrdersList');
+  if (!container) return;
   const filtered = incomingOrders.filter(o => activeOrderFilter === 'all' || o.status === activeOrderFilter);
 
-  if(!filtered.length) {
+  if (!filtered.length) {
     container.innerHTML = '<div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-slate-800 text-slate-500 text-xs">لا توجد طلبات مطابقة لهذا الفلتر 📋</div>';
     return;
   }
@@ -2590,26 +2593,17 @@ async function dispatchOrderToStaff(docId, orderNum) {
     }
   }
 
-  let msg = `📦 *أمر تجهيز طلب جديد - Smoke Shop*
-`;
-  msg += `👷 الموظف: ${staffMember.name}
-`;
-  msg += `🔢 رقم الطلب: #${order.id}
-`;
-  msg += `📍 النوع: ${order.type}
-`;
-  if (order.notes) msg += `📝 ملاحظات: ${order.notes}
-`;
-  msg += `-----------------------------
-`;
-  msg += `📋 الأصناف المطلوب تحضيرها:
-`;
+  let msg = `📦 *أمر تجهيز طلب جديد - Smoke Shop*\n`;
+  msg += `👷 الموظف: ${staffMember.name}\n`;
+  msg += `🔢 رقم الطلب: #${order.id}\n`;
+  msg += `📍 النوع: ${order.type}\n`;
+  if (order.notes) msg += `📝 ملاحظات: ${order.notes}\n`;
+  msg += `-----------------------------\n`;
+  msg += `📋 الأصناف المطلوب تحضيرها:\n`;
   order.items.forEach((i, idx) => {
-    msg += `${idx + 1}. (${i.q}) × ${i.name}
-`;
+    msg += `${idx + 1}. (${i.q}) × ${i.name}\n`;
   });
-  msg += `-----------------------------
-`;
+  msg += `-----------------------------\n`;
   msg += `⚡ برجاء التجهيز الفوري وإبلاغ الإدارة.`;
 
   let dest = staffMember.phone.trim();
@@ -2621,7 +2615,7 @@ async function dispatchOrderToStaff(docId, orderNum) {
 function setOrderFilter(filter) {
   activeOrderFilter = filter;
   document.querySelectorAll('.ord-filter-btn').forEach(btn => {
-    if(btn.dataset.filter === filter) {
+    if (btn.dataset.filter === filter) {
       btn.className = "ord-filter-btn px-2.5 py-1 rounded-lg font-bold bg-amber-500 text-slate-950";
     } else {
       btn.className = "ord-filter-btn px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800";
@@ -2631,7 +2625,7 @@ function setOrderFilter(filter) {
 }
 
 async function updateOrderStatus(docId, newStatus) {
-  if(db && docId) {
+  if (db && docId) {
     try {
       await db.collection("orders").doc(docId).update({ status: newStatus });
     } catch(e) {
@@ -2649,8 +2643,7 @@ async function clearAllOrders() {
   }
 
   const firstConfirm = confirm(
-    `⚠️ تحذير: أنت على وشك مسح (${totalCount}) طلب نهائياً من قاعدة البيانات!
-لا يمكن التراجع عن هذه العملية. هل تريد المتابعة؟`
+    `⚠️ تحذير: أنت على وشك مسح (${totalCount}) طلب نهائياً من قاعدة البيانات!\nلا يمكن التراجع عن هذه العملية. هل تريد المتابعة؟`
   );
   if (!firstConfirm) return;
 
@@ -2693,6 +2686,7 @@ async function clearAllOrders() {
 
 function renderOwnerProducts() {
   const grid = document.getElementById('ownerProductsGrid');
+  if (!grid) return;
   grid.innerHTML = products.map(p => {
     const isOut = Boolean(p.outOfStock);
     const waiters = stockWaitlist[String(p.id)] || [];
@@ -2704,12 +2698,12 @@ function renderOwnerProducts() {
         <div class="w-full aspect-square bg-[#090d16] rounded-xl overflow-hidden flex items-center justify-center mb-2 border border-slate-800/85 relative group">
           <img src="${p.i || DEFAULT_LOGO}" onerror="this.src='${DEFAULT_LOGO}'" class="w-full h-full object-contain ${isOut ? 'grayscale opacity-50' : ''}">
           <span class="absolute top-1.5 right-1.5 bg-slate-950/85 border border-slate-700 text-slate-300 text-[9px] px-1.5 py-0.5 rounded-md">${catLabel}</span>
-          <button onclick="openImageModal(${p.id})" class="absolute inset-0 bg-black/70 flex items-center justify-center text-amber-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold">📷 تغيير الصورة</button>
+          <button onclick="openImageModal('${p.id}')" class="absolute inset-0 bg-black/70 flex items-center justify-center text-amber-400 text-[10px] opacity-0 group-hover:opacity-100 transition font-bold">📷 تغيير الصورة</button>
         </div>
         <div>
           <h3 class="font-bold text-xs text-white truncate mb-1">${p.name}</h3>
           <div class="flex justify-between items-center text-[11px] mb-1.5">
-            <span onclick="promptEditProduct(${p.id})" class="text-amber-400 font-black cursor-pointer hover:underline">${Math.round(p.p)} ج.م ✏️</span>
+            <span onclick="promptEditProduct('${p.id}')" class="text-amber-400 font-black cursor-pointer hover:underline">${Math.round(p.p)} ج.م ✏️</span>
             <span class="text-slate-400 text-[10px]">${isTobacco ? 'كيلو' : (p.u || '')}</span>
           </div>
           ${isTobacco ? `
@@ -2719,11 +2713,11 @@ function renderOwnerProducts() {
             </div>
           ` : ''}
           ${waiters.length > 0 ? `
-            <button onclick="openOwnerRestockModal(${p.id})" class="w-full mb-1.5 py-1 px-1.5 rounded-lg text-[9px] font-black bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 transition">
+            <button onclick="openOwnerRestockModal('${p.id}')" class="w-full mb-1.5 py-1 px-1.5 rounded-lg text-[9px] font-black bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 transition">
               🔔 ${waiters.length} بانتظار التوفر
             </button>
           ` : ''}
-          <button onclick="toggleProductStock(${p.id})" class="w-full py-1 rounded-lg text-[10px] font-bold border transition ${isOut ? 'bg-red-950/70 border-red-700/60 text-red-300 hover:bg-red-900/70' : 'bg-emerald-950/50 border-emerald-700/40 text-emerald-300 hover:bg-emerald-900/50'}">
+          <button onclick="toggleProductStock('${p.id}')" class="w-full py-1 rounded-lg text-[10px] font-bold border transition ${isOut ? 'bg-red-950/70 border-red-700/60 text-red-300 hover:bg-red-900/70' : 'bg-emerald-950/50 border-emerald-700/40 text-emerald-300 hover:bg-emerald-900/50'}">
             ${isOut ? '⛔ نفذ (اضغط للإتاحة)' : '✅ متاح بالمخزن'}
           </button>
         </div>
@@ -2733,12 +2727,12 @@ function renderOwnerProducts() {
 }
 
 async function toggleProductStock(id) {
-  const p = products.find(x => x.id == id);
+  const p = products.find(x => String(x.id) === String(id));
   if (!p) return;
   const wasOut = Boolean(p.outOfStock);
   p.outOfStock = !wasOut;
 
-  localStorage.setItem('sp_p', JSON.stringify(products));
+  safeStorageSet('sp_p', JSON.stringify(products));
   await saveProductsToCloud();
   renderProducts();
   renderOwnerProducts();
@@ -2782,8 +2776,8 @@ function onModalCatChange() {
 }
 
 function promptEditProduct(id) {
-  const p = products.find(x => x.id == id);
-  if(!p) return;
+  const p = products.find(x => String(x.id) === String(id));
+  if (!p) return;
   isCreatingProduct = false;
   editTargetId = id;
   document.getElementById('editModalTitle').innerText = 'تعديل المنتج';
@@ -2815,14 +2809,14 @@ function closeProductEditModal() {
 
 async function deleteProductFromModal() {
   if (!editTargetId) return;
-  const p = products.find(x => x.id == editTargetId);
+  const p = products.find(x => String(x.id) === String(editTargetId));
   if (!p) return;
 
   if (!confirm(`هل أنت متأكد من حذف صنف "${p.name}" نهائياً؟`)) return;
 
   const targetIdStr = String(editTargetId);
   products = products.filter(x => String(x.id) !== targetIdStr);
-  localStorage.setItem('sp_p', JSON.stringify(products));
+  safeStorageSet('sp_p', JSON.stringify(products));
 
   if (db) {
     try {
@@ -2846,7 +2840,7 @@ async function saveProductModalEdit() {
   const isTobacco = isTobaccoCategory(newCat);
   const newUnit = isTobacco ? 'كيلو' : (document.getElementById('editProdUnit').value.trim() || 'خرطوشة');
   
-  if(!newName || isNaN(newPrice)) {
+  if (!newName || isNaN(newPrice)) {
     alert('من فضلك أدخل اسم الصنف والسعر بشكل صحيح.');
     return;
   }
@@ -2855,8 +2849,8 @@ async function saveProductModalEdit() {
     const newId = products.length ? Math.max(...products.map(x => Number(x.id) || 0)) + 1 : 1;
     products.unshift({ id: newId, name: newName, c: newCat, p: newPrice, u: newUnit, outOfStock: false });
   } else if (editTargetId) {
-    const p = products.find(x => x.id == editTargetId);
-    if(p) {
+    const p = products.find(x => String(x.id) === String(editTargetId));
+    if (p) {
       p.name = newName;
       p.p = newPrice;
       p.c = newCat;
@@ -2864,7 +2858,7 @@ async function saveProductModalEdit() {
     }
   }
 
-  localStorage.setItem('sp_p', JSON.stringify(products));
+  safeStorageSet('sp_p', JSON.stringify(products));
   await saveProductsToCloud();
   renderCategories();
   renderProducts();
@@ -2916,14 +2910,14 @@ function compressImageToDataURL(file, maxSize = 500, quality = 0.82) {
 
 async function handleImageFile(event) {
   const file = event.target.files[0];
-  if(!file || !imageTargetId) return;
+  if (!file || !imageTargetId) return;
 
   try {
     const compressedBase64 = await compressImageToDataURL(file, 500, 0.82);
-    const p = products.find(x => x.id == imageTargetId);
-    if(p) {
+    const p = products.find(x => String(x.id) === String(imageTargetId));
+    if (p) {
       p.i = compressedBase64;
-      localStorage.setItem('sp_p', JSON.stringify(products));
+      safeStorageSet('sp_p', JSON.stringify(products));
       await saveProductsToCloud();
       renderProducts();
       renderOwnerProducts();
@@ -2935,8 +2929,7 @@ async function handleImageFile(event) {
   closeImageModal();
 }
 
-
-// ==================== محرر الأسعار السريع باللمس للجوال (آيفون وأندرويد) ====================
+// ==================== محرر الأسعار السريع باللمس للجوال ====================
 
 let mobilePendingPrices = {};
 
@@ -3047,7 +3040,7 @@ function renderMobileQuickPriceList() {
 
   const list = products.filter(p => {
     const matchCat = (catId === 'all' || p.c === catId);
-    const matchName = !query || p.name.toLowerCase().includes(query);
+    const matchName = !query || String(p.name || '').toLowerCase().includes(query);
     return matchCat && matchName;
   });
 
@@ -3102,7 +3095,7 @@ async function saveMobileQuickPrices() {
   });
 
   mobilePendingPrices = {};
-  localStorage.setItem('sp_p', JSON.stringify(products));
+  safeStorageSet('sp_p', JSON.stringify(products));
   await saveProductsToCloud();
 
   renderProducts();
@@ -3122,9 +3115,7 @@ function sendMobileQuickChangesWhatsapp() {
   }
 
   const lines = modified.map(m => `${m.name} ${m.newPrice}`);
-  const msg = `📋 *تحديث أسعار - Smoke Shop*
-` + lines.join('
-');
+  const msg = `📋 *تحديث أسعار - Smoke Shop*\n` + lines.join('\n');
 
   let dest = (shopPhone || '01221143854').replace(/\D/g, '');
   if (dest.startsWith('01')) dest = '2' + dest;
@@ -3370,7 +3361,7 @@ function exportProductsToExcel() {
     const calcDisplayWidth = (str) => {
       let w = 0;
       for (const ch of String(str)) {
-        w += /[؀-ۿ]/.test(ch) ? 1.25 : 1.05;
+        w += /[\u0600-\u06FF]/.test(ch) ? 1.25 : 1.05;
       }
       return Math.ceil(w);
     };
@@ -3416,8 +3407,7 @@ function exportProductsToExcel() {
       const rowVals = [p.id, p.name, Math.round(Number(p.p) || 0)];
       csvLines.push(rowVals.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
     });
-    const blob = new Blob(['﻿' + csvLines.join('
-')], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -3437,9 +3427,7 @@ async function handleExcelImport(event) {
 
     if (fileNameLower.endsWith('.csv')) {
       const text = await file.text();
-      const lines = text.replace(/^﻿/, '').split(/
-?
-/).filter(l => l.trim());
+      const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
       if (lines.length > 1) {
         const parseCsvLine = (line) => {
           const res = [];
@@ -3564,7 +3552,7 @@ async function handleExcelImport(event) {
     });
 
     if (updatedCount > 0 || addedCount > 0) {
-      localStorage.setItem('sp_p', JSON.stringify(products));
+      safeStorageSet('sp_p', JSON.stringify(products));
       await saveProductsToCloud();
       renderCategories();
       renderProducts();
@@ -3573,17 +3561,11 @@ async function handleExcelImport(event) {
       updateDailyOfferUI();
     }
 
-    let summary = `🎉 تمت معالجة ملف الإكسل ومزامنته سحابياً بنجاح!
-`;
-    summary += `✅ أصناف تم تحديثها: ${updatedCount}
-`;
-    if (addedCount > 0) summary += `➕ أصناف جديدة تمت إضافتها: ${addedCount}
-`;
+    let summary = `🎉 تمت معالجة ملف الإكسل ومزامنته سحابياً بنجاح!\n`;
+    summary += `✅ أصناف تم تحديثها: ${updatedCount}\n`;
+    if (addedCount > 0) summary += `➕ أصناف جديدة تمت إضافتها: ${addedCount}\n`;
     if (skippedRows.length > 0) {
-      summary += `
-⚠️ ملاحظات (${skippedRows.length}):
-- ` + skippedRows.slice(0, 8).join('
-- ');
+      summary += `\n⚠️ ملاحظات (${skippedRows.length}):\n- ` + skippedRows.slice(0, 8).join('\n- ');
     }
     alert(summary);
   } catch (err) {
@@ -3598,8 +3580,7 @@ function exportProductsToTextArea() {
   const textarea = document.getElementById('wpImportText');
   if (!textarea) return;
   const lines = products.map(p => `${p.name} ${Math.round(Number(p.p))}`);
-  textarea.value = lines.join('
-');
+  textarea.value = lines.join('\n');
   textarea.focus();
 }
 
@@ -3626,7 +3607,7 @@ function normalizeArabicText(str) {
     .replace(/[أإآٱ]/g, 'ا')
     .replace(/ة/g, 'ه')
     .replace(/ى/g, 'ي')
-    .replace(/[ً-ٟ\-_:=\/\]/g, ' ')
+    .replace(/[\u064B-\u065F\-_:=\/\\]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
@@ -3639,8 +3620,7 @@ async function processPriceImport() {
     return;
   }
 
-  const lines = text.split('
-');
+  const lines = text.split('\n');
   let updatedCount = 0;
   let skippedLines = [];
 
@@ -3715,7 +3695,7 @@ async function processPriceImport() {
   });
 
   if (updatedCount > 0) {
-    localStorage.setItem('sp_p', JSON.stringify(products));
+    safeStorageSet('sp_p', JSON.stringify(products));
     await saveProductsToCloud();
     renderProducts();
     renderOwnerProducts();
@@ -3723,11 +3703,7 @@ async function processPriceImport() {
 
   let report = `✅ تم تحديث ومزامنة أسعار (${updatedCount}) صنفاً بدقة!`;
   if (skippedLines.length > 0) {
-    report += `
-
-⚠️ سطور لم يتم تحديثها (${skippedLines.length}):
-- ` + skippedLines.join('
-- ');
+    report += `\n\n⚠️ سطور لم يتم تحديثها (${skippedLines.length}):\n- ` + skippedLines.join('\n- ');
   }
   alert(report);
 }
@@ -3735,8 +3711,7 @@ async function processPriceImport() {
 function populateSettingsFields() {
   document.getElementById('settingShopPhone').value = shopPhone;
   document.getElementById('settingPin').value = ownerPin;
-  document.getElementById('settingStaffText').value = staffList.map(s => `${s.name}: ${s.phone}`).join('
-');
+  document.getElementById('settingStaffText').value = staffList.map(s => `${s.name}: ${s.phone}`).join('\n');
 }
 
 function saveOwnerSettings() {
@@ -3744,18 +3719,17 @@ function saveOwnerSettings() {
   ownerPin = document.getElementById('settingPin').value.trim() || ownerPin;
   
   const staffRaw = document.getElementById('settingStaffText').value.trim();
-  staffList = staffRaw.split('
-').map(line => {
+  staffList = staffRaw.split('\n').map(line => {
     const parts = line.split(':');
-    if(parts.length >= 2) {
+    if (parts.length >= 2) {
       return { name: parts[0].trim(), phone: parts[1].trim() };
     }
     return null;
   }).filter(Boolean);
 
-  localStorage.setItem('sp_ph', shopPhone);
-  localStorage.setItem('sp_pin', ownerPin);
-  localStorage.setItem('sp_staff', JSON.stringify(staffList));
+  safeStorageSet('sp_ph', shopPhone);
+  safeStorageSet('sp_pin', ownerPin);
+  safeStorageSet('sp_staff', JSON.stringify(staffList));
 
   alert('تم حفظ كافة إعدادات المتجر وطاقم العمل بنجاح!');
 }
