@@ -40,7 +40,6 @@
   .currency { font-size: 11px; color: #94a3b8; }
   .footer-bar { margin-top: 12px; padding-top: 8px; border-top: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
   .link-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px 0; font-size: 11px; }
-  .link-btn:hover { color: #fbbf24; }
   .link-btn.reset:hover { color: #f87171; }
   .bottom-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #111827; border-top: 1px solid #1f2937; padding: 10px 12px; }
   .bottom-inner { max-width: 540px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
@@ -71,7 +70,7 @@
     <div class="card-top">
       <div>
         <h2>📱 التعديل السريع للأسعار</h2>
-        <p>اختر القسم أو ابحث بالاسم، عدّل السعر مباشرة، ثم اضغط حفظ ومزامنة لتحديث المتجر فوراً.</p>
+        <p>اختر القسم أو ابحث بالاسم، عدّل السعر مباشرة، وسيتم إضافة (+5 ج) للسجائر المحلي و(+20 ج) لباقي الأقسام تلقائياً عند الحفظ.</p>
       </div>
       <span id="mobileModifiedBadge" class="mod-badge">0 معدّل</span>
     </div>
@@ -86,7 +85,7 @@
     <div id="mobileQuickPriceList" class="list"></div>
 
     <div class="footer-bar">
-      <span style="color:#94a3b8;">🔄 مزامنة تلقائية مع Firestore و localStorage</span>
+      <span style="color:#94a3b8;">🔄 مزامنة تلقائية (+5 محلي / +20 باقي الأقسام)</span>
       <button type="button" id="resetBtn" class="link-btn reset">
         ↺ تراجع عن التعديلات
       </button>
@@ -172,12 +171,17 @@
     { id: 39, name: "برج ٥0", c: "mol", p: 950 }
   ];
 
+  // حساب قيمة الإضافة حسب القسم: 5 جنيه للسجائر المحلي و 20 جنيه لباقي الأقسام
+  function getCategoryMarkup(catId) {
+    return String(catId) === "local" ? 5 : 20;
+  }
+
   function loadInitialProducts() {
     try {
       var raw = localStorage.getItem("sp_p");
       if (raw) {
         var parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && parsed.length >= DEFAULT_PRODUCTS.length) {
           return parsed;
         }
       }
@@ -231,9 +235,20 @@
       var key = String(prod.id);
       if (pendingPrices[key] !== undefined) {
         var oldP = Number(prod.p);
-        var newP = Number(pendingPrices[key]);
-        if (!isNaN(newP) && newP > 0 && newP !== oldP) {
-          result.push({ id: prod.id, name: prod.name, oldPrice: oldP, newPrice: newP, diff: newP - oldP });
+        var enteredP = Number(pendingPrices[key]);
+        if (!isNaN(enteredP) && enteredP > 0 && enteredP !== oldP) {
+          var markup = getCategoryMarkup(prod.c);
+          var finalP = enteredP + markup;
+          result.push({
+            id: prod.id,
+            name: prod.name,
+            c: prod.c,
+            oldPrice: oldP,
+            enteredPrice: enteredP,
+            markup: markup,
+            newPrice: finalP,
+            diff: enteredP - oldP
+          });
         }
       }
     }
@@ -251,7 +266,10 @@
     var prod = PRODUCTS.find(function (p) { return String(p.id) === key; });
     if (!prod) return;
 
-    var cleaned = String(rawVal || "").trim();
+    var cleaned = String(rawVal || "").replace(/[٠-٩]/g, function (d) {
+      return "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)];
+    }).trim();
+
     var oldP = Number(prod.p);
     var num = parseInt(cleaned, 10);
 
@@ -269,7 +287,9 @@
     if (subEl) {
       if (isMod) {
         var diff = pendingPrices[key] - oldP;
-        subEl.textContent = oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ")";
+        var markup = getCategoryMarkup(prod.c);
+        var finalP = pendingPrices[key] + markup;
+        subEl.textContent = oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ") | النهائي: " + finalP + " ج.م (+" + markup + ")";
         subEl.className = diff > 0 ? "item-sub up" : "item-sub down";
       } else {
         subEl.textContent = "الحالي: " + oldP + " ج.م";
@@ -295,9 +315,13 @@
       var hasPending = pendingPrices[key] !== undefined && pendingPrices[key] > 0;
       var shownVal = hasPending ? pendingPrices[key] : oldP;
       var diff = hasPending ? (pendingPrices[key] - oldP) : 0;
+      var markup = getCategoryMarkup(p.c);
+      var finalP = hasPending ? (pendingPrices[key] + markup) : oldP;
 
       var subClass = hasPending ? (diff > 0 ? "item-sub up" : "item-sub down") : "item-sub";
-      var subText = hasPending ? (oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ")") : ("الحالي: " + oldP + " ج.م");
+      var subText = hasPending
+        ? (oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ") | النهائي: " + finalP + " ج.م (+" + markup + ")")
+        : ("الحالي: " + oldP + " ج.م");
 
       rowsHtml +=
         '<div id="row-' + key + '" class="' + (hasPending ? "row modified" : "row") + '">' +
@@ -347,7 +371,7 @@
       var m = mods[i];
       var found = PRODUCTS.find(function (p) { return String(p.id) === String(m.id); });
       if (found) {
-        found.p = m.newPrice;
+        found.p = m.newPrice; // السعر النهائي مضافاً إليه +5 للمحلي أو +20 لباقي الأقسام
         updatedItems.push(found);
       }
     }
@@ -381,8 +405,8 @@
     updateBadge();
     setStatusBadge(synced ? (PRODUCTS.length + " صنف ✅") : (PRODUCTS.length + " صنف ⚠️"), !synced);
     alert(synced
-      ? ("تم حفظ (" + updatedItems.length + ") تعديل ومزامنته مع المتجر.")
-      : ("تم حفظ (" + updatedItems.length + ") تعديل محلياً على الجهاز."));
+      ? ("تم حفظ (" + updatedItems.length + ") تعديل بالسعر النهائي ومزامنته مع المتجر.")
+      : ("تم حفظ (" + updatedItems.length + ") تعديل بالسعر النهائي محلياً على الجهاز."));
 
     isSaving = false;
     if (saveBtn) saveBtn.disabled = false;
@@ -398,18 +422,17 @@
         snap.forEach(function (doc) {
           if (doc.id.indexOf("_") !== 0) {
             var d = doc.data();
-            var priceVal = d && d.p !== undefined ? d.p : (d && d.price !== undefined ? d.price : undefined);
-            if (d && d.name && priceVal !== undefined) {
+            if (d && d.name && d.p !== undefined) {
               cloudProds.push({
                 id: isNaN(Number(doc.id)) ? doc.id : Number(doc.id),
                 name: d.name,
                 c: d.c || "oth",
-                p: Number(priceVal)
+                p: Number(d.p)
               });
             }
           }
         });
-        if (cloudProds.length > 0) {
+        if (cloudProds.length >= DEFAULT_PRODUCTS.length) {
           cloudProds.sort(function (a, b) { return (Number(a.id) || 0) - (Number(b.id) || 0); });
           PRODUCTS = cloudProds;
           saveLocalProducts(PRODUCTS);
@@ -440,7 +463,7 @@
     var text = buildCopyText();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () {
-        alert("تم نسخ قائمة الأسعار.");
+        alert("تم نسخ قائمة الأسعار بالسعر النهائي.");
       }, function () {
         prompt("انسخ النص التالي:", text);
       });
