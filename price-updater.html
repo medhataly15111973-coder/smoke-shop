@@ -2,19 +2,22 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>تعديل الأسعار السريع - Smoke Shop</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <style>
   * { box-sizing: border-box; font-family: Tahoma, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-  body { margin: 0; padding: 0 0 95px 0; background: #090d16; color: #f8fafc; }
+  body { margin: 0; padding: 0 0 96px 0; background: #090d16; color: #f8fafc; }
   header { position: sticky; top: 0; z-index: 30; background: #111827; border-bottom: 1px solid #1f2937; padding: 12px 16px; }
-  .header-inner { max-width: 520px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-  .brand { display: flex; align-items: center; gap: 10px; }
-  .brand-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .header-inner { max-width: 540px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
   .brand h1 { margin: 0; font-size: 15px; color: #fbbf24; }
   .brand p { margin: 2px 0 0; font-size: 11px; color: #94a3b8; }
   .badge { font-size: 11px; font-weight: bold; padding: 5px 10px; border-radius: 999px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); white-space: nowrap; }
-  main { max-width: 520px; margin: 14px auto 0; padding: 0 12px; }
+  .badge.warn { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
+  main { max-width: 540px; margin: 14px auto 0; padding: 0 12px; }
   .card { background: #111827; border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 16px; padding: 14px; }
   .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
   .card-top h2 { margin: 0; font-size: 15px; color: #fbbf24; }
@@ -33,22 +36,19 @@
   .item-sub.up { color: #fbbf24; font-weight: bold; }
   .item-sub.down { color: #34d399; font-weight: bold; }
   .price-box { display: flex; align-items: center; gap: 6px; }
-  .price-input { width: 82px; background: #111827; color: #fcd34d; border: 1px solid #334155; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: bold; text-align: center; outline: none; }
+  .price-input { width: 84px; background: #111827; color: #fcd34d; border: 1px solid #334155; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: bold; text-align: center; outline: none; }
   .currency { font-size: 11px; color: #94a3b8; }
   .footer-bar { margin-top: 12px; padding-top: 8px; border-top: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
   .link-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px 0; font-size: 11px; }
-  .link-btn:hover { color: #fbbf24; }
   .link-btn.reset:hover { color: #f87171; }
-  .bottom-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: #111827; border-top: 1px solid #1f2937; padding: 10px 12px; }
-  .bottom-inner { max-width: 520px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
-  .btn-copy { background: #1e293b; color: #f8fafc; border: 1px solid #334155; border-radius: 12px; padding: 11px; font-size: 12px; font-weight: bold; cursor: pointer; }
-  .btn-save { background: #059669; color: #ffffff; border: none; border-radius: 12px; padding: 11px; font-size: 12px; font-weight: bold; cursor: pointer; }
+  .bottom-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #111827; border-top: 1px solid #1f2937; padding: 10px 12px; }
+  .bottom-inner { max-width: 540px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+  .btn-copy { background: #1e293b; color: #f8fafc; border: 1px solid #334155; border-radius: 12px; padding: 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
+  .btn-save { background: #059669; color: #ffffff; border: none; border-radius: 12px; padding: 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
   .btn-save:hover { background: #10b981; }
   .btn-save:disabled { opacity: 0.65; cursor: not-allowed; }
   .empty { text-align: center; padding: 28px 12px; color: #64748b; font-size: 12px; background: #090d16; border: 1px solid #1e293b; border-radius: 12px; }
 </style>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -58,7 +58,7 @@
       <div class="brand-icon">🏷️</div>
       <div>
         <h1>SMOKE SHOP</h1>
-        <p>تطبيق تعديل الأسعار السريع</p>
+        <p>تعديل الأسعار والمزامنة الفورية</p>
       </div>
     </div>
     <span id="itemsCountBadge" class="badge">جاهز</span>
@@ -70,7 +70,7 @@
     <div class="card-top">
       <div>
         <h2>📱 التعديل السريع للأسعار</h2>
-        <p>اختر القسم أو ابحث بالاسم، وعدّل السعر مباشرة، ثم أرسل التعديلات على واتساب.</p>
+        <p>اختر القسم أو ابحث بالاسم، عدّل السعر مباشرة، ثم اضغط حفظ ومزامنة لتحديث المتجر فوراً.</p>
       </div>
       <span id="mobileModifiedBadge" class="mod-badge">0 معدّل</span>
     </div>
@@ -85,9 +85,7 @@
     <div id="mobileQuickPriceList" class="list"></div>
 
     <div class="footer-bar">
-      <button type="button" id="phoneBtn" class="link-btn">
-        ⚙️ واتساب الإدارة: <strong id="targetPhonePreview" style="color:#fcd34d;">01221143854</strong>
-      </button>
+      <span style="color:#94a3b8;">🔄 مزامنة تلقائية مع Firestore و localStorage</span>
       <button type="button" id="resetBtn" class="link-btn reset">
         ↺ تراجع عن التعديلات
       </button>
@@ -104,6 +102,24 @@
 
 <script>
 (function () {
+  var firebaseConfig = {
+    apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
+    authDomain: "smokeshop-40107.firebaseapp.com",
+    projectId: "smokeshop-40107",
+    storageBucket: "smokeshop-40107.firebasestorage.app",
+    messagingSenderId: "374658562456",
+    appId: "1:374658562456:web:f88582e223579683a0d3ed",
+    measurementId: "G-R420RTFBFV"
+  };
+
+  var db = null;
+  try {
+    if (window.firebase) {
+      var fbApp = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(firebaseConfig);
+      db = fbApp.firestore();
+    }
+  } catch (e) {}
+
   var CATEGORIES = [
     { id: "all", n: "كل الأقسام" },
     { id: "local", n: "سجائر محلي" },
@@ -113,7 +129,7 @@
     { id: "mol", n: "تبغ وتوباكو" }
   ];
 
-  var PRODUCTS = [
+  var DEFAULT_PRODUCTS = [
     { id: 1, name: "كيلوباترا", c: "local", p: 485 },
     { id: 2, name: "بوكس", c: "local", p: 485 },
     { id: 3, name: "سوبر", c: "local", p: 495 },
@@ -155,56 +171,56 @@
     { id: 39, name: "برج ٥0", c: "mol", p: 950 }
   ];
 
-  var firebaseConfig = {
-    apiKey: "AIzaSyDAxEZQCBYcTAFDtaGViL56ppV_Iuxk3fQ",
-    authDomain: "smokeshop-40107.firebaseapp.com",
-    projectId: "smokeshop-40107",
-    storageBucket: "smokeshop-40107.firebasestorage.app",
-    messagingSenderId: "374658562456",
-    appId: "1:374658562456:web:f88582e223579683a0d3ed",
-    measurementId: "G-R420RTFBFV"
-  };
+  function loadInitialProducts() {
+    try {
+      var raw = localStorage.getItem("sp_p");
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length >= DEFAULT_PRODUCTS.length) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return DEFAULT_PRODUCTS.slice();
+  }
 
-  var db = null;
-  try {
-    if (window.firebase) {
-      var fbApp = firebase.apps && firebase.apps.length ? firebase.app() : firebase.initializeApp(firebaseConfig);
-      db = fbApp.firestore();
-    }
-  } catch (e) {}
+  function saveLocalProducts(list) {
+    try { localStorage.setItem("sp_p", JSON.stringify(list)); } catch (e) {}
+  }
 
-  var isSaving = false;
-  try {
-    var savedProds = JSON.parse(localStorage.getItem("sp_p") || "null");
-    if (Array.isArray(savedProds) && savedProds.length > 0) PRODUCTS = savedProds;
-  } catch (e) {}
-
-  var adminPhone = "01221143854";
+  var PRODUCTS = loadInitialProducts();
   var pendingPrices = {};
+  var isSaving = false;
 
   var catSelect = document.getElementById("mobileQuickCatSelect");
   var searchInput = document.getElementById("mobileQuickSearch");
   var listContainer = document.getElementById("mobileQuickPriceList");
   var modBadge = document.getElementById("mobileModifiedBadge");
-  var phonePreview = document.getElementById("targetPhonePreview");
   var itemsBadge = document.getElementById("itemsCountBadge");
+  var saveBtn = document.getElementById("saveBtn");
 
-  try {
-    var savedPhone = localStorage.getItem("sp_price_editor_phone");
-    if (savedPhone) adminPhone = savedPhone;
-  } catch (e) {}
-
-  phonePreview.textContent = adminPhone;
-  itemsBadge.textContent = PRODUCTS.length + " صنف";
+  function setStatusBadge(text, isWarn) {
+    if (!itemsBadge) return;
+    itemsBadge.textContent = text;
+    itemsBadge.className = isWarn ? "badge warn" : "badge";
+  }
 
   function buildCategoryOptions() {
+    var prev = catSelect.value || "all";
     var html = "";
     for (var i = 0; i < CATEGORIES.length; i++) {
       var cat = CATEGORIES[i];
-      var count = cat.id === "all" ? PRODUCTS.length : PRODUCTS.filter(function (p) { return p.c === cat.id; }).length;
+      var count = cat.id === "all"
+        ? PRODUCTS.length
+        : PRODUCTS.filter(function (p) { return String(p.c) === String(cat.id); }).length;
       html += '<option value="' + cat.id + '">' + cat.n + " (" + count + ")</option>";
     }
     catSelect.innerHTML = html;
+    if (CATEGORIES.some(function (c) { return c.id === prev; })) {
+      catSelect.value = prev;
+    } else {
+      catSelect.value = "all";
+    }
   }
 
   function getModifiedList() {
@@ -269,8 +285,8 @@
     var rowsHtml = "";
     for (var i = 0; i < PRODUCTS.length; i++) {
       var p = PRODUCTS[i];
-      var matchCat = (selectedCat === "all" || p.c === selectedCat);
-      var matchQuery = (!query || p.name.toLowerCase().indexOf(query) !== -1);
+      var matchCat = (selectedCat === "all" || String(p.c) === String(selectedCat));
+      var matchQuery = (!query || String(p.name || "").toLowerCase().indexOf(query) !== -1);
       if (!matchCat || !matchQuery) continue;
 
       var key = String(p.id);
@@ -289,7 +305,7 @@
             '<p id="sub-' + key + '" class="' + subClass + '">' + subText + '</p>' +
           '</div>' +
           '<div class="price-box">' +
-            '<input type="number" class="price-input" data-id="' + key + '" value="' + shownVal + '">' +
+            '<input type="number" inputmode="numeric" class="price-input" data-id="' + key + '" value="' + shownVal + '">' +
             '<span class="currency">ج.م</span>' +
           '</div>' +
         '</div>';
@@ -313,50 +329,6 @@
     }
   }
 
-  function buildMessage() {
-    var mods = getModifiedList();
-    if (!mods.length) return "";
-    var lines = ["📋 *تحديث أسعار - Smoke Shop*"];
-    for (var i = 0; i < mods.length; i++) {
-      lines.push(mods[i].name + " " + mods[i].newPrice);
-    }
-    return lines.join("\n");
-  }
-
-
-  document.getElementById("copyBtn").addEventListener("click", function () {
-    var msg = buildMessage();
-    if (!msg) { alert("عدّل سعراً واحداً على الأقل أولاً."); return; }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(msg).then(function () { alert("تم نسخ التعديلات."); }, function () { prompt("انسخ النص التالي:", msg); });
-    } else {
-      prompt("انسخ النص التالي:", msg);
-    }
-  });
-
-  document.getElementById("resetBtn").addEventListener("click", function () {
-    pendingPrices = {};
-    renderList();
-    updateBadge();
-  });
-
-  document.getElementById("phoneBtn").addEventListener("click", function () {
-    var nextPhone = prompt("أدخل رقم واتساب الإدارة:", adminPhone);
-    if (nextPhone && nextPhone.trim()) {
-      adminPhone = nextPhone.trim();
-      phonePreview.textContent = adminPhone;
-      try { localStorage.setItem("sp_price_editor_phone", adminPhone); } catch (e) {}
-    }
-  });
-
-  catSelect.addEventListener("change", renderList);
-  searchInput.addEventListener("input", renderList);
-
-
-  function persistLocalProducts() {
-    try { localStorage.setItem("sp_p", JSON.stringify(PRODUCTS)); } catch (e) {}
-  }
-
   async function saveChanges() {
     if (isSaving) return;
     var mods = getModifiedList();
@@ -366,9 +338,8 @@
     }
 
     isSaving = true;
-    var saveEl = document.getElementById("saveBtn");
-    if (saveEl) saveEl.disabled = true;
-    itemsBadge.textContent = "جاري الحفظ...";
+    if (saveBtn) saveBtn.disabled = true;
+    setStatusBadge("جاري الحفظ...", true);
 
     var updatedItems = [];
     for (var i = 0; i < mods.length; i++) {
@@ -381,7 +352,7 @@
     }
 
     pendingPrices = {};
-    persistLocalProducts();
+    saveLocalProducts(PRODUCTS);
 
     var synced = false;
     if (db && updatedItems.length > 0) {
@@ -390,7 +361,12 @@
         for (var j = 0; j < updatedItems.length; j++) {
           var item = updatedItems[j];
           var ref = db.collection("products").doc(String(item.id));
-          batch.set(ref, { p: item.p }, { merge: true });
+          batch.set(ref, {
+            id: item.id,
+            name: item.name,
+            c: item.c,
+            p: item.p
+          }, { merge: true });
         }
         await batch.commit();
         synced = true;
@@ -402,14 +378,17 @@
     buildCategoryOptions();
     renderList();
     updateBadge();
-    itemsBadge.textContent = synced ? "تمت المزامنة ✅" : "محلي ⚠️";
-    alert(synced ? ("تم حفظ (" + updatedItems.length + ") تعديل ومزامنته.") : ("تم حفظ (" + updatedItems.length + ") تعديل محلياً."));
+    setStatusBadge(synced ? (PRODUCTS.length + " صنف ✅") : (PRODUCTS.length + " صنف ⚠️"), !synced);
+    alert(synced
+      ? ("تم حفظ (" + updatedItems.length + ") تعديل ومزامنته مع المتجر.")
+      : ("تم حفظ (" + updatedItems.length + ") تعديل محلياً على الجهاز."));
 
     isSaving = false;
-    if (saveEl) saveEl.disabled = false;
+    if (saveBtn) saveBtn.disabled = false;
   }
 
   function startAutoSync() {
+    setStatusBadge(PRODUCTS.length + " صنف", false);
     if (!db) return;
     try {
       db.collection("products").onSnapshot(function (snap) {
@@ -428,24 +407,59 @@
             }
           }
         });
-        if (cloudProds.length > 0) {
+        if (cloudProds.length >= DEFAULT_PRODUCTS.length) {
           cloudProds.sort(function (a, b) { return (Number(a.id) || 0) - (Number(b.id) || 0); });
           PRODUCTS = cloudProds;
-          persistLocalProducts();
+          saveLocalProducts(PRODUCTS);
           buildCategoryOptions();
           renderList();
           updateBadge();
-          itemsBadge.textContent = PRODUCTS.length + " صنف ✅";
+          setStatusBadge(PRODUCTS.length + " صنف ✅", false);
         }
       });
     } catch (e) {}
   }
 
-  document.getElementById("saveBtn").addEventListener("click", saveChanges);
-  startAutoSync();
+  function buildCopyText() {
+    var mods = getModifiedList();
+    var target = mods.length ? mods : PRODUCTS.map(function (p) {
+      return { name: p.name, newPrice: p.p };
+    });
+    var lines = ["تحديث أسعار Smoke Shop"];
+    for (var i = 0; i < target.length; i++) {
+      lines.push(target[i].name + ": " + target[i].newPrice + " ج.م");
+    }
+    return lines.join("\n");
+  }
+
+  saveBtn.addEventListener("click", saveChanges);
+
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    var text = buildCopyText();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        alert("تم نسخ قائمة الأسعار.");
+      }, function () {
+        prompt("انسخ النص التالي:", text);
+      });
+    } else {
+      prompt("انسخ النص التالي:", text);
+    }
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    pendingPrices = {};
+    renderList();
+    updateBadge();
+  });
+
+  catSelect.addEventListener("change", renderList);
+  searchInput.addEventListener("input", renderList);
+
   buildCategoryOptions();
   renderList();
   updateBadge();
+  startAutoSync();
 })();
 </script>
 </body>
