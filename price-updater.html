@@ -169,8 +169,18 @@
     { id: 39, name: "برج ٥0", c: "mol", p: 950 }
   ];
 
+  // إضافة 5 جنيه لسجائر محلي و20 جنيه لباقي الأقسام عند الإرسال للتطبيق
   function getCategoryMarkup(catId) {
     return String(catId) === "local" ? 5 : 20;
+  }
+
+  // السعر الأساسي المعروض داخل صفحة التعديل بدون الزيادة
+  function getDisplayBasePrice(prod) {
+    var rawP = Math.round(Number(prod && prod.p) || 0);
+    if (prod && prod._updaterBaseP !== undefined && !isNaN(Number(prod._updaterBaseP))) {
+      return Math.round(Number(prod._updaterBaseP));
+    }
+    return rawP;
   }
 
   function loadInitialProducts() {
@@ -232,16 +242,15 @@
       var prod = PRODUCTS[i];
       var key = String(prod.id);
       if (pendingPrices[key] !== undefined) {
-        var oldP = Math.round(Number(prod.p) || 0);
+        var shownBaseP = getDisplayBasePrice(prod);
         var enteredP = Math.round(Number(pendingPrices[key]));
-        if (!isNaN(enteredP) && enteredP > 0 && enteredP !== oldP) {
+        if (!isNaN(enteredP) && enteredP > 0 && enteredP !== shownBaseP) {
           var finalP = enteredP + getCategoryMarkup(prod.c);
           result.push({
             id: prod.id,
             name: prod.name,
             c: prod.c,
-            oldPrice: oldP,
-            enteredPrice: enteredP,
+            basePrice: enteredP,
             finalPrice: finalP
           });
         }
@@ -265,17 +274,17 @@
       return "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)];
     }).trim();
 
-    var oldP = Math.round(Number(prod.p) || 0);
+    var shownBaseP = getDisplayBasePrice(prod);
     var num = parseInt(cleaned, 10);
 
-    if (cleaned === "" || isNaN(num) || num === oldP) {
+    if (cleaned === "" || isNaN(num) || num === shownBaseP) {
       delete pendingPrices[key];
     } else {
       pendingPrices[key] = num;
     }
 
     var rowEl = document.getElementById("row-" + key);
-    var isMod = pendingPrices[key] !== undefined && pendingPrices[key] > 0 && pendingPrices[key] !== oldP;
+    var isMod = pendingPrices[key] !== undefined && pendingPrices[key] > 0 && pendingPrices[key] !== shownBaseP;
     if (rowEl) rowEl.className = isMod ? "row modified" : "row";
 
     updateBadge();
@@ -293,15 +302,15 @@
       if (!matchCat || !matchQuery) continue;
 
       var key = String(p.id);
-      var oldP = Math.round(Number(p.p) || 0);
-      var hasPending = pendingPrices[key] !== undefined && pendingPrices[key] > 0 && pendingPrices[key] !== oldP;
-      var shownVal = hasPending ? pendingPrices[key] : oldP;
+      var shownBaseP = getDisplayBasePrice(p);
+      var hasPending = pendingPrices[key] !== undefined && pendingPrices[key] > 0 && pendingPrices[key] !== shownBaseP;
+      var shownVal = hasPending ? pendingPrices[key] : shownBaseP;
 
       rowsHtml +=
         '<div id="row-' + key + '" class="' + (hasPending ? "row modified" : "row") + '">' +
           '<div class="item-info">' +
             '<p class="item-name">' + p.name + '</p>' +
-            '<p class="item-sub">الحالي: ' + oldP + ' ج.م</p>' +
+            '<p class="item-sub">الحالي: ' + shownBaseP + ' ج.م</p>' +
           '</div>' +
           '<div class="price-box">' +
             '<input type="number" inputmode="numeric" class="price-input" data-id="' + key + '" value="' + shownVal + '">' +
@@ -346,6 +355,7 @@
       var m = mods[i];
       var found = PRODUCTS.find(function (p) { return String(p.id) === String(m.id); });
       if (found) {
+        found._updaterBaseP = m.basePrice;
         found.p = m.finalPrice;
         updatedItems.push(found);
       }
@@ -365,7 +375,8 @@
             id: item.id,
             name: item.name,
             c: item.c,
-            p: item.p
+            p: item.p,
+            _updaterBaseP: item._updaterBaseP
           }, { merge: true });
         }
         await batch.commit();
@@ -395,11 +406,19 @@
           if (doc.id.indexOf("_") !== 0) {
             var d = doc.data();
             if (d && d.name && d.p !== undefined) {
+              var localMatch = PRODUCTS.find(function (lp) { return String(lp.id) === String(doc.id); });
+              var baseVal = (d._updaterBaseP !== undefined && !isNaN(Number(d._updaterBaseP)))
+                ? Number(d._updaterBaseP)
+                : (localMatch && localMatch._updaterBaseP !== undefined && !isNaN(Number(localMatch._updaterBaseP))
+                    ? Number(localMatch._updaterBaseP)
+                    : Number(d.p));
+
               cloudProds.push({
                 id: isNaN(Number(doc.id)) ? doc.id : Number(doc.id),
                 name: d.name,
                 c: d.c || "oth",
-                p: Number(d.p)
+                p: Number(d.p),
+                _updaterBaseP: baseVal
               });
             }
           }
