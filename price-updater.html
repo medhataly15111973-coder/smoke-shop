@@ -40,6 +40,7 @@
   .currency { font-size: 11px; color: #94a3b8; }
   .footer-bar { margin-top: 12px; padding-top: 8px; border-top: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
   .link-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px 0; font-size: 11px; }
+  .link-btn:hover { color: #fbbf24; }
   .link-btn.reset:hover { color: #f87171; }
   .bottom-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #111827; border-top: 1px solid #1f2937; padding: 10px 12px; }
   .bottom-inner { max-width: 540px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
@@ -176,7 +177,7 @@
       var raw = localStorage.getItem("sp_p");
       if (raw) {
         var parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length >= DEFAULT_PRODUCTS.length) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed;
         }
       }
@@ -397,17 +398,18 @@
         snap.forEach(function (doc) {
           if (doc.id.indexOf("_") !== 0) {
             var d = doc.data();
-            if (d && d.name && d.p !== undefined) {
+            var priceVal = d && d.p !== undefined ? d.p : (d && d.price !== undefined ? d.price : undefined);
+            if (d && d.name && priceVal !== undefined) {
               cloudProds.push({
                 id: isNaN(Number(doc.id)) ? doc.id : Number(doc.id),
                 name: d.name,
                 c: d.c || "oth",
-                p: Number(d.p)
+                p: Number(priceVal)
               });
             }
           }
         });
-        if (cloudProds.length >= DEFAULT_PRODUCTS.length) {
+        if (cloudProds.length > 0) {
           cloudProds.sort(function (a, b) { return (Number(a.id) || 0) - (Number(b.id) || 0); });
           PRODUCTS = cloudProds;
           saveLocalProducts(PRODUCTS);
