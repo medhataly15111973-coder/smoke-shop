@@ -5,268 +5,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>تعديل الأسعار السريع - Smoke Shop</title>
 <style>
-  * {
-    box-sizing: border-box;
-    font-family: Tahoma, Arial, sans-serif;
-  }
-  body {
-    margin: 0;
-    padding: 0 0 95px 0;
-    background: #090d16;
-    color: #f8fafc;
-  }
-  header {
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    background: #111827;
-    border-bottom: 1px solid #1f2937;
-    padding: 12px 16px;
-  }
-  .header-inner {
-    max-width: 520px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .brand-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    background: rgba(245, 158, 11, 0.15);
-    border: 1px solid rgba(245, 158, 11, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-  }
-  .brand h1 {
-    margin: 0;
-    font-size: 15px;
-    color: #fbbf24;
-  }
-  .brand p {
-    margin: 2px 0 0;
-    font-size: 11px;
-    color: #94a3b8;
-  }
-  .badge {
-    font-size: 11px;
-    font-weight: bold;
-    padding: 5px 10px;
-    border-radius: 999px;
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.35);
-    white-space: nowrap;
-  }
-  main {
-    max-width: 520px;
-    margin: 14px auto 0;
-    padding: 0 12px;
-  }
-  .card {
-    background: #111827;
-    border: 1px solid rgba(245, 158, 11, 0.35);
-    border-radius: 16px;
-    padding: 14px;
-  }
-  .card-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-  .card-top h2 {
-    margin: 0;
-    font-size: 15px;
-    color: #fbbf24;
-  }
-  .card-top p {
-    margin: 4px 0 0;
-    font-size: 11px;
-    color: #94a3b8;
-    line-height: 1.5;
-  }
-  .mod-badge {
-    font-size: 11px;
-    font-weight: bold;
-    padding: 5px 10px;
-    border-radius: 999px;
-    background: #1e293b;
-    color: #94a3b8;
-    white-space: nowrap;
-  }
-  .mod-badge.active {
-    background: rgba(16, 185, 129, 0.2);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.45);
-  }
-  .filters {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  select, input[type="text"] {
-    width: 100%;
-    background: #090d16;
-    color: #f8fafc;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    padding: 9px 10px;
-    font-size: 12px;
-    outline: none;
-  }
-  select:focus, input[type="text"]:focus, input[type="number"]:focus {
-    border-color: #f59e0b;
-  }
-  .list {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    max-height: 58vh;
-    overflow-y: auto;
-  }
-  .row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    background: #090d16;
-    border: 1px solid #1e293b;
-    border-radius: 12px;
-    padding: 10px;
-  }
-  .row.modified {
-    background: rgba(6, 78, 59, 0.35);
-    border-color: rgba(16, 185, 129, 0.55);
-  }
-  .item-info {
-    min-width: 0;
-    flex: 1;
-  }
-  .item-name {
-    margin: 0;
-    font-size: 13px;
-    font-weight: bold;
-    color: #ffffff;
-  }
-  .item-sub {
-    margin: 3px 0 0;
-    font-size: 11px;
-    color: #64748b;
-  }
-  .item-sub.up {
-    color: #fbbf24;
-    font-weight: bold;
-  }
-  .item-sub.down {
-    color: #34d399;
-    font-weight: bold;
-  }
-  .price-box {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .price-input {
-    width: 82px;
-    background: #111827;
-    color: #fcd34d;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 6px 8px;
-    font-size: 13px;
-    font-weight: bold;
-    text-align: center;
-    outline: none;
-  }
-  .currency {
-    font-size: 11px;
-    color: #94a3b8;
-  }
-  .footer-bar {
-    margin-top: 12px;
-    padding-top: 8px;
-    border-top: 1px solid #1e293b;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 11px;
-  }
-  .link-btn {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    cursor: pointer;
-    padding: 4px 0;
-    font-size: 11px;
-  }
-  .link-btn:hover {
-    color: #fbbf24;
-  }
-  .link-btn.reset:hover {
-    color: #f87171;
-  }
-  .bottom-actions {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 30;
-    background: #111827;
-    border-top: 1px solid #1f2937;
-    padding: 10px 12px;
-  }
-  .bottom-inner {
-    max-width: 520px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .btn-copy {
-    background: #1e293b;
-    color: #f8fafc;
-    border: 1px solid #334155;
-    border-radius: 12px;
-    padding: 11px;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-  }
-  .btn-wa {
-    background: #059669;
-    color: #ffffff;
-    border: none;
-    border-radius: 12px;
-    padding: 11px;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-  }
-  .btn-wa:hover {
-    background: #10b981;
-  }
-  .empty {
-    text-align: center;
-    padding: 28px 12px;
-    color: #64748b;
-    font-size: 12px;
-    background: #090d16;
-    border: 1px solid #1e293b;
-    border-radius: 12px;
-  }
+  * { box-sizing: border-box; font-family: Tahoma, Arial, sans-serif; }
+  body { margin: 0; padding: 0 0 95px 0; background: #090d16; color: #f8fafc; }
+  header { position: sticky; top: 0; z-index: 30; background: #111827; border-bottom: 1px solid #1f2937; padding: 12px 16px; }
+  .header-inner { max-width: 520px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .brand h1 { margin: 0; font-size: 15px; color: #fbbf24; }
+  .brand p { margin: 2px 0 0; font-size: 11px; color: #94a3b8; }
+  .badge { font-size: 11px; font-weight: bold; padding: 5px 10px; border-radius: 999px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); white-space: nowrap; }
+  main { max-width: 520px; margin: 14px auto 0; padding: 0 12px; }
+  .card { background: #111827; border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 16px; padding: 14px; }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+  .card-top h2 { margin: 0; font-size: 15px; color: #fbbf24; }
+  .card-top p { margin: 4px 0 0; font-size: 11px; color: #94a3b8; line-height: 1.5; }
+  .mod-badge { font-size: 11px; font-weight: bold; padding: 5px 10px; border-radius: 999px; background: #1e293b; color: #94a3b8; white-space: nowrap; }
+  .mod-badge.active { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); }
+  .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  select, input[type="text"] { width: 100%; background: #090d16; color: #f8fafc; border: 1px solid #334155; border-radius: 10px; padding: 9px 10px; font-size: 12px; outline: none; }
+  select:focus, input[type="text"]:focus, input[type="number"]:focus { border-color: #f59e0b; }
+  .list { display: flex; flex-direction: column; gap: 7px; max-height: 58vh; overflow-y: auto; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #090d16; border: 1px solid #1e293b; border-radius: 12px; padding: 10px; }
+  .row.modified { background: rgba(6, 78, 59, 0.35); border-color: rgba(16, 185, 129, 0.55); }
+  .item-info { min-width: 0; flex: 1; }
+  .item-name { margin: 0; font-size: 13px; font-weight: bold; color: #ffffff; }
+  .item-sub { margin: 3px 0 0; font-size: 11px; color: #64748b; }
+  .item-sub.up { color: #fbbf24; font-weight: bold; }
+  .item-sub.down { color: #34d399; font-weight: bold; }
+  .price-box { display: flex; align-items: center; gap: 6px; }
+  .price-input { width: 82px; background: #111827; color: #fcd34d; border: 1px solid #334155; border-radius: 8px; padding: 6px 8px; font-size: 13px; font-weight: bold; text-align: center; outline: none; }
+  .currency { font-size: 11px; color: #94a3b8; }
+  .footer-bar { margin-top: 12px; padding-top: 8px; border-top: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
+  .link-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px 0; font-size: 11px; }
+  .link-btn:hover { color: #fbbf24; }
+  .link-btn.reset:hover { color: #f87171; }
+  .bottom-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: #111827; border-top: 1px solid #1f2937; padding: 10px 12px; }
+  .bottom-inner { max-width: 520px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-copy { background: #1e293b; color: #f8fafc; border: 1px solid #334155; border-radius: 12px; padding: 11px; font-size: 12px; font-weight: bold; cursor: pointer; }
+  .btn-wa { background: #059669; color: #ffffff; border: none; border-radius: 12px; padding: 11px; font-size: 12px; font-weight: bold; cursor: pointer; }
+  .btn-wa:hover { background: #10b981; }
+  .empty { text-align: center; padding: 28px 12px; color: #64748b; font-size: 12px; background: #090d16; border: 1px solid #1e293b; border-radius: 12px; }
 </style>
 </head>
 <body>
@@ -389,14 +167,6 @@
     if (savedPhone) adminPhone = savedPhone;
   } catch (e) {}
 
-  try {
-    var params = new URLSearchParams(window.location.search);
-    if (params.get("phone")) {
-      adminPhone = params.get("phone").trim();
-      try { localStorage.setItem("sp_price_editor_phone", adminPhone); } catch (e) {}
-    }
-  } catch (e) {}
-
   phonePreview.textContent = adminPhone;
   itemsBadge.textContent = PRODUCTS.length + " صنف";
 
@@ -404,16 +174,8 @@
     var html = "";
     for (var i = 0; i < CATEGORIES.length; i++) {
       var cat = CATEGORIES[i];
-      var count = 0;
-      if (cat.id === "all") {
-        count = PRODUCTS.length;
-      } else {
-        for (var j = 0; j < PRODUCTS.length; j++) {
-          if (PRODUCTS[j].c === cat.id) count++;
-        }
-      }
-      var label = (cat.id === "all" ? "✨ " : "") + cat.n + " (" + count + ")";
-      html += '<option value="' + cat.id + '">' + label + "</option>";
+      var count = cat.id === "all" ? PRODUCTS.length : PRODUCTS.filter(function (p) { return p.c === cat.id; }).length;
+      html += '<option value="' + cat.id + '">' + cat.n + " (" + count + ")</option>";
     }
     catSelect.innerHTML = html;
   }
@@ -427,13 +189,7 @@
         var oldP = Number(prod.p);
         var newP = Number(pendingPrices[key]);
         if (!isNaN(newP) && newP > 0 && newP !== oldP) {
-          result.push({
-            id: prod.id,
-            name: prod.name,
-            oldPrice: oldP,
-            newPrice: newP,
-            diff: newP - oldP
-          });
+          result.push({ id: prod.id, name: prod.name, oldPrice: oldP, newPrice: newP, diff: newP - oldP });
         }
       }
     }
@@ -442,24 +198,13 @@
 
   function updateBadge() {
     var count = getModifiedList().length;
-    if (count > 0) {
-      modBadge.textContent = count + " معدّل";
-      modBadge.className = "mod-badge active";
-    } else {
-      modBadge.textContent = "0 معدّل";
-      modBadge.className = "mod-badge";
-    }
+    modBadge.textContent = count + " معدّل";
+    modBadge.className = count > 0 ? "mod-badge active" : "mod-badge";
   }
 
   function handlePriceChange(prodId, rawVal) {
     var key = String(prodId);
-    var prod = null;
-    for (var i = 0; i < PRODUCTS.length; i++) {
-      if (String(PRODUCTS[i].id) === key) {
-        prod = PRODUCTS[i];
-        break;
-      }
-    }
+    var prod = PRODUCTS.find(function (p) { return String(p.id) === key; });
     if (!prod) return;
 
     var cleaned = String(rawVal || "").trim();
@@ -476,21 +221,17 @@
     var subEl = document.getElementById("sub-" + key);
     var isMod = pendingPrices[key] !== undefined && pendingPrices[key] > 0;
 
-    if (rowEl) {
-      rowEl.className = isMod ? "row modified" : "row";
-    }
+    if (rowEl) rowEl.className = isMod ? "row modified" : "row";
     if (subEl) {
       if (isMod) {
         var diff = pendingPrices[key] - oldP;
-        var sign = diff > 0 ? "+" : "";
-        subEl.textContent = oldP + " ← (" + sign + diff + ")";
+        subEl.textContent = oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ")";
         subEl.className = diff > 0 ? "item-sub up" : "item-sub down";
       } else {
         subEl.textContent = "الحالي: " + oldP + " ج.م";
         subEl.className = "item-sub";
       }
     }
-
     updateBadge();
   }
 
@@ -511,24 +252,20 @@
       var shownVal = hasPending ? pendingPrices[key] : oldP;
       var diff = hasPending ? (pendingPrices[key] - oldP) : 0;
 
-      var subClass = "item-sub";
-      var subText = "الحالي: " + oldP + " ج.م";
-      if (hasPending) {
-        subClass = diff > 0 ? "item-sub up" : "item-sub down";
-        subText = oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ")";
-      }
+      var subClass = hasPending ? (diff > 0 ? "item-sub up" : "item-sub down") : "item-sub";
+      var subText = hasPending ? (oldP + " ← (" + (diff > 0 ? "+" : "") + diff + ")") : ("الحالي: " + oldP + " ج.م");
 
       rowsHtml +=
         '<div id="row-' + key + '" class="' + (hasPending ? "row modified" : "row") + '">' +
           '<div class="item-info">' +
-            '<p class="item-name">' + p.name + "</p>" +
-            '<p id="sub-' + key + '" class="' + subClass + '">' + subText + "</p>" +
-          "</div>" +
+            '<p class="item-name">' + p.name + '</p>' +
+            '<p id="sub-' + key + '" class="' + subClass + '">' + subText + '</p>' +
+          '</div>' +
           '<div class="price-box">' +
             '<input type="number" class="price-input" data-id="' + key + '" value="' + shownVal + '">' +
             '<span class="currency">ج.م</span>' +
-          "</div>" +
-        "</div>";
+          '</div>' +
+        '</div>';
     }
 
     if (!rowsHtml) {
@@ -556,16 +293,12 @@
     for (var i = 0; i < mods.length; i++) {
       lines.push(mods[i].name + " " + mods[i].newPrice);
     }
-    return lines.join("
-");
+    return lines.join("\n");
   }
 
   document.getElementById("waBtn").addEventListener("click", function () {
     var msg = buildMessage();
-    if (!msg) {
-      alert("عدّل سعراً واحداً على الأقل أولاً.");
-      return;
-    }
+    if (!msg) { alert("عدّل سعراً واحداً على الأقل أولاً."); return; }
     var digits = String(adminPhone || "01221143854").replace(/\D/g, "");
     if (digits.indexOf("01") === 0) digits = "2" + digits;
     window.open("https://wa.me/" + digits + "?text=" + encodeURIComponent(msg), "_blank");
@@ -573,16 +306,9 @@
 
   document.getElementById("copyBtn").addEventListener("click", function () {
     var msg = buildMessage();
-    if (!msg) {
-      alert("عدّل سعراً واحداً على الأقل أولاً.");
-      return;
-    }
+    if (!msg) { alert("عدّل سعراً واحداً على الأقل أولاً."); return; }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(msg).then(function () {
-        alert("تم نسخ التعديلات.");
-      }, function () {
-        prompt("انسخ النص التالي:", msg);
-      });
+      navigator.clipboard.writeText(msg).then(function () { alert("تم نسخ التعديلات."); }, function () { prompt("انسخ النص التالي:", msg); });
     } else {
       prompt("انسخ النص التالي:", msg);
     }
